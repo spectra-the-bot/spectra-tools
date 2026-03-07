@@ -17,6 +17,14 @@ const chainOption = z
   .default(DEFAULT_CHAIN)
   .describe('Chain name (abstract, ethereum, base, arbitrum, ...)');
 
+function normalizeAddress(address: string): string {
+  try {
+    return checksumAddress(address);
+  } catch {
+    return address;
+  }
+}
+
 export const accountCli = Cli.create('account', {
   description: 'Query account balances, transactions, and token transfers',
 });
@@ -32,7 +40,7 @@ accountCli.command('balance', {
   async run(c) {
     const { apiKey } = apiKeyAuth('ETHERSCAN_API_KEY');
     const chainId = resolveChainId(c.options.chain);
-    const address = checksumAddress(c.args.address);
+    const address = normalizeAddress(c.args.address);
     const client = createEtherscanClient(apiKey);
     const wei = await withRateLimit(
       () =>
@@ -90,7 +98,7 @@ accountCli.command('txlist', {
   async run(c) {
     const { apiKey } = apiKeyAuth('ETHERSCAN_API_KEY');
     const chainId = resolveChainId(c.options.chain);
-    const address = checksumAddress(c.args.address);
+    const address = normalizeAddress(c.args.address);
     const client = createEtherscanClient(apiKey);
     const txs = await withRateLimit(
       () =>
@@ -109,8 +117,8 @@ accountCli.command('txlist', {
     );
     const formatted = txs.map((tx) => ({
       hash: tx.hash,
-      from: checksumAddress(tx.from),
-      to: tx.to ? checksumAddress(tx.to) : '',
+      from: normalizeAddress(tx.from),
+      to: tx.to ? normalizeAddress(tx.to) : '',
       value: tx.value,
       eth: weiToEth(tx.value),
       timestamp: formatTimestamp(Number(tx.timeStamp)),
@@ -164,7 +172,7 @@ accountCli.command('tokentx', {
   async run(c) {
     const { apiKey } = apiKeyAuth('ETHERSCAN_API_KEY');
     const chainId = resolveChainId(c.options.chain);
-    const address = checksumAddress(c.args.address);
+    const address = normalizeAddress(c.args.address);
     const client = createEtherscanClient(apiKey);
     const transfers = await withRateLimit(
       () =>
@@ -181,14 +189,14 @@ accountCli.command('tokentx', {
     );
     const formatted = transfers.map((tx) => ({
       hash: tx.hash,
-      from: checksumAddress(tx.from),
-      to: checksumAddress(tx.to),
+      from: normalizeAddress(tx.from),
+      to: normalizeAddress(tx.to),
       value: tx.value,
       token: tx.tokenSymbol,
       tokenName: tx.tokenName,
       decimals: tx.tokenDecimal,
       timestamp: formatTimestamp(Number(tx.timeStamp)),
-      contract: checksumAddress(tx.contractAddress),
+      contract: normalizeAddress(tx.contractAddress),
     }));
     return c.ok(
       { address, chain: c.options.chain, count: formatted.length, transfers: formatted },
@@ -219,8 +227,8 @@ accountCli.command('tokenbalance', {
   async run(c) {
     const { apiKey } = apiKeyAuth('ETHERSCAN_API_KEY');
     const chainId = resolveChainId(c.options.chain);
-    const address = checksumAddress(c.args.address);
-    const contract = checksumAddress(c.options.contractaddress);
+    const address = normalizeAddress(c.args.address);
+    const contract = normalizeAddress(c.options.contractaddress);
     const client = createEtherscanClient(apiKey);
     const balance = await withRateLimit(
       () =>
