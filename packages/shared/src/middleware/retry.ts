@@ -1,3 +1,5 @@
+import { HttpError } from '../utils/http.js';
+
 export interface RetryOptions {
   maxRetries: number;
   baseMs: number;
@@ -41,7 +43,7 @@ export async function withRetry<T>(fn: () => Promise<T>, options: RetryOptions):
 
       let delayMs: number;
 
-      if (err instanceof Response && (err.status === 429 || err.status === 503)) {
+      if (err instanceof HttpError && (err.status === 429 || err.status === 503)) {
         const retryAfterMs = parseRetryAfter(err.headers);
         delayMs = retryAfterMs ?? Math.min(baseMs * 2 ** attempt, maxMs);
       } else {

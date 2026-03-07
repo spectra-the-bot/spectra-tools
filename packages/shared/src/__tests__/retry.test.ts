@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { withRetry } from '../middleware/retry.js';
+import { HttpError } from '../utils/http.js';
 
 describe('withRetry', () => {
   it('returns immediately on success', async () => {
@@ -26,6 +27,41 @@ describe('withRetry', () => {
 
     expect(result).toBe('success');
     expect(fn).toHaveBeenCalledTimes(3);
+  });
+
+  it('respects Retry-After header for 429 HttpError', async () => {
+    vi.useFakeTimers();
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(1);
+
+    let calls = 0;
+    const fn = vi.fn().mockImplementation(async () => {
+      calls++;
+      if (calls === 1) {
+        throw new HttpError(
+          429,
+          'Too Many Requests',
+          'rate limited',
+          new Headers({ 'Retry-After': '2' }),
+        );
+      }
+      return 'ok';
+    });
+
+    try {
+      const promise = withRetry(fn, { maxRetries: 2, baseMs: 1, maxMs: 10 });
+
+      expect(fn).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(1999);
+      expect(fn).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(1);
+      await expect(promise).resolves.toBe('ok');
+      expect(fn).toHaveBeenCalledTimes(2);
+    } finally {
+      randomSpy.mockRestore();
+      vi.useRealTimers();
+    }
   });
 
   it('throws after maxRetries exhausted', async () => {

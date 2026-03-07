@@ -52,6 +52,26 @@ describe('createHttpClient', () => {
     await expect(client.request('/fail')).rejects.toThrow(HttpError);
   });
 
+  it('includes response headers in HttpError', async () => {
+    server.addRoute('GET', '/rate-limit', {
+      status: 429,
+      headers: {
+        'Content-Type': 'application/json',
+        'Retry-After': '5',
+      },
+      body: { error: 'too many requests' },
+    });
+    const client = createHttpClient({ baseUrl: server.url });
+
+    try {
+      await client.request('/rate-limit');
+      throw new Error('Expected request to throw HttpError');
+    } catch (err) {
+      expect(err).toBeInstanceOf(HttpError);
+      expect((err as HttpError).headers.get('retry-after')).toBe('5');
+    }
+  });
+
   it('skips null/undefined query params', async () => {
     server.addRoute('GET', '/q', { body: {} });
     const client = createHttpClient({ baseUrl: server.url });

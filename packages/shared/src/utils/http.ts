@@ -15,6 +15,7 @@ export class HttpError extends Error {
     public readonly status: number,
     public readonly statusText: string,
     public readonly body: string,
+    public readonly headers: Headers = new Headers(),
   ) {
     super(`HTTP ${status} ${statusText}: ${body}`);
     this.name = 'HttpError';
@@ -64,7 +65,7 @@ export function createHttpClient(options: HttpClientOptions) {
 
     if (!res.ok) {
       const text = await res.text();
-      throw new HttpError(res.status, res.statusText, text);
+      throw new HttpError(res.status, res.statusText, text, res.headers);
     }
 
     const contentType = res.headers.get('content-type') ?? '';
