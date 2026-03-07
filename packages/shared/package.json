@@ -35,6 +35,6 @@
     "vitest": "*"
   },
   "dependencies": {
-    "@noble/hashes": "^2.0.1"
+    "ox": "^0.14.0"
   }
 }

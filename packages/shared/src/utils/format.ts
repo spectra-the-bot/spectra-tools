@@ -1,5 +1,4 @@
-import { keccak_256 } from '@noble/hashes/sha3.js';
-import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js';
+import { Address } from 'ox';
 
 const ETH_DECIMALS = 18n;
 const WEI_PER_ETH = 10n ** ETH_DECIMALS;
@@ -20,24 +19,7 @@ export function weiToEth(wei: bigint | string, decimals = 6): string {
  * Accepts lowercase or mixed-case hex addresses.
  */
 export function checksumAddress(address: string): string {
-  const addr = address.toLowerCase().replace(/^0x/, '');
-  const hash = bytesToHex(keccak_256(utf8ToBytes(addr)));
-
-  let result = '0x';
-  for (let i = 0; i < addr.length; i++) {
-    const char = addr[i];
-    if (!char) continue;
-
-    if (/[0-9]/.test(char)) {
-      result += char;
-      continue;
-    }
-
-    const hashNibble = Number.parseInt(hash[i] ?? '0', 16);
-    result += hashNibble >= 8 ? char.toUpperCase() : char;
-  }
-
-  return result;
+  return Address.checksum(address);
 }
 
 /**
