@@ -1,7 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createMockServer } from '@spectra-the-bot/cli-shared/testing';
 import type { MockServer } from '@spectra-the-bot/cli-shared/testing';
 import { createHttpClient } from '@spectra-the-bot/cli-shared/utils';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 const MOCK_USER = {
   id: '12345',
@@ -51,9 +51,10 @@ describe('users API shape', () => {
     });
 
     const http = createHttpClient({ baseUrl: server.url });
-    const res = await http.request<{ data: Array<{ username: string }>; meta: { result_count: number } }>(
-      '/2/users/12345/followers',
-    );
+    const res = await http.request<{
+      data: Array<{ username: string }>;
+      meta: { result_count: number };
+    }>('/2/users/12345/followers');
     expect(res.data).toHaveLength(2);
     expect(res.data[0]?.username).toBe('alice');
     expect(res.meta.result_count).toBe(2);
@@ -63,14 +64,21 @@ describe('users API shape', () => {
     server.addRoute('GET', '/2/users/12345/tweets', {
       body: {
         data: [
-          { id: '100', text: 'Hello world', author_id: '12345', created_at: new Date().toISOString() },
+          {
+            id: '100',
+            text: 'Hello world',
+            author_id: '12345',
+            created_at: new Date().toISOString(),
+          },
         ],
         meta: { result_count: 1 },
       },
     });
 
     const http = createHttpClient({ baseUrl: server.url });
-    const res = await http.request<{ data: Array<{ id: string; text: string }> }>('/2/users/12345/tweets');
+    const res = await http.request<{ data: Array<{ id: string; text: string }> }>(
+      '/2/users/12345/tweets',
+    );
     expect(res.data[0]?.text).toBe('Hello world');
   });
 
@@ -78,14 +86,21 @@ describe('users API shape', () => {
     server.addRoute('GET', '/2/users/12345/mentions', {
       body: {
         data: [
-          { id: '200', text: '@jack awesome!', author_id: '999', created_at: new Date().toISOString() },
+          {
+            id: '200',
+            text: '@jack awesome!',
+            author_id: '999',
+            created_at: new Date().toISOString(),
+          },
         ],
         meta: { result_count: 1 },
       },
     });
 
     const http = createHttpClient({ baseUrl: server.url });
-    const res = await http.request<{ data: Array<{ id: string; text: string }> }>('/2/users/12345/mentions');
+    const res = await http.request<{ data: Array<{ id: string; text: string }> }>(
+      '/2/users/12345/mentions',
+    );
     expect(res.data[0]?.text).toBe('@jack awesome!');
   });
 

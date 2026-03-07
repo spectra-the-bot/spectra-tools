@@ -1,12 +1,12 @@
-import { Cli, z } from 'incur';
 import { checksumAddress, formatTimestamp } from '@spectra-the-bot/cli-shared';
+import { Cli, z } from 'incur';
 import { readContract, writeContract } from 'viem/actions';
-import { validationRegistryAbi, ValidationStatus } from '../contracts/abis.js';
+import { ValidationStatus, validationRegistryAbi } from '../contracts/abis.js';
 import {
-  getPublicClient,
-  getWalletClient,
-  getValidationRegistryAddress,
   abstractMainnet,
+  getPublicClient,
+  getValidationRegistryAddress,
+  getWalletClient,
 } from '../contracts/client.js';
 
 const validation = Cli.create('validation', {
@@ -42,13 +42,13 @@ validation.command('request', {
       args: { agentId: '1' },
       options: {
         validator: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
-        jobHash: '0x' + '00'.repeat(32),
+        jobHash: `0x${'00'.repeat(32)}`,
       },
       description: 'Request validation for agent #1',
     },
   ],
   async run(c) {
-    const privateKey = c.env['PRIVATE_KEY'];
+    const privateKey = c.env.PRIVATE_KEY;
     if (!privateKey) {
       return c.error({
         code: 'NO_PRIVATE_KEY',
@@ -57,8 +57,8 @@ validation.command('request', {
       });
     }
 
-    const walletClient = getWalletClient(privateKey, c.env['ABSTRACT_RPC_URL']);
-    const publicClient = getPublicClient(c.env['ABSTRACT_RPC_URL']);
+    const walletClient = getWalletClient(privateKey, c.env.ABSTRACT_RPC_URL);
+    const publicClient = getPublicClient(c.env.ABSTRACT_RPC_URL);
     const address = getValidationRegistryAddress(c.env);
 
     const jobHash = c.options.jobHash as `0x${string}`;
@@ -86,9 +86,7 @@ validation.command('request', {
 
     // Extract requestId from the ValidationRequested event
     const eventLog = receipt.logs[0];
-    const requestId = eventLog?.topics[1]
-      ? BigInt(eventLog.topics[1]).toString()
-      : 'unknown';
+    const requestId = eventLog?.topics[1] ? BigInt(eventLog.topics[1]).toString() : 'unknown';
 
     return c.ok(
       {
@@ -136,7 +134,7 @@ validation.command('status', {
   }),
   examples: [{ args: { requestId: '1' }, description: 'Get status of request #1' }],
   async run(c) {
-    const client = getPublicClient(c.env['ABSTRACT_RPC_URL']);
+    const client = getPublicClient(c.env.ABSTRACT_RPC_URL);
     const address = getValidationRegistryAddress(c.env);
 
     const result = await readContract(client, {
@@ -185,11 +183,9 @@ validation.command('history', {
     ),
     total: z.number(),
   }),
-  examples: [
-    { args: { agentId: '1' }, description: 'View validation history for agent #1' },
-  ],
+  examples: [{ args: { agentId: '1' }, description: 'View validation history for agent #1' }],
   async run(c) {
-    const client = getPublicClient(c.env['ABSTRACT_RPC_URL']);
+    const client = getPublicClient(c.env.ABSTRACT_RPC_URL);
     const address = getValidationRegistryAddress(c.env);
     const tokenId = BigInt(c.args.agentId);
 

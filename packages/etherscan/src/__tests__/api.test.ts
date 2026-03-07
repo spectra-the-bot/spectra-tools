@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createEtherscanClient, EtherscanError } from '../api.js';
+import { EtherscanError, createEtherscanClient } from '../api.js';
 
 function makeJsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -36,9 +36,7 @@ describe('createEtherscanClient', () => {
     });
 
     it('includes apikey in query params', async () => {
-      mockFetch.mockResolvedValue(
-        makeJsonResponse({ status: '1', message: 'OK', result: '0' }),
-      );
+      mockFetch.mockResolvedValue(makeJsonResponse({ status: '1', message: 'OK', result: '0' }));
       const client = createEtherscanClient('my-api-key', 'http://localhost');
       await client.call({ module: 'account', action: 'balance', address: '0xabc' });
       const url = (mockFetch.mock.calls[0]?.[0] as string) ?? '';
@@ -50,9 +48,9 @@ describe('createEtherscanClient', () => {
         makeJsonResponse({ status: '0', message: 'NOTOK', result: 'Invalid API Key' }),
       );
       const client = createEtherscanClient('bad-key', 'http://localhost');
-      await expect(client.call({ module: 'account', action: 'balance', address: '0xabc' })).rejects.toThrow(
-        EtherscanError,
-      );
+      await expect(
+        client.call({ module: 'account', action: 'balance', address: '0xabc' }),
+      ).rejects.toThrow(EtherscanError);
     });
 
     it('throws EtherscanError with message from result string', async () => {
@@ -64,9 +62,7 @@ describe('createEtherscanClient', () => {
     });
 
     it('includes all params in URL', async () => {
-      mockFetch.mockResolvedValue(
-        makeJsonResponse({ status: '1', message: 'OK', result: [] }),
-      );
+      mockFetch.mockResolvedValue(makeJsonResponse({ status: '1', message: 'OK', result: [] }));
       const client = createEtherscanClient('key', 'http://localhost');
       await client.call({ chainid: 2741, module: 'account', action: 'txlist', address: '0xabc' });
       const url = (mockFetch.mock.calls[0]?.[0] as string) ?? '';
@@ -76,9 +72,7 @@ describe('createEtherscanClient', () => {
     });
 
     it('skips undefined params', async () => {
-      mockFetch.mockResolvedValue(
-        makeJsonResponse({ status: '1', message: 'OK', result: '0' }),
-      );
+      mockFetch.mockResolvedValue(makeJsonResponse({ status: '1', message: 'OK', result: '0' }));
       const client = createEtherscanClient('key', 'http://localhost');
       await client.call({ module: 'account', action: 'balance', contractaddress: undefined });
       const url = (mockFetch.mock.calls[0]?.[0] as string) ?? '';
@@ -89,9 +83,7 @@ describe('createEtherscanClient', () => {
   describe('callProxy()', () => {
     it('returns result from JSON-RPC response', async () => {
       const txData = { hash: '0xabc', from: '0x1', to: '0x2', value: '0x0' };
-      mockFetch.mockResolvedValue(
-        makeJsonResponse({ jsonrpc: '2.0', id: 1, result: txData }),
-      );
+      mockFetch.mockResolvedValue(makeJsonResponse({ jsonrpc: '2.0', id: 1, result: txData }));
       const client = createEtherscanClient('key', 'http://localhost');
       const result = await client.callProxy<typeof txData>({
         chainid: 1,

@@ -1,9 +1,9 @@
 import { Cli, z } from 'incur';
-import { createAssemblyClient, ASSEMBLY_BASE_URL } from '../api.js';
+import { ASSEMBLY_BASE_URL, createAssemblyClient } from '../api.js';
 
 function getClient() {
-  const baseUrl = process.env['ABSTRACT_RPC_URL'] ?? ASSEMBLY_BASE_URL;
-  const apiKey = process.env['ASSEMBLY_API_KEY'];
+  const baseUrl = process.env.ABSTRACT_RPC_URL ?? ASSEMBLY_BASE_URL;
+  const apiKey = process.env.ASSEMBLY_API_KEY;
   return createAssemblyClient(baseUrl, apiKey);
 }
 
@@ -101,12 +101,11 @@ members.command('status', {
   ],
   run(c) {
     const client = getClient();
-    const address = c.options.address ?? process.env['ABSTRACT_WALLET_ADDRESS'] ?? '';
+    const address = c.options.address ?? process.env.ABSTRACT_WALLET_ADDRESS ?? '';
     if (!address) {
       return c.error({
         code: 'MISSING_ADDRESS',
-        message:
-          'No address provided. Pass --address or set ABSTRACT_WALLET_ADDRESS.',
+        message: 'No address provided. Pass --address or set ABSTRACT_WALLET_ADDRESS.',
         retryable: false,
       });
     }

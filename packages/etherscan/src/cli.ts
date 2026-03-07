@@ -2,10 +2,10 @@ import { fileURLToPath } from 'node:url';
 import { Cli } from 'incur';
 import { accountCli } from './commands/account.js';
 import { contractCli } from './commands/contract.js';
-import { txCli } from './commands/tx.js';
-import { tokenCli } from './commands/token.js';
 import { gasCli } from './commands/gas.js';
 import { statsCli } from './commands/stats.js';
+import { tokenCli } from './commands/token.js';
+import { txCli } from './commands/tx.js';
 
 const cli = Cli.create('etherscan', {
   description: 'Query Etherscan API data from the command line.',

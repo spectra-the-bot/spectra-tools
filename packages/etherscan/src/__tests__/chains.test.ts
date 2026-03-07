@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resolveChainId, CHAIN_IDS, DEFAULT_CHAIN } from '../chains.js';
+import { CHAIN_IDS, DEFAULT_CHAIN, resolveChainId } from '../chains.js';
 
 describe('resolveChainId', () => {
   it('resolves abstract chain to 2741', () => {

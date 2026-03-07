@@ -1,8 +1,8 @@
-import { Cli, z } from 'incur';
 import { checksumAddress } from '@spectra-the-bot/cli-shared';
+import { Cli, z } from 'incur';
 import { readContract } from 'viem/actions';
 import { identityRegistryAbi } from '../contracts/abis.js';
-import { getPublicClient, getIdentityRegistryAddress } from '../contracts/client.js';
+import { getIdentityRegistryAddress, getPublicClient } from '../contracts/client.js';
 import { registrationSchema } from '../schema.js';
 
 const discovery = Cli.create('discovery', {
@@ -65,7 +65,7 @@ discovery.command('search', {
     { options: { name: 'coder', service: 'openapi', limit: 5 }, description: 'Combined search' },
   ],
   async run(c) {
-    const client = getPublicClient(c.env['ABSTRACT_RPC_URL']);
+    const client = getPublicClient(c.env.ABSTRACT_RPC_URL);
     const address = getIdentityRegistryAddress(c.env);
     const { name, service, limit } = c.options;
 
@@ -116,9 +116,7 @@ discovery.command('search', {
         continue;
       }
       if (service && reg?.services) {
-        const hasService = reg.services.some(
-          (s) => s.type.toLowerCase() === service.toLowerCase(),
-        );
+        const hasService = reg.services.some((s) => s.type.toLowerCase() === service.toLowerCase());
         if (!hasService) continue;
       }
       if (service && !reg?.services) continue;
@@ -128,9 +126,7 @@ discovery.command('search', {
         owner: checksumAddress(owner),
         ...(reg?.name !== undefined ? { name: reg.name } : {}),
         ...(reg?.description !== undefined ? { description: reg.description } : {}),
-        ...(reg?.services !== undefined
-          ? { services: reg.services.map((s) => s.type) }
-          : {}),
+        ...(reg?.services !== undefined ? { services: reg.services.map((s) => s.type) } : {}),
         uri,
       });
     }
@@ -154,9 +150,7 @@ discovery.command('search', {
 discovery.command('resolve', {
   description: 'Resolve a full agent identifier (<registry>:<agentId>) to agent details.',
   args: z.object({
-    identifier: z
-      .string()
-      .describe('Agent identifier in format <registryAddress>:<agentId>'),
+    identifier: z.string().describe('Agent identifier in format <registryAddress>:<agentId>'),
   }),
   env: z.object({
     ABSTRACT_RPC_URL: z.string().optional().describe('Abstract RPC URL'),
@@ -181,8 +175,7 @@ discovery.command('resolve', {
     if (parts.length < 2) {
       return c.error({
         code: 'INVALID_IDENTIFIER',
-        message:
-          'Identifier must be in format <registryAddress>:<agentId> (e.g. 0xABC...123:42)',
+        message: 'Identifier must be in format <registryAddress>:<agentId> (e.g. 0xABC...123:42)',
         retryable: false,
       });
     }
@@ -190,7 +183,7 @@ discovery.command('resolve', {
     const registryAddress = parts[0] as `0x${string}`;
     const agentId = parts.slice(1).join(':');
 
-    const client = getPublicClient(c.env['ABSTRACT_RPC_URL']);
+    const client = getPublicClient(c.env.ABSTRACT_RPC_URL);
     const tokenId = BigInt(agentId);
 
     const [owner, uri] = await Promise.all([

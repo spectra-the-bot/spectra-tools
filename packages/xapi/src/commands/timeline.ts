@@ -1,5 +1,5 @@
-import { Cli, z } from 'incur';
 import { apiKeyAuth, paginateCursor } from '@spectra-the-bot/cli-shared';
+import { Cli, z } from 'incur';
 import { createXApiClient, relativeTime, truncateText } from '../api.js';
 
 const timeline = Cli.create('timeline', {
@@ -46,7 +46,11 @@ timeline.command('home', {
 
     for await (const post of paginateCursor({
       fetchPage: async (cursor: string | null) => {
-        const res = await client.getHomeTimeline(userId, Math.min(c.options.maxResults, 100), cursor ?? undefined);
+        const res = await client.getHomeTimeline(
+          userId,
+          Math.min(c.options.maxResults, 100),
+          cursor ?? undefined,
+        );
         return { items: res.data ?? [], nextCursor: res.meta?.next_token ?? null };
       },
     })) {
@@ -69,7 +73,11 @@ timeline.command('home', {
           ? {
               description: 'Next steps:',
               commands: [
-                { command: 'posts get', args: { id: firstId }, description: 'View top post in detail' },
+                {
+                  command: 'posts get',
+                  args: { id: firstId },
+                  description: 'View top post in detail',
+                },
               ],
             }
           : undefined,
@@ -96,19 +104,26 @@ timeline.command('mentions', {
     ),
     count: z.number(),
   }),
-  examples: [
-    { description: 'View your recent mentions' },
-  ],
+  examples: [{ description: 'View your recent mentions' }],
   async run(c) {
     const { apiKey } = apiKeyAuth('X_BEARER_TOKEN');
     const client = createXApiClient(apiKey);
     const meRes = await client.getMe();
     const userId = meRes.data.id;
-    const allPosts: Array<{ id: string; text: string; author_id: string | undefined; created_at: string | undefined }> = [];
+    const allPosts: Array<{
+      id: string;
+      text: string;
+      author_id: string | undefined;
+      created_at: string | undefined;
+    }> = [];
 
     for await (const post of paginateCursor({
       fetchPage: async (cursor: string | null) => {
-        const res = await client.getMentionsTimeline(userId, Math.min(c.options.maxResults, 100), cursor ?? undefined);
+        const res = await client.getMentionsTimeline(
+          userId,
+          Math.min(c.options.maxResults, 100),
+          cursor ?? undefined,
+        );
         return { items: res.data ?? [], nextCursor: res.meta?.next_token ?? null };
       },
     })) {

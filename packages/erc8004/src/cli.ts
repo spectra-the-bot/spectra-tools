@@ -1,10 +1,10 @@
 import { fileURLToPath } from 'node:url';
 import { Cli } from 'incur';
+import { discovery } from './commands/discovery.js';
 import { identity } from './commands/identity.js';
 import { registration } from './commands/registration.js';
 import { reputation } from './commands/reputation.js';
 import { validation } from './commands/validation.js';
-import { discovery } from './commands/discovery.js';
 
 const cli = Cli.create('erc8004', {
   description: 'ERC-8004 Trustless Agents registry CLI.',

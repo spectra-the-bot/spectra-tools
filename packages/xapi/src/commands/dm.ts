@@ -1,5 +1,5 @@
-import { Cli, z } from 'incur';
 import { apiKeyAuth, paginateCursor } from '@spectra-the-bot/cli-shared';
+import { Cli, z } from 'incur';
 import { createXApiClient } from '../api.js';
 
 const dm = Cli.create('dm', {
@@ -21,9 +21,7 @@ dm.command('conversations', {
     ),
     count: z.number(),
   }),
-  examples: [
-    { description: 'List your DM conversations' },
-  ],
+  examples: [{ description: 'List your DM conversations' }],
   async run(c) {
     const { apiKey } = apiKeyAuth('X_BEARER_TOKEN');
     const client = createXApiClient(apiKey);
@@ -33,7 +31,11 @@ dm.command('conversations', {
 
     for await (const convo of paginateCursor({
       fetchPage: async (cursor: string | null) => {
-        const res = await client.getDmConversations(userId, Math.min(c.options.maxResults, 100), cursor ?? undefined);
+        const res = await client.getDmConversations(
+          userId,
+          Math.min(c.options.maxResults, 100),
+          cursor ?? undefined,
+        );
         return { items: res.data ?? [], nextCursor: res.meta?.next_token ?? null };
       },
     })) {

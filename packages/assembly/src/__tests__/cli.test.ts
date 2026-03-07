@@ -1,7 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMockServer } from '@spectra-the-bot/cli-shared/testing';
 import type { MockServer } from '@spectra-the-bot/cli-shared/testing';
-import type { Proposal, CouncilMember, ForumPost, Member, VoteRecord, VoteTally } from '../api.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { CouncilMember, ForumPost, Member, Proposal, VoteRecord, VoteTally } from '../api.js';
 
 interface OutputEnvelope {
   ok: boolean;

@@ -1,8 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createMockServer } from '@spectra-the-bot/cli-shared/testing';
 import type { MockServer } from '@spectra-the-bot/cli-shared/testing';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createAssemblyClient } from '../api.js';
-import type { Proposal, CouncilMember, ForumPost, Member, VoteRecord, VoteTally } from '../api.js';
+import type { CouncilMember, ForumPost, Member, Proposal, VoteRecord, VoteTally } from '../api.js';
 
 describe('createAssemblyClient', () => {
   let server: MockServer;

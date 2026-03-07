@@ -85,8 +85,7 @@ export function createAssemblyClient(baseUrl: string, apiKey?: string) {
         client.request<CouncilMember[]>('/v1/council/members', {
           query: status ? { status } : {},
         }),
-      info: (address: string) =>
-        client.request<CouncilMember>(`/v1/council/members/${address}`),
+      info: (address: string) => client.request<CouncilMember>(`/v1/council/members/${address}`),
       seats: (status?: string) =>
         client.request<CouncilSeat[]>('/v1/council/seats', {
           query: status ? { status } : {},
@@ -106,18 +105,15 @@ export function createAssemblyClient(baseUrl: string, apiKey?: string) {
         client.request<Member[]>('/v1/members', {
           query: role && role !== 'all' ? { role } : {},
         }),
-      info: (address: string) =>
-        client.request<Member>(`/v1/members/${address}`),
-      status: (address: string) =>
-        client.request<Member>(`/v1/members/${address}/status`),
+      info: (address: string) => client.request<Member>(`/v1/members/${address}`),
+      status: (address: string) => client.request<Member>(`/v1/members/${address}/status`),
     },
     votes: {
       history: (voter?: string, proposalId?: string) =>
         client.request<VoteRecord[]>('/v1/votes', {
           query: { voter, proposalId },
         }),
-      tally: (proposalId: string) =>
-        client.request<VoteTally>(`/v1/votes/tally/${proposalId}`),
+      tally: (proposalId: string) => client.request<VoteTally>(`/v1/votes/tally/${proposalId}`),
     },
   };
 }

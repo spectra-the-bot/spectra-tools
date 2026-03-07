@@ -1,9 +1,9 @@
 import { Cli, z } from 'incur';
-import { createAssemblyClient, ASSEMBLY_BASE_URL } from '../api.js';
+import { ASSEMBLY_BASE_URL, createAssemblyClient } from '../api.js';
 
 function getClient() {
-  const baseUrl = process.env['ABSTRACT_RPC_URL'] ?? ASSEMBLY_BASE_URL;
-  const apiKey = process.env['ASSEMBLY_API_KEY'];
+  const baseUrl = process.env.ABSTRACT_RPC_URL ?? ASSEMBLY_BASE_URL;
+  const apiKey = process.env.ASSEMBLY_API_KEY;
   return createAssemblyClient(baseUrl, apiKey);
 }
 

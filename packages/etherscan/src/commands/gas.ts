@@ -1,7 +1,7 @@
-import { Cli, z } from 'incur';
 import { apiKeyAuth, createRateLimiter, withRateLimit } from '@spectra-the-bot/cli-shared';
+import { Cli, z } from 'incur';
 import { createEtherscanClient } from '../api.js';
-import { resolveChainId, DEFAULT_CHAIN } from '../chains.js';
+import { DEFAULT_CHAIN, resolveChainId } from '../chains.js';
 
 const rateLimiter = createRateLimiter({ requestsPerSecond: 5 });
 

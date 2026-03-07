@@ -1,5 +1,5 @@
-import { Cli, z } from 'incur';
 import { apiKeyAuth, paginateCursor } from '@spectra-the-bot/cli-shared';
+import { Cli, z } from 'incur';
 import { createXApiClient, relativeTime, truncateText } from '../api.js';
 
 const lists = Cli.create('lists', {
@@ -18,9 +18,7 @@ lists.command('get', {
     owner_id: z.string().optional(),
     member_count: z.number().optional(),
   }),
-  examples: [
-    { args: { id: '1234567890' }, description: 'Get list details' },
-  ],
+  examples: [{ args: { id: '1234567890' }, description: 'Get list details' }],
   async run(c) {
     const { apiKey } = apiKeyAuth('X_BEARER_TOKEN');
     const client = createXApiClient(apiKey);
@@ -67,17 +65,24 @@ lists.command('members', {
     ),
     count: z.number(),
   }),
-  examples: [
-    { args: { id: '1234567890' }, description: 'List all members' },
-  ],
+  examples: [{ args: { id: '1234567890' }, description: 'List all members' }],
   async run(c) {
     const { apiKey } = apiKeyAuth('X_BEARER_TOKEN');
     const client = createXApiClient(apiKey);
-    const allUsers: Array<{ id: string; name: string; username: string; followers: number | undefined }> = [];
+    const allUsers: Array<{
+      id: string;
+      name: string;
+      username: string;
+      followers: number | undefined;
+    }> = [];
 
     for await (const user of paginateCursor({
       fetchPage: async (cursor: string | null) => {
-        const res = await client.getListMembers(c.args.id, Math.min(c.options.maxResults, 100), cursor ?? undefined);
+        const res = await client.getListMembers(
+          c.args.id,
+          Math.min(c.options.maxResults, 100),
+          cursor ?? undefined,
+        );
         return { items: res.data ?? [], nextCursor: res.meta?.next_token ?? null };
       },
     })) {
@@ -116,17 +121,25 @@ lists.command('posts', {
     ),
     count: z.number(),
   }),
-  examples: [
-    { args: { id: '1234567890' }, description: 'Get posts from a list' },
-  ],
+  examples: [{ args: { id: '1234567890' }, description: 'Get posts from a list' }],
   async run(c) {
     const { apiKey } = apiKeyAuth('X_BEARER_TOKEN');
     const client = createXApiClient(apiKey);
-    const allPosts: Array<{ id: string; text: string; author_id: string | undefined; created_at: string | undefined; likes: number | undefined }> = [];
+    const allPosts: Array<{
+      id: string;
+      text: string;
+      author_id: string | undefined;
+      created_at: string | undefined;
+      likes: number | undefined;
+    }> = [];
 
     for await (const post of paginateCursor({
       fetchPage: async (cursor: string | null) => {
-        const res = await client.getListPosts(c.args.id, Math.min(c.options.maxResults, 100), cursor ?? undefined);
+        const res = await client.getListPosts(
+          c.args.id,
+          Math.min(c.options.maxResults, 100),
+          cursor ?? undefined,
+        );
         return { items: res.data ?? [], nextCursor: res.meta?.next_token ?? null };
       },
     })) {
@@ -148,7 +161,11 @@ lists.command('posts', {
           ? {
               description: 'Next steps:',
               commands: [
-                { command: 'posts get', args: { id: firstId }, description: 'View top post in detail' },
+                {
+                  command: 'posts get',
+                  args: { id: firstId },
+                  description: 'View top post in detail',
+                },
               ],
             }
           : undefined,

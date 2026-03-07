@@ -1,12 +1,12 @@
 import {
-  createPublicClient,
-  createWalletClient,
   http,
   type Address,
   type PublicClient,
+  createPublicClient,
+  createWalletClient,
 } from 'viem';
-import { privateKeyToAccount } from 'viem/accounts';
 import type { Chain } from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
 
 /** Abstract mainnet chain config */
 export const abstractMainnet: Chain = {
@@ -43,33 +43,27 @@ export function getWalletClient(privateKey: string, rpcUrl?: string) {
 
 /** Resolves the identity registry address from env or throws. */
 export function getIdentityRegistryAddress(env: Record<string, string | undefined>): Address {
-  const addr = env['IDENTITY_REGISTRY_ADDRESS'];
+  const addr = env.IDENTITY_REGISTRY_ADDRESS;
   if (!addr) {
-    throw new Error(
-      'IDENTITY_REGISTRY_ADDRESS is not set. Export it or pass via env.',
-    );
+    throw new Error('IDENTITY_REGISTRY_ADDRESS is not set. Export it or pass via env.');
   }
   return addr as Address;
 }
 
 /** Resolves the reputation registry address from env or throws. */
 export function getReputationRegistryAddress(env: Record<string, string | undefined>): Address {
-  const addr = env['REPUTATION_REGISTRY_ADDRESS'];
+  const addr = env.REPUTATION_REGISTRY_ADDRESS;
   if (!addr) {
-    throw new Error(
-      'REPUTATION_REGISTRY_ADDRESS is not set. Export it or pass via env.',
-    );
+    throw new Error('REPUTATION_REGISTRY_ADDRESS is not set. Export it or pass via env.');
   }
   return addr as Address;
 }
 
 /** Resolves the validation registry address from env or throws. */
 export function getValidationRegistryAddress(env: Record<string, string | undefined>): Address {
-  const addr = env['VALIDATION_REGISTRY_ADDRESS'];
+  const addr = env.VALIDATION_REGISTRY_ADDRESS;
   if (!addr) {
-    throw new Error(
-      'VALIDATION_REGISTRY_ADDRESS is not set. Export it or pass via env.',
-    );
+    throw new Error('VALIDATION_REGISTRY_ADDRESS is not set. Export it or pass via env.');
   }
   return addr as Address;
 }

@@ -1,10 +1,10 @@
 import { Cli } from 'incur';
-import { posts } from './commands/posts.js';
-import { users } from './commands/users.js';
-import { timeline } from './commands/timeline.js';
-import { lists } from './commands/lists.js';
-import { trends } from './commands/trends.js';
 import { dm } from './commands/dm.js';
+import { lists } from './commands/lists.js';
+import { posts } from './commands/posts.js';
+import { timeline } from './commands/timeline.js';
+import { trends } from './commands/trends.js';
+import { users } from './commands/users.js';
 
 const cli = Cli.create('xapi', {
   description: 'X (Twitter) API CLI for spectra-the-bot.',

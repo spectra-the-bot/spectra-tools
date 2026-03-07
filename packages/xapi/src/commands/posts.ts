@@ -1,5 +1,5 @@
-import { Cli, z } from 'incur';
 import { apiKeyAuth, paginateCursor } from '@spectra-the-bot/cli-shared';
+import { Cli, z } from 'incur';
 import { createXApiClient, relativeTime, truncateText } from '../api.js';
 
 const posts = Cli.create('posts', {
@@ -23,9 +23,7 @@ posts.command('get', {
     retweets: z.number().optional(),
     replies: z.number().optional(),
   }),
-  examples: [
-    { args: { id: '1234567890' }, description: 'Get a post by ID' },
-  ],
+  examples: [{ args: { id: '1234567890' }, description: 'Get a post by ID' }],
   async run(c) {
     const { apiKey } = apiKeyAuth('X_BEARER_TOKEN');
     const client = createXApiClient(apiKey);
@@ -46,8 +44,16 @@ posts.command('get', {
         cta: {
           description: 'Explore this post:',
           commands: [
-            { command: 'posts likes', args: { id: c.args.id }, description: 'See who liked this post' },
-            { command: 'posts retweets', args: { id: c.args.id }, description: 'See who retweeted this post' },
+            {
+              command: 'posts likes',
+              args: { id: c.args.id },
+              description: 'See who liked this post',
+            },
+            {
+              command: 'posts retweets',
+              args: { id: c.args.id },
+              description: 'See who retweeted this post',
+            },
           ],
         },
       },
@@ -80,7 +86,11 @@ posts.command('search', {
   }),
   examples: [
     { args: { query: 'TypeScript' }, description: 'Search for TypeScript posts' },
-    { args: { query: 'AI' }, options: { sort: 'relevancy', maxResults: 20 }, description: 'Search by relevance' },
+    {
+      args: { query: 'AI' },
+      options: { sort: 'relevancy', maxResults: 20 },
+      description: 'Search by relevance',
+    },
   ],
   async run(c) {
     const { apiKey } = apiKeyAuth('X_BEARER_TOKEN');
@@ -101,7 +111,11 @@ posts.command('search', {
           ? {
               description: 'Next steps:',
               commands: [
-                { command: 'posts get', args: { id: firstId }, description: 'View top result in detail' },
+                {
+                  command: 'posts get',
+                  args: { id: firstId },
+                  description: 'View top result in detail',
+                },
               ],
             }
           : undefined,
@@ -149,9 +163,7 @@ posts.command('delete', {
     deleted: z.boolean(),
     id: z.string(),
   }),
-  examples: [
-    { args: { id: '1234567890' }, description: 'Delete a post' },
-  ],
+  examples: [{ args: { id: '1234567890' }, description: 'Delete a post' }],
   async run(c) {
     const { apiKey } = apiKeyAuth('X_BEARER_TOKEN');
     const client = createXApiClient(apiKey);
@@ -180,17 +192,24 @@ posts.command('likes', {
     ),
     count: z.number(),
   }),
-  examples: [
-    { args: { id: '1234567890' }, description: 'See who liked a post' },
-  ],
+  examples: [{ args: { id: '1234567890' }, description: 'See who liked a post' }],
   async run(c) {
     const { apiKey } = apiKeyAuth('X_BEARER_TOKEN');
     const client = createXApiClient(apiKey);
-    const allUsers: Array<{ id: string; name: string; username: string; followers: number | undefined }> = [];
+    const allUsers: Array<{
+      id: string;
+      name: string;
+      username: string;
+      followers: number | undefined;
+    }> = [];
 
     for await (const user of paginateCursor({
       fetchPage: async (cursor: string | null) => {
-        const res = await client.getPostLikes(c.args.id, Math.min(c.options.maxResults, 100), cursor ?? undefined);
+        const res = await client.getPostLikes(
+          c.args.id,
+          Math.min(c.options.maxResults, 100),
+          cursor ?? undefined,
+        );
         return {
           items: res.data ?? [],
           nextCursor: res.meta?.next_token ?? null,
@@ -242,17 +261,24 @@ posts.command('retweets', {
     ),
     count: z.number(),
   }),
-  examples: [
-    { args: { id: '1234567890' }, description: 'See who retweeted a post' },
-  ],
+  examples: [{ args: { id: '1234567890' }, description: 'See who retweeted a post' }],
   async run(c) {
     const { apiKey } = apiKeyAuth('X_BEARER_TOKEN');
     const client = createXApiClient(apiKey);
-    const allUsers: Array<{ id: string; name: string; username: string; followers: number | undefined }> = [];
+    const allUsers: Array<{
+      id: string;
+      name: string;
+      username: string;
+      followers: number | undefined;
+    }> = [];
 
     for await (const user of paginateCursor({
       fetchPage: async (cursor: string | null) => {
-        const res = await client.getPostRetweets(c.args.id, Math.min(c.options.maxResults, 100), cursor ?? undefined);
+        const res = await client.getPostRetweets(
+          c.args.id,
+          Math.min(c.options.maxResults, 100),
+          cursor ?? undefined,
+        );
         return {
           items: res.data ?? [],
           nextCursor: res.meta?.next_token ?? null,

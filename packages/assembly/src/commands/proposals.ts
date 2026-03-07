@@ -1,10 +1,10 @@
 import { Cli, z } from 'incur';
 import type { Proposal } from '../api.js';
-import { createAssemblyClient, ASSEMBLY_BASE_URL } from '../api.js';
+import { ASSEMBLY_BASE_URL, createAssemblyClient } from '../api.js';
 
 function getClient() {
-  const baseUrl = process.env['ABSTRACT_RPC_URL'] ?? ASSEMBLY_BASE_URL;
-  const apiKey = process.env['ASSEMBLY_API_KEY'];
+  const baseUrl = process.env.ABSTRACT_RPC_URL ?? ASSEMBLY_BASE_URL;
+  const apiKey = process.env.ASSEMBLY_API_KEY;
   return createAssemblyClient(baseUrl, apiKey);
 }
 
@@ -46,15 +46,12 @@ proposals.command('list', {
     return client.proposals
       .list(c.options.status)
       .then((data) =>
-        c.ok(
-          data.map(formatProposal),
-          {
-            cta: {
-              description: 'View a proposal:',
-              commands: [{ command: 'proposals get', args: { id: '<id>' } }],
-            },
+        c.ok(data.map(formatProposal), {
+          cta: {
+            description: 'View a proposal:',
+            commands: [{ command: 'proposals get', args: { id: '<id>' } }],
           },
-        ),
+        }),
       )
       .catch((err: unknown) => {
         const message = err instanceof Error ? err.message : String(err);

@@ -1,9 +1,9 @@
-import { Cli } from 'incur';
 import { fileURLToPath } from 'node:url';
-import { proposals } from './commands/proposals.js';
+import { Cli } from 'incur';
 import { council } from './commands/council.js';
 import { forum } from './commands/forum.js';
 import { members } from './commands/members.js';
+import { proposals } from './commands/proposals.js';
 import { votes } from './commands/votes.js';
 
 const cli = Cli.create('assembly', {

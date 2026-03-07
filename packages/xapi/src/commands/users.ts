@@ -1,5 +1,5 @@
-import { Cli, z } from 'incur';
 import { apiKeyAuth, paginateCursor } from '@spectra-the-bot/cli-shared';
+import { Cli, z } from 'incur';
 import { createXApiClient, relativeTime, truncateText } from '../api.js';
 
 const users = Cli.create('users', {
@@ -60,8 +60,16 @@ users.command('get', {
         cta: {
           description: 'Explore this user:',
           commands: [
-            { command: 'users posts', args: { username: user.username }, description: 'View their posts' },
-            { command: 'users followers', args: { username: user.username }, description: 'View their followers' },
+            {
+              command: 'users posts',
+              args: { username: user.username },
+              description: 'View their posts',
+            },
+            {
+              command: 'users followers',
+              args: { username: user.username },
+              description: 'View their followers',
+            },
           ],
         },
       },
@@ -89,19 +97,26 @@ users.command('followers', {
     ),
     count: z.number(),
   }),
-  examples: [
-    { args: { username: 'jack' }, description: 'List followers of jack' },
-  ],
+  examples: [{ args: { username: 'jack' }, description: 'List followers of jack' }],
   async run(c) {
     const { apiKey } = apiKeyAuth('X_BEARER_TOKEN');
     const client = createXApiClient(apiKey);
     const userRes = await resolveUser(client, c.args.username);
     const userId = userRes.data.id;
-    const allUsers: Array<{ id: string; name: string; username: string; followers: number | undefined }> = [];
+    const allUsers: Array<{
+      id: string;
+      name: string;
+      username: string;
+      followers: number | undefined;
+    }> = [];
 
     for await (const user of paginateCursor({
       fetchPage: async (cursor: string | null) => {
-        const res = await client.getUserFollowers(userId, Math.min(c.options.maxResults, 1000), cursor ?? undefined);
+        const res = await client.getUserFollowers(
+          userId,
+          Math.min(c.options.maxResults, 1000),
+          cursor ?? undefined,
+        );
         return { items: res.data ?? [], nextCursor: res.meta?.next_token ?? null };
       },
     })) {
@@ -138,19 +153,26 @@ users.command('following', {
     ),
     count: z.number(),
   }),
-  examples: [
-    { args: { username: 'jack' }, description: 'List accounts jack follows' },
-  ],
+  examples: [{ args: { username: 'jack' }, description: 'List accounts jack follows' }],
   async run(c) {
     const { apiKey } = apiKeyAuth('X_BEARER_TOKEN');
     const client = createXApiClient(apiKey);
     const userRes = await resolveUser(client, c.args.username);
     const userId = userRes.data.id;
-    const allUsers: Array<{ id: string; name: string; username: string; followers: number | undefined }> = [];
+    const allUsers: Array<{
+      id: string;
+      name: string;
+      username: string;
+      followers: number | undefined;
+    }> = [];
 
     for await (const user of paginateCursor({
       fetchPage: async (cursor: string | null) => {
-        const res = await client.getUserFollowing(userId, Math.min(c.options.maxResults, 1000), cursor ?? undefined);
+        const res = await client.getUserFollowing(
+          userId,
+          Math.min(c.options.maxResults, 1000),
+          cursor ?? undefined,
+        );
         return { items: res.data ?? [], nextCursor: res.meta?.next_token ?? null };
       },
     })) {
@@ -189,19 +211,27 @@ users.command('posts', {
     ),
     count: z.number(),
   }),
-  examples: [
-    { args: { username: 'jack' }, description: "Get jack's recent posts" },
-  ],
+  examples: [{ args: { username: 'jack' }, description: "Get jack's recent posts" }],
   async run(c) {
     const { apiKey } = apiKeyAuth('X_BEARER_TOKEN');
     const client = createXApiClient(apiKey);
     const userRes = await resolveUser(client, c.args.username);
     const userId = userRes.data.id;
-    const allPosts: Array<{ id: string; text: string; created_at: string | undefined; likes: number | undefined; retweets: number | undefined }> = [];
+    const allPosts: Array<{
+      id: string;
+      text: string;
+      created_at: string | undefined;
+      likes: number | undefined;
+      retweets: number | undefined;
+    }> = [];
 
     for await (const post of paginateCursor({
       fetchPage: async (cursor: string | null) => {
-        const res = await client.getUserPosts(userId, Math.min(c.options.maxResults, 100), cursor ?? undefined);
+        const res = await client.getUserPosts(
+          userId,
+          Math.min(c.options.maxResults, 100),
+          cursor ?? undefined,
+        );
         return { items: res.data ?? [], nextCursor: res.meta?.next_token ?? null };
       },
     })) {
@@ -223,7 +253,11 @@ users.command('posts', {
           ? {
               description: 'Next steps:',
               commands: [
-                { command: 'posts get', args: { id: firstId }, description: 'View top post in detail' },
+                {
+                  command: 'posts get',
+                  args: { id: firstId },
+                  description: 'View top post in detail',
+                },
               ],
             }
           : undefined,
@@ -233,7 +267,7 @@ users.command('posts', {
 });
 
 users.command('mentions', {
-  description: "List recent mentions of a user.",
+  description: 'List recent mentions of a user.',
   args: z.object({
     username: z.string().describe('Username or user ID'),
   }),
@@ -252,9 +286,7 @@ users.command('mentions', {
     ),
     count: z.number(),
   }),
-  examples: [
-    { args: { username: 'jack' }, description: "Get mentions of jack" },
-  ],
+  examples: [{ args: { username: 'jack' }, description: 'Get mentions of jack' }],
   async run(c) {
     const { apiKey } = apiKeyAuth('X_BEARER_TOKEN');
     const client = createXApiClient(apiKey);
@@ -264,7 +296,11 @@ users.command('mentions', {
 
     for await (const post of paginateCursor({
       fetchPage: async (cursor: string | null) => {
-        const res = await client.getUserMentions(userId, Math.min(c.options.maxResults, 100), cursor ?? undefined);
+        const res = await client.getUserMentions(
+          userId,
+          Math.min(c.options.maxResults, 100),
+          cursor ?? undefined,
+        );
         return { items: res.data ?? [], nextCursor: res.meta?.next_token ?? null };
       },
     })) {
@@ -296,9 +332,7 @@ users.command('search', {
     ),
     count: z.number(),
   }),
-  examples: [
-    { args: { query: 'TypeScript' }, description: 'Search for users about TypeScript' },
-  ],
+  examples: [{ args: { query: 'TypeScript' }, description: 'Search for users about TypeScript' }],
   async run(c) {
     const { apiKey } = apiKeyAuth('X_BEARER_TOKEN');
     const client = createXApiClient(apiKey);
@@ -317,7 +351,11 @@ users.command('search', {
           ? {
               description: 'Next steps:',
               commands: [
-                { command: 'users get', args: { username: first.username }, description: `View @${first.username}'s profile` },
+                {
+                  command: 'users get',
+                  args: { username: first.username },
+                  description: `View @${first.username}'s profile`,
+                },
               ],
             }
           : undefined,

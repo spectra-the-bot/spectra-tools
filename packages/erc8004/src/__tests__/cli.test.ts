@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { cli } from '../cli.js';
 
 describe('erc8004 cli', () => {
@@ -32,19 +32,16 @@ describe('erc8004 cli', () => {
 
   it('reputation feedback errors without private key', async () => {
     let output = '';
-    await cli.serve(
-      ['reputation', 'feedback', '1', '--value', '10', '--json'],
-      {
-        stdout(s) {
-          output += s;
-        },
-        exit() {},
-        env: {
-          REPUTATION_REGISTRY_ADDRESS: '0x1234567890123456789012345678901234567890',
-          PRIVATE_KEY: undefined,
-        },
+    await cli.serve(['reputation', 'feedback', '1', '--value', '10', '--json'], {
+      stdout(s) {
+        output += s;
       },
-    );
+      exit() {},
+      env: {
+        REPUTATION_REGISTRY_ADDRESS: '0x1234567890123456789012345678901234567890',
+        PRIVATE_KEY: undefined,
+      },
+    });
 
     // incur emits the error object directly (not wrapped) in non-verbose --json mode
     const envelope = JSON.parse(output);
@@ -61,7 +58,7 @@ describe('erc8004 cli', () => {
         '--validator',
         '0x1234567890123456789012345678901234567890',
         '--job-hash',
-        '0x' + '00'.repeat(32),
+        `0x${'00'.repeat(32)}`,
         '--json',
       ],
       {

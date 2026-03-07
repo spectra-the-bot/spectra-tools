@@ -17,8 +17,12 @@ async function runCli(
   let output = '';
   let exitCode = 0;
   await cli.serve(argv, {
-    stdout: (s) => { output += s; },
-    exit: (code) => { exitCode = code; },
+    stdout: (s) => {
+      output += s;
+    },
+    exit: (code) => {
+      exitCode = code;
+    },
   });
   const calledUrl = (mockFetch.mock.calls[0]?.[0] as string) ?? '';
   return { output, exitCode, calledUrl };
@@ -26,11 +30,11 @@ async function runCli(
 
 describe('etherscan CLI', () => {
   beforeEach(() => {
-    process.env['ETHERSCAN_API_KEY'] = 'test-key';
+    process.env.ETHERSCAN_API_KEY = 'test-key';
   });
 
   afterEach(() => {
-    delete process.env['ETHERSCAN_API_KEY'];
+    process.env.ETHERSCAN_API_KEY = undefined;
     vi.unstubAllGlobals();
   });
 

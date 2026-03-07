@@ -1,5 +1,5 @@
-import { Cli, z } from 'incur';
 import { apiKeyAuth } from '@spectra-the-bot/cli-shared';
+import { Cli, z } from 'incur';
 import { createXApiClient } from '../api.js';
 
 const trends = Cli.create('trends', {
@@ -18,9 +18,7 @@ trends.command('places', {
     ),
     count: z.number(),
   }),
-  examples: [
-    { description: 'List all trending places' },
-  ],
+  examples: [{ description: 'List all trending places' }],
   async run(c) {
     const { apiKey } = apiKeyAuth('X_BEARER_TOKEN');
     const client = createXApiClient(apiKey);

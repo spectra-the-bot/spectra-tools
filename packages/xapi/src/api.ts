@@ -79,8 +79,14 @@ export function createXApiClient(bearerToken: string) {
     },
   });
 
-  function get<T>(path: string, query?: Record<string, string | number | boolean | undefined | null>): Promise<T> {
-    return withRetry(() => http.request<T>(path, query !== undefined ? { query } : {}), RETRY_OPTIONS);
+  function get<T>(
+    path: string,
+    query?: Record<string, string | number | boolean | undefined | null>,
+  ): Promise<T> {
+    return withRetry(
+      () => http.request<T>(path, query !== undefined ? { query } : {}),
+      RETRY_OPTIONS,
+    );
   }
 
   function post<T>(path: string, body?: unknown): Promise<T> {
@@ -238,11 +244,15 @@ export function createXApiClient(bearerToken: string) {
   // ── Trends ─────────────────────────────────────────────────────────────────
 
   function getTrendingPlaces() {
-    return get<{ data: Array<{ woeid: number; name: string; country: string }> }>('/trends/available');
+    return get<{ data: Array<{ woeid: number; name: string; country: string }> }>(
+      '/trends/available',
+    );
   }
 
   function getTrendsByLocation(woeid: number) {
-    return get<{ data: Array<{ name: string; query: string; tweet_volume?: number }> }>(`/trends/place/${woeid}`);
+    return get<{ data: Array<{ name: string; query: string; tweet_volume?: number }> }>(
+      `/trends/place/${woeid}`,
+    );
   }
 
   // ── DMs ────────────────────────────────────────────────────────────────────

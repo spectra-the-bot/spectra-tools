@@ -1,12 +1,12 @@
-import { Cli, z } from 'incur';
 import { checksumAddress, formatTimestamp, withRetry } from '@spectra-the-bot/cli-shared';
+import { Cli, z } from 'incur';
 import { readContract, writeContract } from 'viem/actions';
 import { reputationRegistryAbi } from '../contracts/abis.js';
 import {
-  getPublicClient,
-  getWalletClient,
-  getReputationRegistryAddress,
   abstractMainnet,
+  getPublicClient,
+  getReputationRegistryAddress,
+  getWalletClient,
 } from '../contracts/client.js';
 
 const reputation = Cli.create('reputation', {
@@ -14,7 +14,7 @@ const reputation = Cli.create('reputation', {
 });
 
 reputation.command('get', {
-  description: "Get the reputation score for an agent.",
+  description: 'Get the reputation score for an agent.',
   args: z.object({
     agentId: z.string().describe('Agent token ID'),
   }),
@@ -33,7 +33,7 @@ reputation.command('get', {
   }),
   examples: [{ args: { agentId: '1' }, description: 'Get reputation score for agent #1' }],
   async run(c) {
-    const client = getPublicClient(c.env['ABSTRACT_RPC_URL']);
+    const client = getPublicClient(c.env.ABSTRACT_RPC_URL);
     const address = getReputationRegistryAddress(c.env);
     const tokenId = BigInt(c.args.agentId);
 
@@ -49,10 +49,7 @@ reputation.command('get', {
     );
 
     const countNum = Number(count);
-    const avgScore =
-      countNum > 0
-        ? (Number(totalScore) / countNum).toFixed(2)
-        : '0.00';
+    const avgScore = countNum > 0 ? (Number(totalScore) / countNum).toFixed(2) : '0.00';
 
     return c.ok({
       agentId: c.args.agentId,
@@ -101,7 +98,7 @@ reputation.command('feedback', {
     },
   ],
   async run(c) {
-    const privateKey = c.env['PRIVATE_KEY'];
+    const privateKey = c.env.PRIVATE_KEY;
     if (!privateKey) {
       return c.error({
         code: 'NO_PRIVATE_KEY',
@@ -110,7 +107,7 @@ reputation.command('feedback', {
       });
     }
 
-    const walletClient = getWalletClient(privateKey, c.env['ABSTRACT_RPC_URL']);
+    const walletClient = getWalletClient(privateKey, c.env.ABSTRACT_RPC_URL);
     const address = getReputationRegistryAddress(c.env);
 
     const hash = await writeContract(walletClient, {
@@ -166,7 +163,7 @@ reputation.command('history', {
     { args: { agentId: '1' }, options: { limit: 10 }, description: 'Show last 10 feedbacks' },
   ],
   async run(c) {
-    const client = getPublicClient(c.env['ABSTRACT_RPC_URL']);
+    const client = getPublicClient(c.env.ABSTRACT_RPC_URL);
     const address = getReputationRegistryAddress(c.env);
     const tokenId = BigInt(c.args.agentId);
 

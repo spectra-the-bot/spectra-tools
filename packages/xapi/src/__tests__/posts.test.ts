@@ -1,6 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createMockServer } from '@spectra-the-bot/cli-shared/testing';
 import type { MockServer } from '@spectra-the-bot/cli-shared/testing';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createXApiClient, relativeTime, truncateText } from '../api.js';
 
 describe('relativeTime', () => {
@@ -56,7 +56,14 @@ describe('createXApiClient - posts', () => {
 
   it('adds bearer token auth header', async () => {
     server.addRoute('GET', '/2/tweets/123', {
-      body: { data: { id: '123', text: 'Hello world', author_id: '456', created_at: new Date().toISOString() } },
+      body: {
+        data: {
+          id: '123',
+          text: 'Hello world',
+          author_id: '456',
+          created_at: new Date().toISOString(),
+        },
+      },
     });
 
     // We verify auth injection through the mock server with a custom client.
@@ -139,7 +146,7 @@ describe('createXApiClient - HTTP integration', () => {
     });
 
     await http.request('/2/tweets/123');
-    expect(server.requests[0]?.headers['authorization']).toBe('Bearer test-key');
+    expect(server.requests[0]?.headers.authorization).toBe('Bearer test-key');
   });
 
   it('throws on 429 rate limit response', async () => {
@@ -166,7 +173,9 @@ describe('createXApiClient - HTTP integration', () => {
 
     const { createHttpClient } = await import('@spectra-the-bot/cli-shared/utils');
     const http = createHttpClient({ baseUrl: server.url });
-    const res = await http.request<{ data: unknown[]; meta: { next_token: string } }>('/2/tweets/search/recent');
+    const res = await http.request<{ data: unknown[]; meta: { next_token: string } }>(
+      '/2/tweets/search/recent',
+    );
     expect(res.meta.next_token).toBe('abc123');
     expect((res.data as unknown[]).length).toBe(2);
   });

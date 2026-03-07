@@ -1,12 +1,12 @@
-import { Cli, z } from 'incur';
 import { checksumAddress } from '@spectra-the-bot/cli-shared';
+import { Cli, z } from 'incur';
 import { readContract, writeContract } from 'viem/actions';
 import { identityRegistryAbi } from '../contracts/abis.js';
 import {
+  abstractMainnet,
+  getIdentityRegistryAddress,
   getPublicClient,
   getWalletClient,
-  getIdentityRegistryAddress,
-  abstractMainnet,
 } from '../contracts/client.js';
 
 const identity = Cli.create('identity', {
@@ -41,7 +41,7 @@ identity.command('list', {
     },
   ],
   async run(c) {
-    const client = getPublicClient(c.env['ABSTRACT_RPC_URL']);
+    const client = getPublicClient(c.env.ABSTRACT_RPC_URL);
     const address = getIdentityRegistryAddress(c.env);
     const { owner, limit } = c.options;
 
@@ -143,7 +143,7 @@ identity.command('get', {
   }),
   examples: [{ args: { agentId: '1' }, description: 'Get agent #1' }],
   async run(c) {
-    const client = getPublicClient(c.env['ABSTRACT_RPC_URL']);
+    const client = getPublicClient(c.env.ABSTRACT_RPC_URL);
     const address = getIdentityRegistryAddress(c.env);
     const tokenId = BigInt(c.args.agentId);
 
@@ -220,7 +220,7 @@ identity.command('register', {
     },
   ],
   async run(c) {
-    const privateKey = c.env['PRIVATE_KEY'];
+    const privateKey = c.env.PRIVATE_KEY;
     if (!privateKey) {
       return c.error({
         code: 'NO_PRIVATE_KEY',
@@ -229,8 +229,8 @@ identity.command('register', {
       });
     }
 
-    const walletClient = getWalletClient(privateKey, c.env['ABSTRACT_RPC_URL']);
-    const publicClient = getPublicClient(c.env['ABSTRACT_RPC_URL']);
+    const walletClient = getWalletClient(privateKey, c.env.ABSTRACT_RPC_URL);
+    const publicClient = getPublicClient(c.env.ABSTRACT_RPC_URL);
     const address = getIdentityRegistryAddress(c.env);
 
     const hash = await writeContract(walletClient, {
@@ -245,9 +245,7 @@ identity.command('register', {
 
     // Find token ID from Transfer event log (to == caller, from == zero)
     const transferLog = receipt.logs.find((log) => log.topics[0] !== undefined);
-    const agentId = transferLog?.topics[3]
-      ? BigInt(transferLog.topics[3]).toString()
-      : 'unknown';
+    const agentId = transferLog?.topics[3] ? BigInt(transferLog.topics[3]).toString() : 'unknown';
 
     return c.ok(
       { agentId, uri: c.options.uri, txHash: hash },
@@ -287,7 +285,7 @@ identity.command('update', {
     txHash: z.string(),
   }),
   async run(c) {
-    const privateKey = c.env['PRIVATE_KEY'];
+    const privateKey = c.env.PRIVATE_KEY;
     if (!privateKey) {
       return c.error({
         code: 'NO_PRIVATE_KEY',
@@ -296,7 +294,7 @@ identity.command('update', {
       });
     }
 
-    const walletClient = getWalletClient(privateKey, c.env['ABSTRACT_RPC_URL']);
+    const walletClient = getWalletClient(privateKey, c.env.ABSTRACT_RPC_URL);
     const address = getIdentityRegistryAddress(c.env);
 
     const hash = await writeContract(walletClient, {
@@ -312,7 +310,7 @@ identity.command('update', {
 });
 
 identity.command('metadata', {
-  description: "Read agent metadata key(s).",
+  description: 'Read agent metadata key(s).',
   args: z.object({
     agentId: z.string().describe('Agent token ID'),
   }),
@@ -336,7 +334,7 @@ identity.command('metadata', {
     },
   ],
   async run(c) {
-    const client = getPublicClient(c.env['ABSTRACT_RPC_URL']);
+    const client = getPublicClient(c.env.ABSTRACT_RPC_URL);
     const address = getIdentityRegistryAddress(c.env);
     const tokenId = BigInt(c.args.agentId);
     const { key } = c.options;
@@ -370,7 +368,7 @@ identity.command('wallet', {
     wallet: z.string(),
   }),
   async run(c) {
-    const client = getPublicClient(c.env['ABSTRACT_RPC_URL']);
+    const client = getPublicClient(c.env.ABSTRACT_RPC_URL);
     const address = getIdentityRegistryAddress(c.env);
 
     const wallet = await readContract(client, {
@@ -405,7 +403,7 @@ identity.command('set-wallet', {
     txHash: z.string(),
   }),
   async run(c) {
-    const privateKey = c.env['PRIVATE_KEY'];
+    const privateKey = c.env.PRIVATE_KEY;
     if (!privateKey) {
       return c.error({
         code: 'NO_PRIVATE_KEY',
@@ -414,7 +412,7 @@ identity.command('set-wallet', {
       });
     }
 
-    const walletClient = getWalletClient(privateKey, c.env['ABSTRACT_RPC_URL']);
+    const walletClient = getWalletClient(privateKey, c.env.ABSTRACT_RPC_URL);
     const address = getIdentityRegistryAddress(c.env);
 
     const hash = await writeContract(walletClient, {

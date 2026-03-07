@@ -1,6 +1,6 @@
-import { Cli, z } from 'incur';
 import { createHttpClient } from '@spectra-the-bot/cli-shared';
-import { registrationSchema, type Registration } from '../schema.js';
+import { Cli, z } from 'incur';
+import { type Registration, registrationSchema } from '../schema.js';
 
 const registration = Cli.create('registration', {
   description: 'Fetch, validate, and create ERC-8004 registration files.',
@@ -49,7 +49,7 @@ registration.command('fetch', {
     const { getPublicClient, getIdentityRegistryAddress } = await import('../contracts/client.js');
     const { identityRegistryAbi } = await import('../contracts/abis.js');
 
-    const client = getPublicClient(c.env['ABSTRACT_RPC_URL']);
+    const client = getPublicClient(c.env.ABSTRACT_RPC_URL);
     const address = getIdentityRegistryAddress(c.env);
 
     const uri = await readContract(client, {

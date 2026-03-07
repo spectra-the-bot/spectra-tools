@@ -36,10 +36,7 @@ export const registrationSchema = z.object({
     })
     .optional()
     .describe('Agent owner information'),
-  metadata: z
-    .record(z.string(), z.string())
-    .optional()
-    .describe('Arbitrary key-value metadata'),
+  metadata: z.record(z.string(), z.string()).optional().describe('Arbitrary key-value metadata'),
   erc8004: z
     .object({
       version: z.string().describe('ERC-8004 spec version'),
