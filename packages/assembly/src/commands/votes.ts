@@ -1,10 +1,17 @@
 import { Cli, z } from 'incur';
 import { ASSEMBLY_BASE_URL, createAssemblyClient } from '../api.js';
 
-function getClient() {
-  const baseUrl = process.env.ABSTRACT_RPC_URL ?? ASSEMBLY_BASE_URL;
-  const apiKey = process.env.ASSEMBLY_API_KEY;
-  return createAssemblyClient(baseUrl, apiKey);
+const assemblyEnv = z.object({
+  ASSEMBLY_API_URL: z.string().optional().describe('Assembly API URL'),
+  ASSEMBLY_API_KEY: z.string().optional().describe('Assembly API key'),
+});
+
+type AssemblyEnv = z.infer<typeof assemblyEnv>;
+
+function getClient(env: AssemblyEnv) {
+  const apiUrl = env.ASSEMBLY_API_URL ?? ASSEMBLY_BASE_URL;
+  const apiKey = env.ASSEMBLY_API_KEY;
+  return createAssemblyClient(apiUrl, apiKey);
 }
 
 export const votes = Cli.create('votes', {
@@ -17,13 +24,14 @@ votes.command('history', {
     voter: z.string().optional().describe('Filter by voter address'),
     proposal: z.string().optional().describe('Filter by proposal ID'),
   }),
+  env: assemblyEnv,
   examples: [
     { description: 'View all vote history' },
     { options: { voter: '0xabc123' }, description: 'View votes by a specific address' },
     { options: { proposal: '42' }, description: 'View all votes on proposal #42' },
   ],
   run(c) {
-    const client = getClient();
+    const client = getClient(c.env);
     return client.votes
       .history(c.options.voter, c.options.proposal)
       .then((data) =>
@@ -59,9 +67,10 @@ votes.command('tally', {
   args: z.object({
     proposalId: z.string().describe('Proposal ID to tally votes for'),
   }),
+  env: assemblyEnv,
   examples: [{ args: { proposalId: '42' }, description: 'Get vote tally for proposal #42' }],
   run(c) {
-    const client = getClient();
+    const client = getClient(c.env);
     return client.votes
       .tally(c.args.proposalId)
       .then((data) => {

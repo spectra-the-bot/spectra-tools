@@ -1,10 +1,21 @@
 import { Cli, z } from 'incur';
 import { ASSEMBLY_BASE_URL, createAssemblyClient } from '../api.js';
 
-function getClient() {
-  const baseUrl = process.env.ABSTRACT_RPC_URL ?? ASSEMBLY_BASE_URL;
-  const apiKey = process.env.ASSEMBLY_API_KEY;
-  return createAssemblyClient(baseUrl, apiKey);
+const assemblyEnv = z.object({
+  ASSEMBLY_API_URL: z.string().optional().describe('Assembly API URL'),
+  ASSEMBLY_API_KEY: z.string().optional().describe('Assembly API key'),
+});
+
+const membersStatusEnv = assemblyEnv.extend({
+  ABSTRACT_WALLET_ADDRESS: z.string().optional().describe('Default wallet address'),
+});
+
+type AssemblyEnv = z.infer<typeof assemblyEnv>;
+
+function getClient(env: AssemblyEnv) {
+  const apiUrl = env.ASSEMBLY_API_URL ?? ASSEMBLY_BASE_URL;
+  const apiKey = env.ASSEMBLY_API_KEY;
+  return createAssemblyClient(apiUrl, apiKey);
 }
 
 export const members = Cli.create('members', {
@@ -20,13 +31,14 @@ members.command('list', {
       .default('all')
       .describe('Filter members by role'),
   }),
+  env: assemblyEnv,
   examples: [
     { description: 'List all members' },
     { options: { role: 'council' }, description: 'List council members only' },
     { options: { role: 'voter' }, description: 'List voters only' },
   ],
   run(c) {
-    const client = getClient();
+    const client = getClient(c.env);
     return client.members
       .list(c.options.role)
       .then((data) =>
@@ -61,6 +73,7 @@ members.command('info', {
   args: z.object({
     address: z.string().describe('Member wallet address'),
   }),
+  env: assemblyEnv,
   examples: [
     {
       args: { address: '0xabc123' },
@@ -68,7 +81,7 @@ members.command('info', {
     },
   ],
   run(c) {
-    const client = getClient();
+    const client = getClient(c.env);
     return client.members
       .info(c.args.address)
       .then((data) =>
@@ -95,13 +108,14 @@ members.command('status', {
   options: z.object({
     address: z.string().optional().describe('Address to check (defaults to own wallet)'),
   }),
+  env: membersStatusEnv,
   examples: [
     { description: 'Check own membership status' },
     { options: { address: '0xabc123' }, description: 'Check membership for a specific address' },
   ],
   run(c) {
-    const client = getClient();
-    const address = c.options.address ?? process.env.ABSTRACT_WALLET_ADDRESS ?? '';
+    const client = getClient(c.env);
+    const address = c.options.address ?? c.env.ABSTRACT_WALLET_ADDRESS ?? '';
     if (!address) {
       return c.error({
         code: 'MISSING_ADDRESS',
