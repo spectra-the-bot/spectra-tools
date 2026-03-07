@@ -1,6 +1,6 @@
 {
   "name": "@spectra-the-bot/etherscan-cli",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Etherscan API CLI for spectra-the-bot",
   "type": "module",
   "license": "MIT",

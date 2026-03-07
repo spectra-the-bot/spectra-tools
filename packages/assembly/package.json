@@ -1,6 +1,6 @@
 {
   "name": "@spectra-the-bot/assembly-cli",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Assembly CLI for spectra-the-bot",
   "type": "module",
   "license": "MIT",
