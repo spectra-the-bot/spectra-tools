@@ -1,0 +1,32 @@
+{
+  "name": "@spectra-the-bot/erc8004-cli",
+  "version": "0.0.1",
+  "description": "ERC-8004 CLI for spectra-the-bot",
+  "type": "module",
+  "license": "MIT",
+  "author": "spectra-the-bot",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "erc8004-cli": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@spectra-the-bot/cli-shared": "workspace:*",
+    "incur": "^0.2.2"
+  },
+  "devDependencies": {
+    "typescript": "*",
+    "vitest": "*"
+  }
+}
