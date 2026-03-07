@@ -1,3 +1,6 @@
+import { keccak_256 } from '@noble/hashes/sha3.js';
+import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js';
+
 const ETH_DECIMALS = 18n;
 const WEI_PER_ETH = 10n ** ETH_DECIMALS;
 
@@ -18,26 +21,22 @@ export function weiToEth(wei: bigint | string, decimals = 6): string {
  */
 export function checksumAddress(address: string): string {
   const addr = address.toLowerCase().replace(/^0x/, '');
-  // Simple keccak256-based checksum approximation using Web Crypto is not available
-  // in Node without a library, so we do a deterministic pass using char codes.
-  // For production use, use viem/ethers for proper EIP-55 checksumming.
-  let hash = '';
-  for (let i = 0; i < addr.length; i++) {
-    const c = addr.charCodeAt(i);
-    hash += (c * (i + 1)).toString(16);
-  }
+  const hash = bytesToHex(keccak_256(utf8ToBytes(addr)));
+
   let result = '0x';
   for (let i = 0; i < addr.length; i++) {
     const char = addr[i];
     if (!char) continue;
+
     if (/[0-9]/.test(char)) {
       result += char;
-    } else {
-      const hashChar = hash[i % hash.length];
-      const hashValue = hashChar ? Number.parseInt(hashChar, 16) : 0;
-      result += hashValue >= 8 ? char.toUpperCase() : char;
+      continue;
     }
+
+    const hashNibble = Number.parseInt(hash[i] ?? '0', 16);
+    result += hashNibble >= 8 ? char.toUpperCase() : char;
   }
+
   return result;
 }
 
