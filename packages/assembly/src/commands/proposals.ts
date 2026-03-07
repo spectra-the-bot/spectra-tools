@@ -2,10 +2,17 @@ import { Cli, z } from 'incur';
 import type { Proposal } from '../api.js';
 import { ASSEMBLY_BASE_URL, createAssemblyClient } from '../api.js';
 
-function getClient() {
-  const baseUrl = process.env.ABSTRACT_RPC_URL ?? ASSEMBLY_BASE_URL;
-  const apiKey = process.env.ASSEMBLY_API_KEY;
-  return createAssemblyClient(baseUrl, apiKey);
+const assemblyEnv = z.object({
+  ASSEMBLY_API_URL: z.string().optional().describe('Assembly API URL'),
+  ASSEMBLY_API_KEY: z.string().optional().describe('Assembly API key'),
+});
+
+type AssemblyEnv = z.infer<typeof assemblyEnv>;
+
+function getClient(env: AssemblyEnv) {
+  const apiUrl = env.ASSEMBLY_API_URL ?? ASSEMBLY_BASE_URL;
+  const apiKey = env.ASSEMBLY_API_KEY;
+  return createAssemblyClient(apiUrl, apiKey);
 }
 
 function formatProposal(p: Proposal) {
@@ -37,12 +44,13 @@ proposals.command('list', {
       .default('all')
       .describe('Filter proposals by status'),
   }),
+  env: assemblyEnv,
   examples: [
     { description: 'List all proposals' },
     { options: { status: 'active' }, description: 'List active proposals' },
   ],
   run(c) {
-    const client = getClient();
+    const client = getClient(c.env);
     return client.proposals
       .list(c.options.status)
       .then((data) =>
@@ -69,9 +77,10 @@ proposals.command('get', {
   args: z.object({
     id: z.string().describe('Proposal ID'),
   }),
+  env: assemblyEnv,
   examples: [{ args: { id: '42' }, description: 'Get proposal #42' }],
   run(c) {
-    const client = getClient();
+    const client = getClient(c.env);
     return client.proposals
       .get(c.args.id)
       .then((data) =>
@@ -108,6 +117,7 @@ proposals.command('vote', {
   options: z.object({
     reason: z.string().optional().describe('Optional reason for your vote'),
   }),
+  env: assemblyEnv,
   examples: [
     { args: { id: '42', vote: 'for' }, description: 'Vote in favor of proposal #42' },
     {
@@ -117,7 +127,7 @@ proposals.command('vote', {
     },
   ],
   run(c) {
-    const client = getClient();
+    const client = getClient(c.env);
     return client.proposals
       .vote(c.args.id, c.args.vote, c.options.reason)
       .then((data) =>

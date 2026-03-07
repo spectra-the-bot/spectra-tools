@@ -39,6 +39,13 @@ describe('createHttpClient', () => {
     expect(server.requests[0]?.headers['x-api-key']).toBe('test-key');
   });
 
+  it('does not set content-type for requests without a body', async () => {
+    server.addRoute('GET', '/headers', { body: {} });
+    const client = createHttpClient({ baseUrl: server.url });
+    await client.request('/headers');
+    expect(server.requests[0]?.headers['content-type']).toBeUndefined();
+  });
+
   it('throws HttpError on non-2xx response', async () => {
     server.addRoute('GET', '/fail', { status: 404, body: { error: 'not found' } });
     const client = createHttpClient({ baseUrl: server.url });
@@ -64,5 +71,6 @@ describe('createHttpClient', () => {
     });
     expect(result).toEqual({ id: 1 });
     expect(server.requests[0]?.body).toBe('{"name":"test"}');
+    expect(server.requests[0]?.headers['content-type']).toBe('application/json');
   });
 });

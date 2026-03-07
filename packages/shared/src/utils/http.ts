@@ -46,16 +46,19 @@ export function createHttpClient(options: HttpClientOptions) {
 
     const init: RequestInit = {
       method,
-      headers: {
-        'Content-Type': 'application/json',
-        ...defaultHeaders,
-        ...headers,
-      },
+    };
+
+    const mergedHeaders: Record<string, string> = {
+      ...defaultHeaders,
+      ...headers,
     };
 
     if (body !== undefined) {
+      mergedHeaders['Content-Type'] ??= 'application/json';
       init.body = JSON.stringify(body);
     }
+
+    init.headers = mergedHeaders;
 
     const res = await fetch(url, init);
 

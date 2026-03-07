@@ -12,10 +12,11 @@ interface OutputEnvelope {
 async function runCli(
   argv: string[],
   server: MockServer,
+  env: Partial<Record<'ASSEMBLY_API_URL' | 'ASSEMBLY_API_KEY', string>> = {},
 ): Promise<{ lines: string[]; exitCode: number | undefined }> {
   // Set env so the CLI points to our mock server
-  vi.stubEnv('ABSTRACT_RPC_URL', server.url);
-  vi.stubEnv('ASSEMBLY_API_KEY', '');
+  vi.stubEnv('ASSEMBLY_API_URL', env.ASSEMBLY_API_URL ?? server.url);
+  vi.stubEnv('ASSEMBLY_API_KEY', env.ASSEMBLY_API_KEY ?? '');
 
   // Dynamically import the CLI fresh each time
   const { cli } = await import('../cli.js');
@@ -79,6 +80,12 @@ describe('assembly CLI', () => {
       server.addRoute('GET', '/v1/proposals', { body: [] });
       await runCli(['proposals', 'list', '--status', 'active'], server);
       expect(server.requests[0]?.url).toContain('status=active');
+    });
+
+    it('passes API key header when configured', async () => {
+      server.addRoute('GET', '/v1/proposals', { body: [] });
+      await runCli(['proposals', 'list'], server, { ASSEMBLY_API_KEY: 'test-api-key' });
+      expect(server.requests[0]?.headers['x-api-key']).toBe('test-api-key');
     });
   });
 
