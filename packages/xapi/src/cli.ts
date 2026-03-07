@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { Cli } from 'incur';
 import { dm } from './commands/dm.js';
 import { lists } from './commands/lists.js';
@@ -19,4 +20,6 @@ cli.command(dm);
 
 export { cli };
 
-cli.serve();
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  cli.serve();
+}
