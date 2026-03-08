@@ -1,14 +1,10 @@
-import { apiKeyAuth } from '@spectratools/cli-shared';
 import { Cli, z } from 'incur';
 import { createXApiClient, relativeTime, truncateText } from '../api.js';
+import { readAuthToken, toWriteAuthError, writeAuthToken, xApiEnv } from '../auth.js';
 import { collectPaged } from '../collect-paged.js';
 
 const posts = Cli.create('posts', {
   description: 'Manage and search X posts.',
-});
-
-const xApiEnv = z.object({
-  X_BEARER_TOKEN: z.string().optional().describe('X API bearer token'),
 });
 
 posts.command('get', {
@@ -31,8 +27,7 @@ posts.command('get', {
   }),
   examples: [{ args: { id: '1234567890' }, description: 'Get a post by ID' }],
   async run(c) {
-    const { apiKey } = apiKeyAuth('X_BEARER_TOKEN');
-    const client = createXApiClient(apiKey);
+    const client = createXApiClient(readAuthToken());
     const res = await client.getPost(c.args.id);
     const post = res.data;
     const text = c.options.verbose ? post.text : truncateText(post.text);
@@ -100,8 +95,7 @@ posts.command('search', {
     },
   ],
   async run(c) {
-    const { apiKey } = apiKeyAuth('X_BEARER_TOKEN');
-    const client = createXApiClient(apiKey);
+    const client = createXApiClient(readAuthToken());
     const res = await client.searchPosts(c.args.query, c.options.maxResults, c.options.sort);
     const items = (res.data ?? []).map((p) => ({
       id: p.id,
@@ -148,17 +142,26 @@ posts.command('create', {
     { options: { text: 'Great point!', replyTo: '1234567890' }, description: 'Reply to a post' },
   ],
   async run(c) {
-    const { apiKey } = apiKeyAuth('X_BEARER_TOKEN');
-    const client = createXApiClient(apiKey);
-    const res = await client.createPost(c.options.text, c.options.replyTo, c.options.quote);
-    return c.ok(res.data, {
-      cta: {
-        description: 'View your post:',
-        commands: [
-          { command: 'posts get', args: { id: res.data.id }, description: 'See the created post' },
-        ],
-      },
-    });
+    try {
+      const client = createXApiClient(writeAuthToken());
+      const res = await client.createPost(c.options.text, c.options.replyTo, c.options.quote);
+      return c.ok(res.data, {
+        cta: {
+          description: 'View your post:',
+          commands: [
+            {
+              command: 'posts get',
+              args: { id: res.data.id },
+              description: 'See the created post',
+            },
+          ],
+        },
+      });
+    } catch (error) {
+      const authError = toWriteAuthError('posts create', error);
+      if (authError) return c.error(authError);
+      throw error;
+    }
   },
 });
 
@@ -174,10 +177,15 @@ posts.command('delete', {
   }),
   examples: [{ args: { id: '1234567890' }, description: 'Delete a post' }],
   async run(c) {
-    const { apiKey } = apiKeyAuth('X_BEARER_TOKEN');
-    const client = createXApiClient(apiKey);
-    const res = await client.deletePost(c.args.id);
-    return c.ok({ deleted: res.data.deleted, id: c.args.id });
+    try {
+      const client = createXApiClient(writeAuthToken());
+      const res = await client.deletePost(c.args.id);
+      return c.ok({ deleted: res.data.deleted, id: c.args.id });
+    } catch (error) {
+      const authError = toWriteAuthError('posts delete', error);
+      if (authError) return c.error(authError);
+      throw error;
+    }
   },
 });
 
@@ -204,8 +212,7 @@ posts.command('likes', {
   }),
   examples: [{ args: { id: '1234567890' }, description: 'See who liked a post' }],
   async run(c) {
-    const { apiKey } = apiKeyAuth('X_BEARER_TOKEN');
-    const client = createXApiClient(apiKey);
+    const client = createXApiClient(readAuthToken());
     const allUsers = await collectPaged(
       (limit, cursor) => client.getPostLikes(c.args.id, limit, cursor),
       (
@@ -263,8 +270,7 @@ posts.command('retweets', {
   }),
   examples: [{ args: { id: '1234567890' }, description: 'See who retweeted a post' }],
   async run(c) {
-    const { apiKey } = apiKeyAuth('X_BEARER_TOKEN');
-    const client = createXApiClient(apiKey);
+    const client = createXApiClient(readAuthToken());
     const allUsers = await collectPaged(
       (limit, cursor) => client.getPostRetweets(c.args.id, limit, cursor),
       (

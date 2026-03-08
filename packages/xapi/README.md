@@ -24,8 +24,17 @@ xapi-cli mcp add
 ## Configuration
 
 ```bash
-export X_BEARER_TOKEN=your_bearer_token_here
+# Read-only endpoints (search, profiles, trends, list reads)
+export X_BEARER_TOKEN=your_app_bearer_token
+
+# Write endpoints (create/delete post, send DM)
+# OAuth 2.0 user context token with the required write scopes
+export X_ACCESS_TOKEN=your_oauth2_user_access_token
 ```
+
+Auth behavior:
+- Reads use `X_ACCESS_TOKEN` when present, otherwise fall back to `X_BEARER_TOKEN`.
+- Writes require `X_ACCESS_TOKEN` and will return a structured auth error if missing/insufficient.
 
 ## Command Group Intent Summary
 
@@ -66,4 +75,5 @@ xapi-cli dm send 12345 --text "hello from agent" --format json
 ## Notes
 
 - All commands support JSON output with `--format json`.
-- Write actions (post create/delete, DM send) require token scope compatible with user-context endpoints.
+- `X_BEARER_TOKEN` is for read-only app auth.
+- `X_ACCESS_TOKEN` is required for write actions (`posts create`, `posts delete`, `dm send`).

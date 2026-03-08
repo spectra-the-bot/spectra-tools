@@ -1,14 +1,10 @@
-import { apiKeyAuth } from '@spectratools/cli-shared';
 import { Cli, z } from 'incur';
 import { createXApiClient, relativeTime, truncateText } from '../api.js';
+import { readAuthToken, xApiEnv } from '../auth.js';
 import { collectPaged } from '../collect-paged.js';
 
 const lists = Cli.create('lists', {
   description: 'Manage and browse X lists.',
-});
-
-const xApiEnv = z.object({
-  X_BEARER_TOKEN: z.string().optional().describe('X API bearer token'),
 });
 
 lists.command('get', {
@@ -26,8 +22,7 @@ lists.command('get', {
   }),
   examples: [{ args: { id: '1234567890' }, description: 'Get list details' }],
   async run(c) {
-    const { apiKey } = apiKeyAuth('X_BEARER_TOKEN');
-    const client = createXApiClient(apiKey);
+    const client = createXApiClient(readAuthToken());
     const res = await client.getList(c.args.id);
     const list = res.data;
     return c.ok(
@@ -74,8 +69,7 @@ lists.command('members', {
   }),
   examples: [{ args: { id: '1234567890' }, description: 'List all members' }],
   async run(c) {
-    const { apiKey } = apiKeyAuth('X_BEARER_TOKEN');
-    const client = createXApiClient(apiKey);
+    const client = createXApiClient(readAuthToken());
     const allUsers = await collectPaged(
       (limit, cursor) => client.getListMembers(c.args.id, limit, cursor),
       (
@@ -123,8 +117,7 @@ lists.command('posts', {
   }),
   examples: [{ args: { id: '1234567890' }, description: 'Get posts from a list' }],
   async run(c) {
-    const { apiKey } = apiKeyAuth('X_BEARER_TOKEN');
-    const client = createXApiClient(apiKey);
+    const client = createXApiClient(readAuthToken());
     const allPosts = await collectPaged(
       (limit, cursor) => client.getListPosts(c.args.id, limit, cursor),
       (

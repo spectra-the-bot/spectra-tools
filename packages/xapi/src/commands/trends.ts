@@ -1,13 +1,9 @@
-import { apiKeyAuth } from '@spectratools/cli-shared';
 import { Cli, z } from 'incur';
 import { createXApiClient } from '../api.js';
+import { readAuthToken, xApiEnv } from '../auth.js';
 
 const trends = Cli.create('trends', {
   description: 'Explore trending topics on X.',
-});
-
-const xApiEnv = z.object({
-  X_BEARER_TOKEN: z.string().optional().describe('X API bearer token'),
 });
 
 trends.command('places', {
@@ -25,8 +21,7 @@ trends.command('places', {
   }),
   examples: [{ description: 'List all trending places' }],
   async run(c) {
-    const { apiKey } = apiKeyAuth('X_BEARER_TOKEN');
-    const client = createXApiClient(apiKey);
+    const client = createXApiClient(readAuthToken());
     const res = await client.getTrendingPlaces();
     const places = res.data ?? [];
     const first = places[0];
@@ -71,8 +66,7 @@ trends.command('location', {
     { args: { woeid: '2459115' }, description: 'Get trends for New York' },
   ],
   async run(c) {
-    const { apiKey } = apiKeyAuth('X_BEARER_TOKEN');
-    const client = createXApiClient(apiKey);
+    const client = createXApiClient(readAuthToken());
     const res = await client.getTrendsByLocation(Number(c.args.woeid));
     const trendItems = res.data ?? [];
     const firstTrend = trendItems[0];

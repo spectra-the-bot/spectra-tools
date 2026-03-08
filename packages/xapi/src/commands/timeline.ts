@@ -1,14 +1,10 @@
-import { apiKeyAuth } from '@spectratools/cli-shared';
 import { Cli, z } from 'incur';
 import { createXApiClient, relativeTime, truncateText } from '../api.js';
+import { readAuthToken, xApiEnv } from '../auth.js';
 import { collectPaged } from '../collect-paged.js';
 
 const timeline = Cli.create('timeline', {
   description: 'View your X timeline.',
-});
-
-const xApiEnv = z.object({
-  X_BEARER_TOKEN: z.string().optional().describe('X API bearer token'),
 });
 
 timeline.command('home', {
@@ -37,8 +33,7 @@ timeline.command('home', {
     { options: { maxResults: 50 }, description: 'View 50 posts' },
   ],
   async run(c) {
-    const { apiKey } = apiKeyAuth('X_BEARER_TOKEN');
-    const client = createXApiClient(apiKey);
+    const client = createXApiClient(readAuthToken());
     const meRes = await client.getMe();
     const userId = meRes.data.id;
     const allPosts = await collectPaged(
@@ -105,8 +100,7 @@ timeline.command('mentions', {
   }),
   examples: [{ description: 'View your recent mentions' }],
   async run(c) {
-    const { apiKey } = apiKeyAuth('X_BEARER_TOKEN');
-    const client = createXApiClient(apiKey);
+    const client = createXApiClient(readAuthToken());
     const meRes = await client.getMe();
     const userId = meRes.data.id;
     const allPosts = await collectPaged(
