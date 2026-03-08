@@ -4,6 +4,11 @@ import { ABSTRACT_MAINNET_ADDRESSES } from '../contracts/addresses.js';
 import { createAssemblyPublicClient } from '../contracts/client.js';
 import { asNum, eth, relTime, toChecksum } from './_common.js';
 
+const DEFAULT_MEMBER_SNAPSHOT_URL = 'https://www.theaiassembly.org/api/indexer/members';
+const REGISTERED_EVENT_SCAN_STEP = 100_000n;
+
+type AssemblyClient = ReturnType<typeof createAssemblyPublicClient>;
+
 const env = z.object({
   ABSTRACT_RPC_URL: z.string().optional().describe('Abstract RPC URL override'),
   ASSEMBLY_INDEXER_URL: z
@@ -28,9 +33,42 @@ class AssemblyApiValidationError extends Error {
   }
 }
 
+class AssemblyIndexerUnavailableError extends Error {
+  constructor(
+    public readonly details: {
+      code: 'ASSEMBLY_INDEXER_UNAVAILABLE';
+      url: string;
+      reason?: string;
+      status?: number;
+      statusText?: string;
+    },
+  ) {
+    super('Assembly indexer unavailable');
+    this.name = 'AssemblyIndexerUnavailableError';
+  }
+}
+
 async function memberSnapshot(url: string): Promise<string[]> {
-  const res = await fetch(url);
-  if (!res.ok) return [];
+  let res: Response;
+  try {
+    res = await fetch(url);
+  } catch (error) {
+    throw new AssemblyIndexerUnavailableError({
+      code: 'ASSEMBLY_INDEXER_UNAVAILABLE',
+      url,
+      reason: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  if (!res.ok) {
+    throw new AssemblyIndexerUnavailableError({
+      code: 'ASSEMBLY_INDEXER_UNAVAILABLE',
+      url,
+      status: res.status,
+      statusText: res.statusText,
+    });
+  }
+
   const json = (await res.json()) as unknown;
   const parsed = memberSnapshotSchema.safeParse(json);
   if (parsed.success) {
@@ -45,12 +83,63 @@ async function memberSnapshot(url: string): Promise<string[]> {
   });
 }
 
+async function membersFromRegisteredEvents(client: AssemblyClient): Promise<string[]> {
+  const latestBlock = await client.getBlockNumber();
+  const addresses = new Set<string>();
+
+  for (let fromBlock = 0n; fromBlock <= latestBlock; fromBlock += REGISTERED_EVENT_SCAN_STEP) {
+    const toBlock =
+      fromBlock + REGISTERED_EVENT_SCAN_STEP - 1n > latestBlock
+        ? latestBlock
+        : fromBlock + REGISTERED_EVENT_SCAN_STEP - 1n;
+    const events = (await client.getContractEvents({
+      abi: registryAbi,
+      address: ABSTRACT_MAINNET_ADDRESSES.registry,
+      eventName: 'Registered',
+      fromBlock,
+      toBlock,
+      strict: true,
+    })) as Array<{ args: { member?: string } }>;
+
+    for (const event of events) {
+      const member = event.args.member;
+      if (typeof member === 'string') {
+        addresses.add(member);
+      }
+    }
+  }
+
+  return [...addresses];
+}
+
+function indexerIssue(details: AssemblyIndexerUnavailableError['details']): string {
+  if (typeof details.status === 'number') {
+    return `${details.status}${details.statusText ? ` ${details.statusText}` : ''}`;
+  }
+  if (details.reason) return details.reason;
+  return 'unknown error';
+}
+
+function emitIndexerFallbackWarning(details: AssemblyIndexerUnavailableError['details']) {
+  process.stderr.write(
+    `${JSON.stringify({
+      level: 'warn',
+      code: details.code,
+      message:
+        'Member snapshot indexer is unavailable. Falling back to on-chain Registered events.',
+      url: details.url,
+      issue: indexerIssue(details),
+    })}\n`,
+  );
+}
+
 export const members = Cli.create('members', {
   description: 'Inspect Assembly membership and registry fee state.',
 });
 
 members.command('list', {
-  description: 'List members from an indexer snapshot plus on-chain active state.',
+  description:
+    'List members from an indexer snapshot (or Registered event fallback) plus on-chain active state.',
   env,
   output: z.array(
     z.object({
@@ -69,10 +158,10 @@ members.command('list', {
   ],
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
-    const snapshotUrl =
-      c.env.ASSEMBLY_INDEXER_URL ?? 'https://www.theaiassembly.org/api/indexer/members';
+    const snapshotUrl = c.env.ASSEMBLY_INDEXER_URL ?? DEFAULT_MEMBER_SNAPSHOT_URL;
 
     let addresses: string[];
+    let fallbackReason: AssemblyIndexerUnavailableError['details'] | undefined;
     try {
       addresses = await memberSnapshot(snapshotUrl);
     } catch (error) {
@@ -83,7 +172,24 @@ members.command('list', {
           retryable: false,
         });
       }
-      throw error;
+      if (!(error instanceof AssemblyIndexerUnavailableError)) {
+        throw error;
+      }
+
+      fallbackReason = error.details;
+      try {
+        addresses = await membersFromRegisteredEvents(client);
+      } catch (fallbackError) {
+        return c.error({
+          code: 'MEMBER_LIST_SOURCE_UNAVAILABLE',
+          message: `Member indexer unavailable (${indexerIssue(error.details)} at ${error.details.url}) and on-chain Registered event fallback failed: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`,
+          retryable: true,
+        });
+      }
+    }
+
+    if (fallbackReason) {
+      emitIndexerFallbackWarning(fallbackReason);
     }
 
     const calls = addresses.flatMap((address) => [
@@ -121,7 +227,9 @@ members.command('list', {
     });
     return c.ok(rows, {
       cta: {
-        description: 'Inspect one member:',
+        description: fallbackReason
+          ? `Indexer unavailable (${indexerIssue(fallbackReason)}); using on-chain Registered event fallback. Inspect one member:`
+          : 'Inspect one member:',
         commands: [{ command: 'members info', args: { address: '<addr>' } }],
       },
     });

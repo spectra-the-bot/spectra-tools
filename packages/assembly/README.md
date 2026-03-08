@@ -26,7 +26,7 @@ assembly-cli mcp add
 | Variable | Required | Description |
 |---|---|---|
 | `ABSTRACT_RPC_URL` | No | Abstract RPC URL override (default from package client) |
-| `ASSEMBLY_INDEXER_URL` | No | Optional member snapshot endpoint for `members list` |
+| `ASSEMBLY_INDEXER_URL` | No | Optional member snapshot endpoint for `members list` (falls back to on-chain `Registered` events with a warning if unavailable) |
 
 ## Command Group Intent Summary
 

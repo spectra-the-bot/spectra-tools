@@ -6,6 +6,8 @@ const mockClient = {
   readContract: vi.fn(),
   multicall: vi.fn(),
   getBalance: vi.fn(),
+  getBlockNumber: vi.fn(),
+  getContractEvents: vi.fn(),
 };
 
 vi.mock('../contracts/client.js', () => ({
@@ -58,6 +60,58 @@ describe('assembly onchain commands', () => {
     expect(out.ok).toBe(false);
     expect(JSON.stringify(out.error)).toContain('INVALID_ASSEMBLY_API_RESPONSE');
     expect(JSON.stringify(out.error)).toContain('Member snapshot response failed validation');
+  });
+
+  it('members list falls back to Registered events when indexer is unavailable', async () => {
+    const mockFetch = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response('', {
+        status: 404,
+        statusText: 'Not Found',
+      }),
+    );
+    vi.stubGlobal('fetch', mockFetch);
+
+    const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+
+    mockClient.getBlockNumber.mockResolvedValueOnce(10n);
+    mockClient.getContractEvents.mockResolvedValueOnce([
+      { args: { member: addrA } },
+      { args: { member: addrB } },
+      { args: { member: addrA } },
+    ]);
+    mockClient.multicall.mockResolvedValueOnce([
+      true,
+      { registered: true, activeUntil: 100n, lastHeartbeatAt: 90n },
+      false,
+      { registered: true, activeUntil: 80n, lastHeartbeatAt: 70n },
+    ]);
+
+    const out = await run(['members', 'list']);
+
+    expect(out.ok).toBe(true);
+    expect(mockClient.getContractEvents).toHaveBeenCalledTimes(1);
+    const data = out.data as Array<Record<string, unknown>>;
+    expect(data).toHaveLength(2);
+    expect(stderrSpy).toHaveBeenCalledWith(
+      expect.stringContaining('"code":"ASSEMBLY_INDEXER_UNAVAILABLE"'),
+    );
+  });
+
+  it('members list errors when indexer and fallback are unavailable', async () => {
+    const mockFetch = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response('', {
+        status: 404,
+        statusText: 'Not Found',
+      }),
+    );
+    vi.stubGlobal('fetch', mockFetch);
+
+    mockClient.getBlockNumber.mockRejectedValueOnce(new Error('rpc unavailable'));
+
+    const out = await run(['members', 'list']);
+
+    expect(out.ok).toBe(false);
+    expect(out.error).toMatchObject({ code: 'MEMBER_LIST_SOURCE_UNAVAILABLE' });
   });
 
   it('council is-member', async () => {
