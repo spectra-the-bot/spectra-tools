@@ -3,6 +3,7 @@ import { Cli, z } from 'incur';
 import { readContract, writeContract } from 'viem/actions';
 import { reputationRegistryAbi } from '../contracts/abis.js';
 import {
+  MULTICALL_BATCH_SIZE,
   abstractMainnet,
   getPublicClient,
   getReputationRegistryAddress,
@@ -12,6 +13,14 @@ import {
 const reputation = Cli.create('reputation', {
   description: 'Manage ERC-8004 agent reputation and feedback.',
 });
+
+function chunk<T>(items: readonly T[], size: number): T[][] {
+  const batches: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    batches.push(items.slice(i, i + size));
+  }
+  return batches;
+}
 
 reputation.command('get', {
   description: 'Get the reputation score for an agent.',
@@ -187,23 +196,37 @@ reputation.command('history', {
       timestamp: string;
     }[] = [];
 
-    for (let i = totalNum - 1; i >= totalNum - fetchCount; i--) {
-      const fb = await readContract(client, {
-        address,
-        abi: reputationRegistryAbi,
-        functionName: 'getFeedbackAt',
-        args: [tokenId, BigInt(i)],
+    const feedbackIndices = Array.from({ length: fetchCount }, (_, i) => BigInt(totalNum - 1 - i));
+    const feedbackBatches = chunk(feedbackIndices, MULTICALL_BATCH_SIZE);
+
+    for (const feedbackBatch of feedbackBatches) {
+      const feedbackResults = await client.multicall({
+        allowFailure: true,
+        contracts: feedbackBatch.map((index) => ({
+          address,
+          abi: reputationRegistryAbi,
+          functionName: 'getFeedbackAt',
+          args: [tokenId, index] as const,
+        })),
       });
 
-      history.push({
-        index: i,
-        from: checksumAddress(fb[0]),
-        value: Number(fb[1]),
-        tag1: fb[2],
-        tag2: fb[3],
-        fileUri: fb[4],
-        timestamp: formatTimestamp(Number(fb[5])),
-      });
+      for (let i = 0; i < feedbackBatch.length; i++) {
+        const feedbackResult = feedbackResults[i];
+        if (!feedbackResult || feedbackResult.status !== 'success') {
+          continue;
+        }
+
+        const fb = feedbackResult.result;
+        history.push({
+          index: Number(feedbackBatch[i]),
+          from: checksumAddress(fb[0]),
+          value: Number(fb[1]),
+          tag1: fb[2],
+          tag2: fb[3],
+          fileUri: fb[4],
+          timestamp: formatTimestamp(Number(fb[5])),
+        });
+      }
     }
 
     return c.ok({ agentId: c.args.agentId, history, total: totalNum });

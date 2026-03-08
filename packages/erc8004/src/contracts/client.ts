@@ -25,6 +25,9 @@ const DEFAULT_RPC = 'https://api.mainnet.abs.xyz';
 const DEFAULT_CHAIN_ID = abstractMainnet.id;
 const DEFAULT_IDENTITY_REGISTRY_ADDRESS: Address = '0x8004a169fb4a3325136eb29fa0ceb6d2e539a432';
 
+/** Maximum number of contracts to include in a single multicall batch. */
+export const MULTICALL_BATCH_SIZE = 100;
+
 /** Creates a viem public client for the Abstract mainnet. */
 export function getPublicClient(rpcUrl?: string): PublicClient {
   return createPublicClient({

@@ -3,6 +3,7 @@ import { Cli, z } from 'incur';
 import { readContract, writeContract } from 'viem/actions';
 import { ValidationStatus, validationRegistryAbi } from '../contracts/abis.js';
 import {
+  MULTICALL_BATCH_SIZE,
   abstractMainnet,
   getPublicClient,
   getValidationRegistryAddress,
@@ -12,6 +13,14 @@ import {
 const validation = Cli.create('validation', {
   description: 'Manage ERC-8004 agent validation requests.',
 });
+
+function chunk<T>(items: readonly T[], size: number): T[][] {
+  const batches: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    batches.push(items.slice(i, i + size));
+  }
+  return batches;
+}
 
 validation.command('request', {
   description: 'Submit a validation request for an agent.',
@@ -204,29 +213,58 @@ validation.command('history', {
       timestamp: string;
     }[] = [];
 
-    for (let i = 0; i < totalNum; i++) {
-      const requestId = await readContract(client, {
-        address,
-        abi: validationRegistryAbi,
-        functionName: 'getValidationRequestAt',
-        args: [tokenId, BigInt(i)],
+    const indexBatches = chunk(
+      Array.from({ length: totalNum }, (_, i) => BigInt(i)),
+      MULTICALL_BATCH_SIZE,
+    );
+
+    const requestIds: bigint[] = [];
+    for (const indexBatch of indexBatches) {
+      const requestIdResults = await client.multicall({
+        allowFailure: true,
+        contracts: indexBatch.map((index) => ({
+          address,
+          abi: validationRegistryAbi,
+          functionName: 'getValidationRequestAt',
+          args: [tokenId, index] as const,
+        })),
       });
 
-      const statusResult = await readContract(client, {
-        address,
-        abi: validationRegistryAbi,
-        functionName: 'getValidationStatus',
-        args: [requestId],
+      for (const requestIdResult of requestIdResults) {
+        if (requestIdResult.status === 'success') {
+          requestIds.push(requestIdResult.result as bigint);
+        }
+      }
+    }
+
+    const requestIdBatches = chunk(requestIds, MULTICALL_BATCH_SIZE);
+    for (const requestIdBatch of requestIdBatches) {
+      const statusResults = await client.multicall({
+        allowFailure: true,
+        contracts: requestIdBatch.map((requestId) => ({
+          address,
+          abi: validationRegistryAbi,
+          functionName: 'getValidationStatus',
+          args: [requestId] as const,
+        })),
       });
 
-      const statusCode = statusResult[3] as keyof typeof ValidationStatus;
+      for (let i = 0; i < requestIdBatch.length; i++) {
+        const statusResult = statusResults[i];
+        if (!statusResult || statusResult.status !== 'success') {
+          continue;
+        }
 
-      requests.push({
-        requestId: requestId.toString(),
-        validator: checksumAddress(statusResult[1]),
-        status: ValidationStatus[statusCode] ?? 'Unknown',
-        timestamp: formatTimestamp(Number(statusResult[5])),
-      });
+        const statusData = statusResult.result;
+        const statusCode = statusData[3] as keyof typeof ValidationStatus;
+
+        requests.push({
+          requestId: requestIdBatch[i].toString(),
+          validator: checksumAddress(statusData[1]),
+          status: ValidationStatus[statusCode] ?? 'Unknown',
+          timestamp: formatTimestamp(Number(statusData[5])),
+        });
+      }
     }
 
     return c.ok({ agentId: c.args.agentId, requests, total: totalNum });

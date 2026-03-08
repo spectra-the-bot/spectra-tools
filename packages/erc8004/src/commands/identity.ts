@@ -3,6 +3,7 @@ import { Cli, z } from 'incur';
 import { readContract, writeContract } from 'viem/actions';
 import { identityRegistryAbi } from '../contracts/abis.js';
 import {
+  MULTICALL_BATCH_SIZE,
   abstractMainnet,
   getIdentityRegistryAddress,
   getPublicClient,
@@ -12,6 +13,14 @@ import {
 const identity = Cli.create('identity', {
   description: 'Manage ERC-8004 agent identities.',
 });
+
+function chunk<T>(items: readonly T[], size: number): T[][] {
+  const batches: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    batches.push(items.slice(i, i + size));
+  }
+  return batches;
+}
 
 identity.command('list', {
   description: 'List registered agents, optionally filtered by owner.',
@@ -55,58 +64,130 @@ identity.command('list', {
     const totalNum = Number(total);
 
     if (owner) {
+      const ownerAddress = owner as `0x${string}`;
       const balance = await readContract(client, {
         address,
         abi: identityRegistryAbi,
         functionName: 'balanceOf',
-        args: [owner as `0x${string}`],
+        args: [ownerAddress],
       });
       const count = Math.min(Number(balance), limit);
-      for (let i = 0; i < count; i++) {
-        const tokenId = await readContract(client, {
-          address,
-          abi: identityRegistryAbi,
-          functionName: 'tokenOfOwnerByIndex',
-          args: [owner as `0x${string}`, BigInt(i)],
+
+      const ownerIndexBatches = chunk(
+        Array.from({ length: count }, (_, i) => BigInt(i)),
+        MULTICALL_BATCH_SIZE,
+      );
+
+      for (const ownerIndexBatch of ownerIndexBatches) {
+        const tokenIdResults = await client.multicall({
+          allowFailure: true,
+          contracts: ownerIndexBatch.map((index) => ({
+            address,
+            abi: identityRegistryAbi,
+            functionName: 'tokenOfOwnerByIndex',
+            args: [ownerAddress, index] as const,
+          })),
         });
-        const uri = await readContract(client, {
-          address,
-          abi: identityRegistryAbi,
-          functionName: 'tokenURI',
-          args: [tokenId],
+
+        const tokenIds: bigint[] = [];
+        for (const tokenIdResult of tokenIdResults) {
+          if (tokenIdResult.status === 'success') {
+            tokenIds.push(tokenIdResult.result as bigint);
+          }
+        }
+
+        if (tokenIds.length === 0) {
+          continue;
+        }
+
+        const uriResults = await client.multicall({
+          allowFailure: true,
+          contracts: tokenIds.map((tokenId) => ({
+            address,
+            abi: identityRegistryAbi,
+            functionName: 'tokenURI',
+            args: [tokenId] as const,
+          })),
         });
-        agents.push({
-          agentId: tokenId.toString(),
-          owner: checksumAddress(owner),
-          uri,
-        });
+
+        for (let i = 0; i < tokenIds.length; i++) {
+          const uriResult = uriResults[i];
+          if (!uriResult || uriResult.status !== 'success') {
+            continue;
+          }
+
+          agents.push({
+            agentId: tokenIds[i].toString(),
+            owner: checksumAddress(ownerAddress),
+            uri: String(uriResult.result),
+          });
+        }
       }
     } else {
       const count = Math.min(totalNum, limit);
-      for (let i = 0; i < count; i++) {
-        const tokenId = await readContract(client, {
-          address,
-          abi: identityRegistryAbi,
-          functionName: 'tokenByIndex',
-          args: [BigInt(i)],
+      const indexBatches = chunk(
+        Array.from({ length: count }, (_, i) => BigInt(i)),
+        MULTICALL_BATCH_SIZE,
+      );
+
+      for (const indexBatch of indexBatches) {
+        const tokenIdResults = await client.multicall({
+          allowFailure: true,
+          contracts: indexBatch.map((index) => ({
+            address,
+            abi: identityRegistryAbi,
+            functionName: 'tokenByIndex',
+            args: [index] as const,
+          })),
         });
-        const ownerAddr = await readContract(client, {
-          address,
-          abi: identityRegistryAbi,
-          functionName: 'ownerOf',
-          args: [tokenId],
+
+        const tokenIds: bigint[] = [];
+        for (const tokenIdResult of tokenIdResults) {
+          if (tokenIdResult.status === 'success') {
+            tokenIds.push(tokenIdResult.result as bigint);
+          }
+        }
+
+        if (tokenIds.length === 0) {
+          continue;
+        }
+
+        const detailsResults = await client.multicall({
+          allowFailure: true,
+          contracts: tokenIds.flatMap((tokenId) => [
+            {
+              address,
+              abi: identityRegistryAbi,
+              functionName: 'ownerOf' as const,
+              args: [tokenId] as const,
+            },
+            {
+              address,
+              abi: identityRegistryAbi,
+              functionName: 'tokenURI' as const,
+              args: [tokenId] as const,
+            },
+          ]),
         });
-        const uri = await readContract(client, {
-          address,
-          abi: identityRegistryAbi,
-          functionName: 'tokenURI',
-          args: [tokenId],
-        });
-        agents.push({
-          agentId: tokenId.toString(),
-          owner: checksumAddress(ownerAddr),
-          uri,
-        });
+
+        for (let i = 0; i < tokenIds.length; i++) {
+          const ownerResult = detailsResults[i * 2];
+          const uriResult = detailsResults[i * 2 + 1];
+          if (
+            !ownerResult ||
+            !uriResult ||
+            ownerResult.status !== 'success' ||
+            uriResult.status !== 'success'
+          ) {
+            continue;
+          }
+
+          agents.push({
+            agentId: tokenIds[i].toString(),
+            owner: checksumAddress(ownerResult.result as `0x${string}`),
+            uri: String(uriResult.result),
+          });
+        }
       }
     }
 
