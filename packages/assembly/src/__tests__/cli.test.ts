@@ -310,7 +310,10 @@ describe('assembly onchain commands', () => {
   });
 
   it('council auction includes window metadata and settled status', async () => {
-    mockClient.readContract.mockResolvedValueOnce([addrA, 123n, true]).mockResolvedValueOnce(999n);
+    mockClient.readContract
+      .mockResolvedValueOnce(4n) // AUCTION_SLOTS_PER_DAY
+      .mockResolvedValueOnce([addrA, 123n, true])
+      .mockResolvedValueOnce(999n);
     mockClient.getBlock.mockResolvedValueOnce({ timestamp: 150n });
 
     const out = await run(['council', 'auction', '0', '0']);
@@ -325,6 +328,17 @@ describe('assembly onchain commands', () => {
     expect(typeof data.highestBidder).toBe('string');
     expect(typeof data.highestBid).toBe('string');
     expect(typeof data.windowEndRelative).toBe('string');
+  });
+
+  it('council auction returns OUT_OF_RANGE when slot >= AUCTION_SLOTS_PER_DAY', async () => {
+    mockClient.readContract.mockResolvedValueOnce(4n); // AUCTION_SLOTS_PER_DAY
+
+    const out = await run(['council', 'auction', '2', '5']);
+
+    expect(out.ok).toBe(false);
+    expect(out.error).toMatchObject({ code: 'OUT_OF_RANGE' });
+    expect(out.error?.message).toContain('max: 3');
+    expect(mockClient.readContract).toHaveBeenCalledTimes(1);
   });
 
   it('forum threads wraps array results in an object when CTA metadata is present', async () => {
