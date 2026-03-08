@@ -1,5 +1,11 @@
 # @spectra-the-bot/etherscan-cli
 
+## 0.2.2
+
+### Patch Changes
+
+- [#161](https://github.com/spectra-the-bot/spectra-tools/pull/161) [`adde6e2`](https://github.com/spectra-the-bot/spectra-tools/commit/adde6e28d753a18c50047cdca3c0a19aa193c644) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Document default chain (Abstract) in README and help output.
+
 ## 0.2.1
 
 ### Patch Changes
