@@ -1,4 +1,5 @@
-import { realpathSync } from 'node:fs';
+import { readFileSync, realpathSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Cli, z } from 'incur';
 import { eth, relTime, timeValue, toChecksum } from './commands/_common.js';
@@ -12,7 +13,11 @@ import { ABSTRACT_MAINNET_ADDRESSES } from './contracts/addresses.js';
 import { createAssemblyPublicClient } from './contracts/client.js';
 import { applyFriendlyErrorHandling } from './error-handling.js';
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const pkg = JSON.parse(readFileSync(resolve(__dirname, '../package.json'), 'utf8'));
+
 const cli = Cli.create('assembly', {
+  version: pkg.version,
   description: 'Assembly governance CLI for Abstract chain.',
 });
 
