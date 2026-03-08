@@ -1,14 +1,14 @@
 import { fileURLToPath } from 'node:url';
 import { Cli, z } from 'incur';
+import { eth } from './commands/_common.js';
 import { council } from './commands/council.js';
 import { forum } from './commands/forum.js';
 import { governance } from './commands/governance.js';
 import { members } from './commands/members.js';
 import { treasury } from './commands/treasury.js';
-import { createAssemblyPublicClient } from './contracts/client.js';
-import { ABSTRACT_MAINNET_ADDRESSES } from './contracts/addresses.js';
 import { councilSeatsAbi, governanceAbi, registryAbi } from './contracts/abis.js';
-import { eth } from './commands/_common.js';
+import { ABSTRACT_MAINNET_ADDRESSES } from './contracts/addresses.js';
+import { createAssemblyPublicClient } from './contracts/client.js';
 
 const cli = Cli.create('assembly', {
   description: 'Assembly governance CLI for Abstract chain.',
@@ -26,7 +26,7 @@ cli.command('status', {
   description: 'Cross-contract status snapshot.',
   env: rootEnv,
   async run(c) {
-    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL) as any;
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const [
       activeMemberCount,
       seatCount,
@@ -78,7 +78,7 @@ cli.command('health', {
   args: z.object({ address: z.string() }),
   env: rootEnv,
   async run(c) {
-    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL) as any;
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const [isActive, member, isCouncilMember, pendingReturns, votingPower] = await Promise.all([
       client.readContract({
         abi: registryAbi,

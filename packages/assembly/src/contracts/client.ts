@@ -1,4 +1,4 @@
-import { createPublicClient, defineChain, http } from 'viem';
+import { http, createPublicClient, defineChain } from 'viem';
 
 export const abstractMainnet = defineChain({
   id: 2741,

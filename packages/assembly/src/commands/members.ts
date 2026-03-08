@@ -1,7 +1,7 @@
 import { Cli, z } from 'incur';
-import { createAssemblyPublicClient } from '../contracts/client.js';
 import { registryAbi } from '../contracts/abis.js';
 import { ABSTRACT_MAINNET_ADDRESSES } from '../contracts/addresses.js';
+import { createAssemblyPublicClient } from '../contracts/client.js';
 import { asNum, eth, relTime, toChecksum } from './_common.js';
 
 const env = z.object({
@@ -25,7 +25,7 @@ members.command('list', {
   description: 'List members from indexer snapshot + onchain status.',
   env,
   async run(c) {
-    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL) as any;
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const snapshotUrl =
       c.env.ASSEMBLY_INDEXER_URL ?? 'https://www.theaiassembly.org/api/indexer/members';
     const addresses = await memberSnapshot(snapshotUrl);
@@ -76,7 +76,7 @@ members.command('info', {
   args: z.object({ address: z.string() }),
   env,
   async run(c) {
-    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL) as any;
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const [member, active] = await Promise.all([
       client.readContract({
         abi: registryAbi,
@@ -105,7 +105,7 @@ members.command('count', {
   description: 'Read active + known member counts.',
   env,
   async run(c) {
-    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL) as any;
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const [active, total] = await Promise.all([
       client.readContract({
         abi: registryAbi,
@@ -126,7 +126,7 @@ members.command('fees', {
   description: 'Read registry fee config.',
   env,
   async run(c) {
-    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL) as any;
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const [registrationFee, heartbeatFee, heartbeatGracePeriod] = await Promise.all([
       client.readContract({
         abi: registryAbi,

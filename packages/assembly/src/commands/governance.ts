@@ -1,7 +1,7 @@
 import { Cli, z } from 'incur';
-import { createAssemblyPublicClient } from '../contracts/client.js';
 import { governanceAbi } from '../contracts/abis.js';
 import { ABSTRACT_MAINNET_ADDRESSES } from '../contracts/addresses.js';
+import { createAssemblyPublicClient } from '../contracts/client.js';
 import { asNum, relTime } from './_common.js';
 
 const env = z.object({ ABSTRACT_RPC_URL: z.string().optional() });
@@ -12,7 +12,7 @@ export const governance = Cli.create('governance', {
 governance.command('proposals', {
   env,
   async run(c) {
-    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL) as any;
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const count = await client.readContract({
       abi: governanceAbi,
       address: ABSTRACT_MAINNET_ADDRESSES.governance,
@@ -31,7 +31,7 @@ governance.command('proposals', {
         })
       : [];
     return c.ok(
-      proposals.map((p: any, i: number) => ({
+      proposals.map((p: Record<string, unknown>, i: number) => ({
         id: i + 1,
         kind: asNum(p.kind),
         status: asNum(p.status),
@@ -56,7 +56,7 @@ governance.command('proposal', {
   args: z.object({ id: z.coerce.number().int().positive() }),
   env,
   async run(c) {
-    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL) as any;
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const proposal = await client.readContract({
       abi: governanceAbi,
       address: ABSTRACT_MAINNET_ADDRESSES.governance,
@@ -71,7 +71,7 @@ governance.command('has-voted', {
   args: z.object({ proposalId: z.coerce.number().int().positive(), address: z.string() }),
   env,
   async run(c) {
-    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL) as any;
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const hasVoted = await client.readContract({
       abi: governanceAbi,
       address: ABSTRACT_MAINNET_ADDRESSES.governance,
@@ -85,7 +85,7 @@ governance.command('has-voted', {
 governance.command('params', {
   env,
   async run(c) {
-    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL) as any;
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const getters = [
       'deliberationPeriod',
       'votePeriod',

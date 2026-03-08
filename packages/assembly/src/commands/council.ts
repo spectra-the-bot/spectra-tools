@@ -1,7 +1,7 @@
 import { Cli, z } from 'incur';
-import { createAssemblyPublicClient } from '../contracts/client.js';
 import { councilSeatsAbi } from '../contracts/abis.js';
 import { ABSTRACT_MAINNET_ADDRESSES } from '../contracts/addresses.js';
+import { createAssemblyPublicClient } from '../contracts/client.js';
 import { asNum, eth, relTime, toChecksum } from './_common.js';
 
 const env = z.object({ ABSTRACT_RPC_URL: z.string().optional() });
@@ -13,7 +13,7 @@ export const council = Cli.create('council', {
 council.command('seats', {
   env,
   async run(c) {
-    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL) as any;
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const count = await client.readContract({
       abi: councilSeatsAbi,
       address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
@@ -32,7 +32,7 @@ council.command('seats', {
         })
       : [];
     return c.ok(
-      seats.map((seat: any, idx: number) => ({
+      seats.map((seat: Record<string, unknown>, idx: number) => ({
         id: idx,
         owner: toChecksum(seat.owner),
         startAt: Number(seat.startAt),
@@ -49,7 +49,7 @@ council.command('seat', {
   args: z.object({ id: z.coerce.number().int().nonnegative() }),
   env,
   async run(c) {
-    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL) as any;
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const seat = await client.readContract({
       abi: councilSeatsAbi,
       address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
@@ -68,7 +68,7 @@ council.command('seat', {
 council.command('members', {
   env,
   async run(c) {
-    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL) as any;
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const count = await client.readContract({
       abi: councilSeatsAbi,
       address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
@@ -89,8 +89,11 @@ council.command('members', {
     const activeOwners = [
       ...new Set(
         seats
-          .filter((x: any) => !x.forfeited && Number(x.endAt) > Math.floor(Date.now() / 1000))
-          .map((x: any) => x.owner as string),
+          .filter(
+            (x: Record<string, unknown>) =>
+              !x.forfeited && Number(x.endAt) > Math.floor(Date.now() / 1000),
+          )
+          .map((x: Record<string, unknown>) => x.owner as string),
       ),
     ] as string[];
     const powers = activeOwners.length
@@ -117,7 +120,7 @@ council.command('is-member', {
   args: z.object({ address: z.string() }),
   env,
   async run(c) {
-    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL) as any;
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const isMember = await client.readContract({
       abi: councilSeatsAbi,
       address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
@@ -132,7 +135,7 @@ council.command('voting-power', {
   args: z.object({ address: z.string() }),
   env,
   async run(c) {
-    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL) as any;
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const votingPower = await client.readContract({
       abi: councilSeatsAbi,
       address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
@@ -146,7 +149,7 @@ council.command('voting-power', {
 council.command('auctions', {
   env,
   async run(c) {
-    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL) as any;
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const [day, slot, slotsPerDay] = await Promise.all([
       client.readContract({
         abi: councilSeatsAbi,
@@ -186,9 +189,9 @@ council.command('auctions', {
         currentSlot: asNum(slot),
         auctions: recent.map((x, i) => ({
           ...x,
-          highestBidder: toChecksum((auctions[i] as any).highestBidder),
-          highestBid: eth((auctions[i] as any).highestBid),
-          settled: (auctions[i] as any).settled,
+          highestBidder: toChecksum(auctions[i].highestBidder),
+          highestBid: eth(auctions[i].highestBid),
+          settled: auctions[i].settled,
         })),
       },
       {
@@ -211,7 +214,7 @@ council.command('auction', {
   }),
   env,
   async run(c) {
-    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL) as any;
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const auction = await client.readContract({
       abi: councilSeatsAbi,
       address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
@@ -232,7 +235,7 @@ council.command('pending-refund', {
   args: z.object({ address: z.string() }),
   env,
   async run(c) {
-    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL) as any;
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const amount = await client.readContract({
       abi: councilSeatsAbi,
       address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
@@ -250,7 +253,7 @@ council.command('pending-refund', {
 council.command('params', {
   env,
   async run(c) {
-    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL) as any;
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const [SEAT_TERM, AUCTION_SLOT_DURATION, AUCTION_SLOTS_PER_DAY, auctionEpochStart] =
       await Promise.all([
         client.readContract({

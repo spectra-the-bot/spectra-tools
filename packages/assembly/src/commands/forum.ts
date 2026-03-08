@@ -1,7 +1,7 @@
 import { Cli, z } from 'incur';
-import { createAssemblyPublicClient } from '../contracts/client.js';
 import { forumAbi } from '../contracts/abis.js';
 import { ABSTRACT_MAINNET_ADDRESSES } from '../contracts/addresses.js';
+import { createAssemblyPublicClient } from '../contracts/client.js';
 import { asNum, relTime, toChecksum } from './_common.js';
 
 const env = z.object({ ABSTRACT_RPC_URL: z.string().optional() });
@@ -10,7 +10,7 @@ export const forum = Cli.create('forum', { description: 'Read forum threads/comm
 forum.command('threads', {
   env,
   async run(c) {
-    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL) as any;
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const count = await client.readContract({
       abi: forumAbi,
       address: ABSTRACT_MAINNET_ADDRESSES.forum,
@@ -29,7 +29,7 @@ forum.command('threads', {
         })
       : [];
     return c.ok(
-      items.map((x: any) => ({
+      items.map((x: Record<string, unknown>) => ({
         id: asNum(x.id),
         kind: asNum(x.kind),
         author: toChecksum(x.author),
@@ -55,7 +55,7 @@ forum.command('thread', {
   args: z.object({ id: z.coerce.number().int().positive() }),
   env,
   async run(c) {
-    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL) as any;
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const [thread, commentCount] = await Promise.all([
       client.readContract({
         abi: forumAbi,
@@ -83,7 +83,7 @@ forum.command('thread', {
       : [];
     return c.ok({
       thread,
-      comments: comments.filter((x: any) => Number(x.threadId) === c.args.id),
+      comments: comments.filter((x: Record<string, unknown>) => Number(x.threadId) === c.args.id),
     });
   },
 });
@@ -92,7 +92,7 @@ forum.command('comments', {
   args: z.object({ threadId: z.coerce.number().int().positive() }),
   env,
   async run(c) {
-    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL) as any;
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const count = await client.readContract({
       abi: forumAbi,
       address: ABSTRACT_MAINNET_ADDRESSES.forum,
@@ -110,7 +110,9 @@ forum.command('comments', {
           })),
         })
       : [];
-    return c.ok(comments.filter((x: any) => Number(x.threadId) === c.args.threadId));
+    return c.ok(
+      comments.filter((x: Record<string, unknown>) => Number(x.threadId) === c.args.threadId),
+    );
   },
 });
 
@@ -118,7 +120,7 @@ forum.command('comment', {
   args: z.object({ id: z.coerce.number().int().positive() }),
   env,
   async run(c) {
-    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL) as any;
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const comment = await client.readContract({
       abi: forumAbi,
       address: ABSTRACT_MAINNET_ADDRESSES.forum,
@@ -132,7 +134,7 @@ forum.command('comment', {
 forum.command('petitions', {
   env,
   async run(c) {
-    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL) as any;
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const count = await client.readContract({
       abi: forumAbi,
       address: ABSTRACT_MAINNET_ADDRESSES.forum,
@@ -158,7 +160,7 @@ forum.command('petition', {
   args: z.object({ id: z.coerce.number().int().positive() }),
   env,
   async run(c) {
-    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL) as any;
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const petition = await client.readContract({
       abi: forumAbi,
       address: ABSTRACT_MAINNET_ADDRESSES.forum,
@@ -179,7 +181,7 @@ forum.command('has-signed', {
   args: z.object({ petitionId: z.coerce.number().int().positive(), address: z.string() }),
   env,
   async run(c) {
-    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL) as any;
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const hasSigned = await client.readContract({
       abi: forumAbi,
       address: ABSTRACT_MAINNET_ADDRESSES.forum,
@@ -193,7 +195,7 @@ forum.command('has-signed', {
 forum.command('stats', {
   env,
   async run(c) {
-    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL) as any;
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const [threadCount, commentCount, petitionCount, petitionThresholdBps] = await Promise.all([
       client.readContract({
         abi: forumAbi,
