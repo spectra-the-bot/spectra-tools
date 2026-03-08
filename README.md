@@ -14,8 +14,8 @@ Agent-friendly CLI tools built on the [incur](https://github.com/wevm/incur) fra
 
 ## Documentation
 
-- [CLI Output Contract v1](./docs/cli-output-contract-v1.md)
-- [CLI Output Contract v1 — Phased Implementation Plan](./docs/cli-output-contract-implementation-plan.md)
+- [CLI Output Contract v1 (Incur-aligned)](./docs/cli-output-contract-v1.md) — runtime contract split into incur-native guarantees + spectra package policy.
+- [CLI Output Contract v1 — Implementation Plan (Incur-aligned)](./docs/cli-output-contract-implementation-plan.md) — low-risk rollout focused on docs/tests and targeted command-level improvements.
 
 ## Development
 

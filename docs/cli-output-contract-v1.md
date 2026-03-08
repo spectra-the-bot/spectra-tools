@@ -1,323 +1,176 @@
-# CLI Output Contract v1
+# CLI Output Contract v1 (Incur-aligned)
 
-Status: **Proposed (design-approved target)**  
+Status: **Revised after incur behavior validation**  
 Scope: All `@spectratools/*-cli` packages
 
-## 1) Why this exists
+## 1) Purpose
 
-`spectra-tools` currently mixes output conventions (`--json`, `--format json`, raw object output vs wrapped envelopes, mixed paging flags). This contract standardizes behavior across packages while preserving command ergonomics.
+This document defines the output contract we expect across `spectra-tools` CLIs **without re-implementing behavior already provided by [`incur`](https://github.com/wevm/incur)**.
 
-The design follows common market patterns:
+v1 policy is now split into:
 
-- **OpenSea-style operator UX**: readable human output with actionable next-step commands.
-- **Google Workspace/gcloud-style automation UX**: strict machine-readable JSON and consistent stderr errors + exit codes.
-
-## 2) v1 goals
-
-- One canonical envelope for **success and failure**.
-- One consistent format flag with 3 modes: `json` (default), `toon`, `table`.
-- Unified pagination controls: `--page-all`, `--page-limit`, `--page-delay`.
-- Safe mutation preview via `--dry-run`.
-- Standard verbosity controls: `--quiet`, `--verbose`.
-- Deterministic stderr error schema and exit codes (`0..4`).
-- Backward-compatible rollout path from current package behavior.
-
-Non-goals (v1):
-
-- Large command tree renames.
-- Mandatory refactor of business logic.
-- Contract-level transport changes (still plain CLI stdio).
+1. **Framework contract (inherited from incur)** — required as-is.
+2. **Spectra package policy** — conventions we enforce in docs/tests and package command design.
 
 ---
 
-## 3) Canonical output envelope
+## 2) Incur-native runtime contract (required)
 
-All commands MUST produce the following top-level shape in `json` mode.
+These are framework semantics and must be treated as source-of-truth unless we intentionally upgrade/change `incur`.
 
-```ts
-interface CliEnvelopeV1<T = unknown> {
-  ok: boolean;
-  data?: T;                // present when ok=true
-  meta: {
-    cli: string;           // e.g. "xapi"
-    version?: string;      // package version if available
-    command: string;       // resolved command path, e.g. "posts search"
-    timestamp: string;     // ISO8601
-    durationMs?: number;
-    requestId?: string;    // optional trace id
+### 2.1 Global built-ins (do not reimplement)
 
-    format: 'json' | 'toon' | 'table';
-    quiet?: boolean;
-    verbose?: boolean;
+Every CLI already gets:
 
-    pagination?: {
-      enabled: boolean;
-      mode?: 'cursor' | 'offset';
-      pageAll?: boolean;
-      pageLimit?: number;
-      pageDelayMs?: number;
-      pagesFetched?: number;
-      itemsReturned?: number;
-      nextCursor?: string | null;
-      hasMore?: boolean;
-    };
+- Built-in commands: `completions`, `mcp add`, `skills add`
+- Built-in flags: `--format`, `--json`, `--verbose`, `--llms`, `--mcp`, `--schema`, `--filter-output`, `--token-count`, `--token-limit`, `--token-offset`, `--help`, `--version`
 
-    dryRun?: {
-      enabled: boolean;
-      mutable: boolean;
-      wouldMutate?: boolean;
-    };
+### 2.2 Output format defaults
 
-    warnings?: string[];
-  };
+- Default format is **`toon`**.
+- `--json` is alias for `--format json`.
+- Supported formats are framework-defined (`toon`, `json`, `yaml`, `md`, `jsonl`).
 
-  error?: {
-    code: string;          // stable machine code
-    message: string;       // human-readable summary
-    category: 'usage' | 'auth' | 'network' | 'upstream' | 'internal' | 'partial';
-    retryable: boolean;
-    details?: unknown;
-    hint?: string;
-    docsUrl?: string;
-  };
+### 2.3 Envelope semantics
 
-  cta?: {
-    description?: string;
-    commands?: Array<{
-      command: string;
-      args?: Record<string, unknown>;
-      options?: Record<string, unknown>;
-      description?: string;
-    }>;
-  };
-}
-```
+In CLI mode:
 
-### Required field behavior
+- `--format json` (or `--json`) **without** `--verbose`:
+  - success → `data` only
+  - error → `error` object only
+- `--format json --verbose`:
+  - full envelope (`ok`, `data|error`, `meta`)
 
-- `ok=true`: `data` MUST be present, `error` MUST be omitted.
-- `ok=false`: `error` MUST be present, `data` MAY be omitted.
-- `meta` MUST always be present.
-- `cta` is optional and SHOULD be provided for discoverability when useful.
-
-### Success example
+Representative verbose JSON shape:
 
 ```json
 {
   "ok": true,
-  "data": {
-    "posts": [{ "id": "1900", "text": "hello" }],
-    "count": 1
-  },
+  "data": { "...": "..." },
   "meta": {
-    "cli": "xapi",
-    "command": "posts search",
-    "timestamp": "2026-03-08T02:10:00.000Z",
-    "format": "json",
-    "pagination": {
-      "enabled": true,
-      "mode": "cursor",
-      "pageAll": false,
-      "pageLimit": 10,
-      "pageDelayMs": 250,
-      "pagesFetched": 1,
-      "itemsReturned": 1,
-      "hasMore": true,
-      "nextCursor": "abc123"
-    }
-  },
-  "cta": {
-    "description": "Next steps",
-    "commands": [{ "command": "posts get", "args": { "id": "1900" } }]
+    "command": "registration create",
+    "duration": "1ms"
   }
 }
 ```
-
----
-
-## 4) Format modes
-
-### Flags
-
-- Primary: `--format <json|toon|table>`
-- Alias (compat): `--json` == `--format json`
-
-### Modes
-
-1. `json` (**default**): canonical envelope to stdout.
-2. `toon`: compact, expressive human layout (emoji/symbol callouts, key facts, next actions).
-3. `table`: tabular human layout for list-heavy data; falls back to key-value blocks for single objects.
-
-### Default behavior
-
-- Contract default is `json`.
-- During migration, packages MAY preserve TTY-friendly defaults (`toon`) if no `--format` is supplied, but MUST:
-  - keep `json` as canonical internal shape,
-  - emit a deprecation warning in `meta.warnings` (and human notice in non-quiet mode),
-  - document the package-specific cutoff release where strict `json` default becomes active.
-
-This preserves existing UX while converging to one standard.
-
----
-
-## 5) Pagination contract
-
-Applies to commands that can fetch multiple pages.
-
-### New standard flags
-
-- `--page-all` (boolean): fetch all pages until source exhaustion.
-- `--page-limit <n>` (number): max total items to emit across pages.
-- `--page-delay <ms>` (number): delay between page fetches (default package-defined, recommended `200-500ms`).
-
-### Rules
-
-- If `--page-all` is true, continue paging until no `nextCursor` / no more offset pages.
-- If both `--page-all` and `--page-limit` are set, `page-limit` is a hard cap.
-- Without `--page-all`, command behavior remains single-page unless command already paged by default.
-- `meta.pagination` MUST be populated whenever paging codepath runs.
-
-### Legacy option mapping
-
-To avoid breaking existing commands:
-
-- Keep existing flags (`--max-results`, `--limit`, `--page`, `--offset`) as aliases/inputs.
-- Normalize internally:
-  - `--max-results` / `--limit` => `pageLimit`
-  - `--page` + `--offset` => offset mode seed values
-- Emit deprecation notes in docs first, then runtime warnings in a later minor.
-
----
-
-## 6) Mutating-command safety: `--dry-run`
-
-All mutating commands MUST support `--dry-run`.
-
-Mutating examples in current repo include:
-
-- `xapi posts create|delete`
-- `xapi dm send`
-- `erc8004 identity register|update|set-wallet`
-- `erc8004 reputation feedback`
-- `erc8004 validation request`
-
-### Dry-run behavior
-
-When `--dry-run` is provided:
-
-- Validate args/env/auth preconditions.
-- Build/preview request/tx intent.
-- DO NOT call mutating upstream endpoints or send transactions.
-- Return `ok=true` with `meta.dryRun.enabled=true` and `meta.dryRun.wouldMutate=true`.
-- Include actionable `cta` for executing the real command.
-
-Example dry-run data snippet:
-
-```json
-{
-  "ok": true,
-  "data": {
-    "operation": "xapi.posts.create",
-    "preview": { "text": "Hello world" }
-  },
-  "meta": {
-    "dryRun": { "enabled": true, "mutable": true, "wouldMutate": true }
-  }
-}
-```
-
----
-
-## 7) Verbosity controls
-
-Global flags:
-
-- `--quiet`: suppress non-essential narration/cta in human modes; in `json`, keep envelope minimal (still include required fields).
-- `--verbose`: include extended diagnostics/fields (without changing required schema).
-
-Rules:
-
-- `--quiet` and `--verbose` together => usage error (`exit 2`).
-- In `json` mode:
-  - `--verbose` SHOULD add `meta.warnings`, debug counts, and optional raw excerpts in `meta` (not arbitrary top-level fields).
-  - `--quiet` SHOULD still preserve `ok/data/meta/error` contract.
-
----
-
-## 8) stderr error schema + exit codes
-
-Errors MUST be written to `stderr` as JSON envelope (single object line).  
-`stdout` should be reserved for success payloads and non-error human output.
-
-### Error object (inside envelope)
-
-```json
-{
-  "ok": false,
-  "meta": {
-    "cli": "erc8004",
-    "command": "validation request",
-    "timestamp": "2026-03-08T02:22:11.000Z",
-    "format": "json"
-  },
-  "error": {
-    "code": "NO_PRIVATE_KEY",
-    "message": "PRIVATE_KEY environment variable is required for write operations.",
-    "category": "auth",
-    "retryable": false,
-    "hint": "Set PRIVATE_KEY or run with --dry-run."
-  }
-}
-```
-
-### Exit code taxonomy (v1)
-
-- `0` = Success (including dry-run success)
-- `1` = Internal/unhandled CLI error
-- `2` = Usage/validation error (bad args/options/schema/conflicting flags)
-- `3` = Upstream/service/runtime dependency error (network timeout, 429/5xx, RPC/API failure)
-- `4` = Partial/action-required outcome (partial page fetch, degraded success, or explicit operator intervention required)
 
 Notes:
 
-- Retryability is driven by `error.retryable`, not only exit code.
-- `code` strings (e.g. `NO_PRIVATE_KEY`, `INVALID_IDENTIFIER`) must stay stable across minor releases.
+- `meta.cta` may be present when command returns CTA via `c.ok(..., { cta })` / `c.error(..., { cta })`.
+- `meta.nextOffset` may be present with token truncation (`--token-limit` + `--verbose`).
+
+### 2.4 Error/exit behavior
+
+- Framework errors serialize through the same output channel selected by format.
+- Non-success exits are framework-managed (commonly `1` unless explicitly overridden).
+- Domain-specific codes (e.g. `NO_PRIVATE_KEY`, `INVALID_IDENTIFIER`) remain valuable and should stay stable.
+
+### 2.5 Discovery and integration
+
+- `skills add`, `mcp add`, `--llms`, and `--mcp` are built-in and should be documented/used directly.
 
 ---
 
-## 9) Backward compatibility + migration notes
+## 3) Spectra package policy (v1)
 
-### Compatibility policy
+### 3.1 Machine-consumption profiles
 
-- No command-path renames required in v1.
-- Existing flags remain accepted initially (`--json`, existing pagination flags).
-- Existing response fields can stay inside `data`; only envelope consistency is mandated.
+We support two explicit machine profiles:
 
-### Breaking changes to call out explicitly
+1. **Data profile (default for scripts):** `--json`
+   - parse direct data on success, direct error object on failure.
+2. **Envelope profile (for orchestration/telemetry):** `--json --verbose`
+   - parse `ok/data/error/meta` envelope.
 
-Potentially breaking for scripts/humans:
+### 3.2 Human default
 
-1. **Default output becomes json** (after migration cutoff per package).
-2. Errors normalize to stderr envelope (instead of mixed stdout error objects).
-3. Mutating commands gain `--dry-run` (additive), and may later adopt stricter preflight checks.
+- Keep incur default `toon` output for interactive usage.
+- Do **not** force a cross-repo default switch to JSON.
 
-### Migration strategy
+### 3.3 Pagination policy
 
-- Phase-in via shared adapter layer in `@spectratools/cli-shared`.
-- Adopt package-by-package with fixture snapshots for:
-  - success envelopes,
-  - stderr error envelopes,
-  - exit codes,
-  - dry-run behavior,
-  - pagination metadata.
-- Keep legacy aliases until at least one stable minor after full rollout.
+- Use incur token pagination when output-size pagination is needed:
+  - `--token-count`, `--token-limit`, `--token-offset`
+- Keep command/domain pagination flags (`--limit`, `--max-results`, `--page`, `--offset`, cursor args) command-specific.
+- Do **not** introduce new cross-cutting global page flags in v1.
+
+### 3.4 Mutating commands and dry-run
+
+- `--dry-run` is a **package-level feature**, not an incur global.
+- Add it only on mutating commands where preview semantics are clear and testable.
+- When implemented, docs/tests must prove no side effects occur.
+
+### 3.5 CTA usage
+
+- Prefer incur-native CTA support (`c.ok` / `c.error` metadata) rather than custom top-level CTA envelope shims.
 
 ---
 
-## 10) Implementation guardrails for Codex phase
+## 4) Incur Alignment Notes
 
-- Centralize envelope creation + error mapping in shared package (single source of truth).
-- Add command metadata flag (`mutable: true`) to auto-inject dry-run handling.
-- Introduce shared pagination adapter to wrap cursor/offset implementations and populate `meta.pagination`.
-- Add repository-wide golden tests for cross-package output contract compliance.
-- Do not rewrite business logic until adapters and tests are in place.
+1. `table` is **not** an incur global output mode; do not define contract requirements around it.
+2. A custom always-on envelope (`ok/data/meta/error`) in non-verbose JSON would fight framework defaults.
+3. `skills add`, `mcp add`, and `--llms` are first-class built-ins; do not duplicate them in package code.
+4. Global verbosity/quiet policy should not assume flags that incur does not provide globally.
+
+---
+
+## 5) Explicit "do not duplicate framework features"
+
+Do **not** build repo-level abstractions that duplicate or override incur unless there is a versioned product decision to diverge. Specifically, do not add:
+
+- custom global flag parser for built-in incur flags
+- custom output envelope wrapper that changes non-verbose JSON semantics
+- custom replacements for `skills add`, `mcp add`, or `--llms`
+- synthetic global pagination flags when token pagination already exists
+
+If we need behavior beyond incur, document it as an intentional extension with package scope and tests.
+
+---
+
+## 6) Contract examples
+
+### 6.1 Data profile
+
+```bash
+erc8004 registration create --name Test --json
+```
+
+```json
+{
+  "name": "Test",
+  "erc8004": { "version": "0.1.0" }
+}
+```
+
+### 6.2 Envelope profile
+
+```bash
+erc8004 registration create --name Test --json --verbose
+```
+
+```json
+{
+  "ok": true,
+  "data": {
+    "name": "Test",
+    "erc8004": { "version": "0.1.0" }
+  },
+  "meta": {
+    "command": "registration create",
+    "duration": "1ms"
+  }
+}
+```
+
+---
+
+## 7) Backward compatibility impact
+
+This revision **reduces migration risk** versus the earlier draft by aligning with current runtime behavior:
+
+- no forced default-format change to JSON
+- no mandatory custom envelope layer
+- no immediate global pagination/quiet flag refactor
+
+Primary follow-on work is docs/test alignment plus targeted command-level improvements (dry-run where it matters, stable domain error codes, CTA consistency).

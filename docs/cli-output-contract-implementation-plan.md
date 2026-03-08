@@ -1,206 +1,138 @@
-# CLI Output Contract v1 — Phased Implementation Plan
+# CLI Output Contract v1 — Implementation Plan (Incur-aligned)
 
-Status: **Execution plan for implementation phase**  
+Status: **Execution plan for follow-on implementation**  
 Design source of truth: [`./cli-output-contract-v1.md`](./cli-output-contract-v1.md)
 
 ## Rollout principles
 
-1. **Shared-first**: land reusable adapters in `@spectratools/cli-shared` before package migrations.
-2. **Read-first**: migrate read-only packages/commands before mutating flows.
-3. **No UX cliffs**: preserve current command names and legacy flags during transition.
-4. **Contract tests gate releases**: no package exits a phase without snapshot + exit code coverage.
+1. **Framework-first:** adopt incur behavior as-is before adding package-specific layers.
+2. **Low-risk migration:** prefer docs/tests/wrappers over broad command rewrites.
+3. **Two explicit machine profiles:** `--json` (data) and `--json --verbose` (envelope).
+4. **No duplicate runtime features:** do not rebuild built-in flags/commands/envelope semantics.
 
 ---
 
-## Package rollout order
+## Incur Alignment Notes
 
-1. `@spectratools/cli-shared` (foundation)
-2. `@spectratools/etherscan-cli` (read-only, predictable APIs)
-3. `@spectratools/xapi-cli` (mixed read/write, heavy cursor pagination)
-4. `@spectratools/assembly-cli` (read-only onchain + CTA-rich outputs)
-5. `@spectratools/erc8004-cli` (most complex write flows, tx safety)
-
-Rationale: lowest mutation risk first, highest safety-sensitive package last.
+- `skills add`, `mcp add`, `--llms`, `--schema`, token pagination flags, and envelope behavior are already implemented by incur.
+- Default format is `toon`; changing repo-wide defaults would be an intentional product decision, not part of this migration.
+- Non-verbose `--json` is data/error-only by design. Full envelope is `--verbose`.
 
 ---
 
-## Phase 0 — Baseline + scaffolding
+## Phase 0 — Baseline verification (docs + fixtures)
 
 Scope:
 
-- Inventory current output behavior per command (`--json`, `--format json`, raw vs wrapped objects).
-- Add repo-level `docs/` references and implementation checklist.
-- Define contract fixtures (golden files) for success/error/dry-run/pagination.
+- Capture current behavior from each package for:
+  - default output (`toon`)
+  - `--json`
+  - `--json --verbose`
+  - representative errors
+- Record in test fixtures/snapshots.
 
 Deliverables:
 
-- Command inventory matrix (command -> mode -> current output shape -> target shape).
-- Test harness helper for capturing stdout/stderr/exit code.
+- Output matrix per package/command.
+- Shared test helper for stdout + exit-code capture (and stderr when applicable).
 
 Acceptance criteria:
 
-- Every CLI package has at least one baseline fixture captured from current behavior.
-- CI has a place for contract snapshots (can be TODO/skip initially, but wired).
+- At least one command per package has snapshots for all three output modes.
+- Error snapshots confirm domain error codes where already implemented.
 
 ---
 
-## Phase 1 — `@spectratools/cli-shared` foundation
+## Phase 1 — Contract/test harness alignment (`@spectratools/cli-shared`)
 
 Scope:
 
-- Add shared `CliEnvelopeV1` types.
-- Add helpers:
-  - `createSuccessEnvelope()`
-  - `createErrorEnvelope()`
-  - `mapErrorToExitCode()`
-  - `normalizeFormatFlag()` (`--json` alias support)
-  - `normalizePaginationOptions()` (`--page-all`, `--page-limit`, `--page-delay`)
-  - `withDryRun()` preflight wrapper
-- Add pagination runtime metrics collector (`pagesFetched`, `itemsReturned`, `nextCursor`).
+- Add lightweight test utilities (not runtime envelope wrappers):
+  - `runCliJsonData(...)`
+  - `runCliJsonEnvelope(...)`
+  - `expectIncurVerboseEnvelope(...)`
+- Add docs-facing types for expected verbose envelope shape used in tests.
 
 Deliverables:
 
-- Shared output contract utility module exported from `cli-shared`.
-- Unit tests for envelope creation, error serialization, and exit-code mapping.
+- Reusable test helpers in shared package.
+- Unit tests for helper behavior.
 
 Acceptance criteria:
 
-- 100% passing tests in `cli-shared` for new helpers.
-- Error envelopes always serialize valid JSON and stable required keys.
-- Exit mapping deterministic for representative error categories.
+- No new framework-like output adapters introduced.
+- Helpers reflect actual incur semantics (data-only vs verbose envelope).
 
 ---
 
-## Phase 2 — `@spectratools/etherscan-cli`
+## Phase 2 — Package-by-package docs/test updates
+
+Rollout order:
+
+1. `@spectratools/etherscan-cli`
+2. `@spectratools/xapi-cli`
+3. `@spectratools/assembly-cli`
+4. `@spectratools/erc8004-cli`
+
+Scope per package:
+
+- Update tests to assert both machine profiles where appropriate:
+  - `--json`
+  - `--json --verbose`
+- Normalize README examples to avoid implying a custom envelope in plain `--json` mode.
+- Confirm help/docs mention incur built-ins where relevant (`skills add`, `mcp add`, `--llms`).
+
+Acceptance criteria:
+
+- README examples match real command behavior.
+- Tests no longer assume non-verbose JSON contains `ok` envelope fields.
+
+---
+
+## Phase 3 — Targeted command-level policy improvements (optional, scoped)
 
 Scope:
 
-- Adopt shared output adapter for all commands.
-- Normalize `--json` and `--format` to contract behavior.
-- Map existing `page`/`offset` into pagination metadata where applicable.
-- Ensure API errors go to stderr envelope with exit code 3.
-
-Deliverables:
-
-- Contract-compliant outputs for account/contract/token/tx/gas/stats command groups.
-- Snapshot tests for success + NOT_FOUND + API failure.
+- Add/expand `--dry-run` only for high-risk mutating commands where semantics are clear.
+- Standardize domain error code usage (`NO_PRIVATE_KEY`, `INVALID_IDENTIFIER`, etc.).
+- Add CTA hints on key flows using incur-native `c.ok`/`c.error` metadata.
 
 Acceptance criteria:
 
-- All commands emit canonical envelope in `--format json`.
-- Error output appears on stderr only.
-- Exit codes match taxonomy (0/2/3).
-- Legacy examples in README still function.
+- Each dry-run command has explicit no-side-effect tests.
+- Domain error codes remain stable in snapshots.
+- CTA appears in verbose envelope metadata when returned.
 
 ---
 
-## Phase 3 — `@spectratools/xapi-cli`
+## Cross-package acceptance checklist
 
-Scope:
-
-- Adopt shared adapter + pagination normalization across `collectPaged` call sites.
-- Add `--page-all`, `--page-limit`, `--page-delay` support on paginated commands.
-- Add `--dry-run` to mutating commands:
-  - `posts create`
-  - `posts delete`
-  - `dm send`
-- Respect existing `--verbose` semantics while honoring global `--quiet`/`--verbose` rules.
-
-Deliverables:
-
-- Contract-compliant outputs for read and write command groups.
-- Dry-run previews for mutation commands.
-
-Acceptance criteria:
-
-- Dry-run never performs network mutation.
-- Paginated commands populate `meta.pagination` consistently.
-- `--quiet` + `--verbose` returns usage error (exit 2).
+- [ ] `--json` outputs data/error payloads matching incur defaults.
+- [ ] `--json --verbose` outputs envelope with `ok` + `meta.command` (+ `meta.duration`).
+- [ ] Built-in commands/flags are documented accurately (no custom duplicates).
+- [ ] README examples are aligned with real CLI behavior.
+- [ ] Domain error codes remain stable.
+- [ ] Any added `--dry-run` behavior is command-scoped and side-effect tested.
 
 ---
 
-## Phase 4 — `@spectratools/assembly-cli`
+## Explicit "do not build" list
 
-Scope:
+Do **not** implement these in this migration:
 
-- Adopt shared output adapter for all command groups.
-- Normalize CTA structure and metadata presence.
-- Ensure table/toon formats remain operator-friendly for governance reads.
-
-Deliverables:
-
-- Full contract compliance for members/council/forum/governance/treasury/status/health.
-
-Acceptance criteria:
-
-- JSON mode emits canonical envelope for every command.
-- Human modes remain readable and include CTA unless `--quiet`.
-- No command behavior regressions in existing tests.
+1. A custom global output envelope layer that overrides incur non-verbose semantics.
+2. A custom global flag system for flags incur already provides.
+3. A synthetic global pagination flag suite (`--page-all`, `--page-limit`, `--page-delay`) at framework level.
+4. A repo-wide forced switch from `toon` default to `json`.
+5. Custom reimplementation of `skills add` / `mcp add` / `--llms` behavior.
 
 ---
 
-## Phase 5 — `@spectratools/erc8004-cli`
+## Suggested Codex task breakdown
 
-Scope:
+1. Add shared test helpers (Phase 1).
+2. Migrate package tests/readmes in rollout order (Phase 2).
+3. Land optional dry-run/error/CTA improvements as separate small PRs (Phase 3).
+4. Keep each PR narrow (docs/tests first, behavior changes separately).
 
-- Adopt shared output adapter for all command groups.
-- Add `--dry-run` for all mutating commands:
-  - `identity register|update|set-wallet`
-  - `reputation feedback`
-  - `validation request`
-- Normalize known errors (`NO_PRIVATE_KEY`, `INVALID_IDENTIFIER`, `INVALID_JOB_HASH`) to stderr envelope + stable exit mapping.
-- Add partial-success reporting where applicable (exit 4 + `category=partial`).
-
-Deliverables:
-
-- Contract-compliant read/write behavior with safety previews.
-- Extended error fixtures for onchain failures and missing env.
-
-Acceptance criteria:
-
-- All mutation paths have preflight-only dry-run path.
-- Existing domain error codes remain stable.
-- Tx/RPC failures consistently categorized and mapped to exit code 3.
-
----
-
-## Cross-package acceptance checklist (release gate)
-
-A package is considered migrated when all are true:
-
-- [ ] `--format json` outputs canonical envelope (`ok/data/meta/error/cta`).
-- [ ] `--json` alias works identically.
-- [ ] Errors are emitted to stderr envelope (not mixed into stdout).
-- [ ] Exit codes follow taxonomy 0/1/2/3/4.
-- [ ] `--quiet` and `--verbose` implemented per contract.
-- [ ] Paginated commands support/normalize `--page-all --page-limit --page-delay` and emit `meta.pagination`.
-- [ ] Mutating commands support `--dry-run` with no side effects.
-- [ ] README/docs updated with contract-compliant examples.
-- [ ] Snapshot tests cover success + failure + dry-run + paging.
-
----
-
-## Suggested implementation task breakdown (Codex-ready)
-
-1. Build shared output contract utilities in `cli-shared`.
-2. Add a small per-command wrapper API (`runWithContract`) to reduce per-command boilerplate.
-3. Migrate one package at a time in rollout order.
-4. For each package:
-   - update command options wiring,
-   - add/refresh tests,
-   - update README examples,
-   - add changelog migration notes.
-5. After all packages migrate, remove transitional warnings/compat toggles in a planned minor/major.
-
----
-
-## Risks and mitigations
-
-- **Risk:** default output switch breaks existing human workflows.  
-  **Mitigation:** staged default policy + docs + alias compatibility window.
-
-- **Risk:** mixed stdout/stderr behavior causes script regressions.  
-  **Mitigation:** explicit fixture tests for stream separation.
-
-- **Risk:** dry-run implemented inconsistently across mutation commands.  
-  **Mitigation:** shared `withDryRun` utility and mandatory mutation checklist in PR template.
+This sequencing keeps migration realistic, auditable, and low-risk while staying tightly aligned with incur runtime semantics.
