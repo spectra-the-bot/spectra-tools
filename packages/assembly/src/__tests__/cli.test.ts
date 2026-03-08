@@ -59,6 +59,10 @@ function createViemError(options: { message: string; name: string; shortMessage:
 const addrA = '0x00000000000000000000000000000000000000aa';
 const addrB = '0x00000000000000000000000000000000000000bb';
 
+function iso(seconds: number): string {
+  return new Date(seconds * 1000).toISOString().replace('.000Z', 'Z');
+}
+
 describe('assembly onchain commands', () => {
   beforeEach(() => {
     vi.resetModules();
@@ -159,6 +163,14 @@ describe('assembly onchain commands', () => {
     expect(out.count).toBe(1);
     expect(out).not.toHaveProperty('0');
     expect(out).not.toHaveProperty('cta');
+
+    const member = (out.members as Array<Record<string, unknown>>)[0];
+    expect(member).toMatchObject({
+      activeUntil: iso(100),
+      activeUntilRelative: expect.any(String),
+      lastHeartbeatAt: iso(90),
+      lastHeartbeatRelative: expect.any(String),
+    });
   });
 
   it('members list errors when indexer and fallback are unavailable', async () => {
@@ -223,8 +235,18 @@ describe('assembly onchain commands', () => {
 
     const data = out.data as Array<Record<string, unknown>>;
     expect(data).toHaveLength(2);
-    expect(data[0]).toMatchObject({ id: 0, startAt: 100, endAt: 200, forfeited: false });
-    expect(data[1]).toMatchObject({ id: 1, startAt: 300, endAt: 400, forfeited: true });
+    expect(data[0]).toMatchObject({
+      id: 0,
+      startAt: iso(100),
+      endAt: iso(200),
+      forfeited: false,
+    });
+    expect(data[1]).toMatchObject({
+      id: 1,
+      startAt: iso(300),
+      endAt: iso(400),
+      forfeited: true,
+    });
   });
 
   it('council seat returns OUT_OF_RANGE when id >= seatCount', async () => {
@@ -256,8 +278,16 @@ describe('assembly onchain commands', () => {
 
     const data = out.data as { auctions: Array<Record<string, unknown>> };
     expect(data.auctions).toHaveLength(2);
-    expect(data.auctions[0]).toMatchObject({ windowEnd: 200, status: 'bidding', settled: false });
-    expect(data.auctions[1]).toMatchObject({ windowEnd: 100, status: 'closed', settled: false });
+    expect(data.auctions[0]).toMatchObject({
+      windowEnd: iso(200),
+      status: 'bidding',
+      settled: false,
+    });
+    expect(data.auctions[1]).toMatchObject({
+      windowEnd: iso(100),
+      status: 'closed',
+      settled: false,
+    });
     expect(typeof data.auctions[0]?.windowEndRelative).toBe('string');
   });
 
@@ -271,7 +301,7 @@ describe('assembly onchain commands', () => {
     const data = out.data as Record<string, unknown>;
     expect(data).toMatchObject({
       settled: true,
-      windowEnd: 999,
+      windowEnd: iso(999),
       status: 'settled',
     });
     expect(typeof data.highestBidder).toBe('string');
@@ -298,6 +328,8 @@ describe('assembly onchain commands', () => {
       id: 1,
       kind: 2,
       author: '0x00000000000000000000000000000000000000AA',
+      createdAt: iso(1700000000),
+      createdAtRelative: expect.any(String),
     });
   });
 
@@ -443,7 +475,7 @@ describe('assembly onchain commands', () => {
     };
     expect(data.count).toBe(1);
     expect(data.proposals).toHaveLength(1);
-    expect(data.proposals[0]).toMatchObject({ id: 1, kind: 1, status: 4, voteEndAt: 130 });
+    expect(data.proposals[0]).toMatchObject({ id: 1, kind: 1, status: 4, voteEndAt: iso(130) });
   });
 
   it('governance proposals --format json keeps proposal data under a proposals array key', async () => {
@@ -544,6 +576,24 @@ describe('assembly onchain commands', () => {
     mockClient.getBalance.mockResolvedValueOnce(1000000000000000000n);
     const out = await run(['treasury', 'balance']);
     expect(out.ok).toBe(true);
+  });
+
+  it('treasury major-spend-status returns ISO timestamp plus relative label in JSON', async () => {
+    mockClient.readContract
+      .mockResolvedValueOnce(3600n)
+      .mockResolvedValueOnce(123n)
+      .mockResolvedValueOnce(true);
+
+    const out = await run(['treasury', 'major-spend-status']);
+    expect(out.ok).toBe(true);
+
+    const data = out.data as Record<string, unknown>;
+    expect(data).toMatchObject({
+      majorSpendCooldownSeconds: 3600,
+      lastMajorSpendAt: iso(123),
+      lastMajorSpendRelative: expect.any(String),
+      isMajorSpendAllowed: true,
+    });
   });
 
   it('treasury executed returns OUT_OF_RANGE when proposalId > proposalCount', async () => {

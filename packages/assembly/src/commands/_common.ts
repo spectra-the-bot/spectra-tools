@@ -23,6 +23,22 @@ export function relTime(unixSeconds: bigint | number): string {
   return delta >= 0 ? `in ${label}` : `${label} ago`;
 }
 
+export function isoTime(unixSeconds: bigint | number): string {
+  const ts = typeof unixSeconds === 'bigint' ? Number(unixSeconds) : unixSeconds;
+  if (!Number.isFinite(ts) || ts <= 0) return 'n/a';
+
+  try {
+    return new Date(ts * 1000).toISOString().replace('.000Z', 'Z');
+  } catch {
+    return 'n/a';
+  }
+}
+
+export function timeValue(unixSeconds: bigint | number, format: string): string | number {
+  if (format === 'json' || format === 'jsonl') return isoTime(unixSeconds);
+  return typeof unixSeconds === 'bigint' ? Number(unixSeconds) : unixSeconds;
+}
+
 export function asNum(value: bigint): number {
   return Number(value);
 }

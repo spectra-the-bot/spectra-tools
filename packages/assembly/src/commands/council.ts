@@ -2,7 +2,7 @@ import { Cli, z } from 'incur';
 import { councilSeatsAbi } from '../contracts/abis.js';
 import { ABSTRACT_MAINNET_ADDRESSES } from '../contracts/addresses.js';
 import { createAssemblyPublicClient } from '../contracts/client.js';
-import { asNum, eth, relTime, toChecksum } from './_common.js';
+import { asNum, eth, relTime, timeValue, toChecksum } from './_common.js';
 
 const env = z.object({
   ABSTRACT_RPC_URL: z.string().optional().describe('Abstract RPC URL override'),
@@ -11,6 +11,8 @@ const env = z.object({
 type SeatTuple = readonly [string, bigint, bigint, boolean];
 type AuctionTuple = readonly [string, bigint, boolean];
 type AuctionStatus = 'bidding' | 'closed' | 'settled';
+
+const timestampOutput = z.union([z.number(), z.string()]);
 
 function decodeSeat(value: unknown): {
   owner: string;
@@ -52,9 +54,9 @@ council.command('seats', {
     z.object({
       id: z.number(),
       owner: z.string(),
-      startAt: z.number(),
+      startAt: timestampOutput,
       startAtRelative: z.string(),
-      endAt: z.number(),
+      endAt: timestampOutput,
       endAtRelative: z.string(),
       forfeited: z.boolean(),
     }),
@@ -85,9 +87,9 @@ council.command('seats', {
       seats.map((seat, idx: number) => ({
         id: idx,
         owner: toChecksum(seat.owner),
-        startAt: asNum(seat.startAt),
+        startAt: timeValue(seat.startAt, c.format),
         startAtRelative: relTime(seat.startAt),
-        endAt: asNum(seat.endAt),
+        endAt: timeValue(seat.endAt, c.format),
         endAtRelative: relTime(seat.endAt),
         forfeited: seat.forfeited,
       })),
@@ -104,8 +106,8 @@ council.command('seat', {
   output: z.object({
     id: z.number(),
     owner: z.string(),
-    startAt: z.number(),
-    endAt: z.number(),
+    startAt: timestampOutput,
+    endAt: timestampOutput,
     forfeited: z.boolean(),
     endAtRelative: z.string(),
   }),
@@ -137,8 +139,8 @@ council.command('seat', {
     return c.ok({
       id: c.args.id,
       owner: toChecksum(seat.owner),
-      startAt: asNum(seat.startAt),
-      endAt: asNum(seat.endAt),
+      startAt: timeValue(seat.startAt, c.format),
+      endAt: timeValue(seat.endAt, c.format),
       forfeited: seat.forfeited,
       endAtRelative: relTime(seat.endAt),
     });
@@ -272,7 +274,7 @@ council.command('auctions', {
         highestBidder: z.string(),
         highestBid: z.string(),
         settled: z.boolean(),
-        windowEnd: z.number(),
+        windowEnd: timestampOutput,
         windowEndRelative: z.string(),
         status: z.enum(['bidding', 'closed', 'settled']),
       }),
@@ -344,7 +346,7 @@ council.command('auctions', {
             highestBidder: toChecksum(auctions[i].highestBidder),
             highestBid: eth(auctions[i].highestBid),
             settled: auctions[i].settled,
-            windowEnd: asNum(windowEnd),
+            windowEnd: timeValue(windowEnd, c.format),
             windowEndRelative: relTime(windowEnd),
             status: deriveAuctionStatus({
               settled: auctions[i].settled,
@@ -380,7 +382,7 @@ council.command('auction', {
     highestBidder: z.string(),
     highestBid: z.string(),
     settled: z.boolean(),
-    windowEnd: z.number(),
+    windowEnd: timestampOutput,
     windowEndRelative: z.string(),
     status: z.enum(['bidding', 'closed', 'settled']),
   }),
@@ -412,7 +414,7 @@ council.command('auction', {
       highestBidder: toChecksum(auction.highestBidder),
       highestBid: eth(auction.highestBid),
       settled: auction.settled,
-      windowEnd: asNum(windowEndTimestamp),
+      windowEnd: timeValue(windowEndTimestamp, c.format),
       windowEndRelative: relTime(windowEndTimestamp),
       status: deriveAuctionStatus({
         settled: auction.settled,

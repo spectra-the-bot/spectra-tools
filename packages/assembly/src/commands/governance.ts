@@ -2,7 +2,7 @@ import { Cli, z } from 'incur';
 import { governanceAbi } from '../contracts/abis.js';
 import { ABSTRACT_MAINNET_ADDRESSES } from '../contracts/addresses.js';
 import { createAssemblyPublicClient } from '../contracts/client.js';
-import { asNum, relTime, toChecksum } from './_common.js';
+import { asNum, relTime, timeValue, toChecksum } from './_common.js';
 
 const env = z.object({
   ABSTRACT_RPC_URL: z.string().optional().describe('Abstract RPC URL override'),
@@ -59,6 +59,8 @@ type DecodedProposal = {
   title: string;
   description: string;
 };
+
+const timestampOutput = z.union([z.number(), z.string()]);
 
 function decodeProposal(value: unknown): DecodedProposal {
   const [
@@ -156,7 +158,7 @@ governance.command('proposals', {
         kind: z.number(),
         status: z.number(),
         title: z.string().nullable().optional(),
-        voteEndAt: z.number(),
+        voteEndAt: timestampOutput,
         voteEndRelative: z.string(),
       }),
     ),
@@ -188,7 +190,7 @@ governance.command('proposals', {
       kind: asNum(p.kind),
       status: asNum(p.status),
       title: p.title ?? null,
-      voteEndAt: asNum(p.voteEndAt),
+      voteEndAt: timeValue(p.voteEndAt, c.format),
       voteEndRelative: relTime(p.voteEndAt),
     }));
 

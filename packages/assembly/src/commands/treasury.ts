@@ -2,11 +2,13 @@ import { Cli, z } from 'incur';
 import { governanceAbi, treasuryAbi } from '../contracts/abis.js';
 import { ABSTRACT_MAINNET_ADDRESSES } from '../contracts/addresses.js';
 import { createAssemblyPublicClient } from '../contracts/client.js';
-import { asNum, eth, relTime, toChecksum } from './_common.js';
+import { asNum, eth, relTime, timeValue, toChecksum } from './_common.js';
 
 const env = z.object({
   ABSTRACT_RPC_URL: z.string().optional().describe('Abstract RPC URL override'),
 });
+
+const timestampOutput = z.union([z.number(), z.string()]);
 
 export const treasury = Cli.create('treasury', {
   description: 'Inspect treasury balances, execution status, and spend controls.',
@@ -65,7 +67,7 @@ treasury.command('major-spend-status', {
   env,
   output: z.object({
     majorSpendCooldownSeconds: z.number(),
-    lastMajorSpendAt: z.number(),
+    lastMajorSpendAt: timestampOutput,
     lastMajorSpendRelative: z.string(),
     isMajorSpendAllowed: z.boolean(),
   }),
@@ -93,7 +95,7 @@ treasury.command('major-spend-status', {
     ])) as [bigint, bigint, boolean];
     return c.ok({
       majorSpendCooldownSeconds: asNum(cooldown),
-      lastMajorSpendAt: asNum(lastMajorSpendAt),
+      lastMajorSpendAt: timeValue(lastMajorSpendAt, c.format),
       lastMajorSpendRelative: relTime(lastMajorSpendAt),
       isMajorSpendAllowed: allowed,
     });
