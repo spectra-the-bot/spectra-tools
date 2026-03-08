@@ -315,6 +315,114 @@ describe('etherscan CLI', () => {
     });
   });
 
+  describe('tx info', () => {
+    it('decodes hex values to decimal strings', async () => {
+      const { output, exitCode } = await runCli(
+        ['tx', 'info', '0xabc123', '--json'],
+        makeResponse({
+          jsonrpc: '2.0',
+          id: 1,
+          result: {
+            hash: '0xabc123',
+            from: '0xsender',
+            to: '0xreceiver',
+            value: '0xDE0B6B3A7640000',
+            gas: '0x3061ea',
+            gasPrice: '0x3B9ACA00',
+            nonce: '0x5',
+            blockNumber: '0x10F447',
+            blockHash: '0xblockhash',
+            input: '0x',
+          },
+        }),
+      );
+      expect(exitCode).toBe(0);
+      const parsed = JSON.parse(output) as {
+        hash: string;
+        value: string;
+        gas: string;
+        gasPrice: string;
+        nonce: string;
+        block: string;
+      };
+      expect(parsed.hash).toBe('0xabc123');
+      expect(parsed.value).toBe('1000000000000000000');
+      expect(parsed.gas).toBe('3170794');
+      expect(parsed.gasPrice).toBe('1000000000');
+      expect(parsed.nonce).toBe('5');
+      expect(parsed.block).toBe('1111111');
+    });
+
+    it('decodes zero hex values correctly', async () => {
+      const { output } = await runCli(
+        ['tx', 'info', '0xabc123', '--json'],
+        makeResponse({
+          jsonrpc: '2.0',
+          id: 1,
+          result: {
+            hash: '0xabc123',
+            from: '0xsender',
+            to: null,
+            value: '0x0',
+            gas: '0x0',
+            gasPrice: '0x0',
+            nonce: '0x0',
+            blockNumber: '0x1',
+            blockHash: '0xblockhash',
+            input: '0x',
+          },
+        }),
+      );
+      const parsed = JSON.parse(output) as {
+        value: string;
+        gas: string;
+        gasPrice: string;
+        nonce: string;
+        block: string;
+      };
+      expect(parsed.value).toBe('0');
+      expect(parsed.gas).toBe('0');
+      expect(parsed.gasPrice).toBe('0');
+      expect(parsed.nonce).toBe('0');
+      expect(parsed.block).toBe('1');
+    });
+  });
+
+  describe('tx receipt', () => {
+    it('decodes hex values to decimal strings', async () => {
+      const { output, exitCode } = await runCli(
+        ['tx', 'receipt', '0xabc123', '--json'],
+        makeResponse({
+          jsonrpc: '2.0',
+          id: 1,
+          result: {
+            transactionHash: '0xabc123',
+            blockNumber: '0x10F447',
+            blockHash: '0xblockhash',
+            from: '0xsender',
+            to: '0xreceiver',
+            status: '0x1',
+            gasUsed: '0x5208',
+            cumulativeGasUsed: '0xF4240',
+            contractAddress: null,
+            logs: [],
+          },
+        }),
+      );
+      expect(exitCode).toBe(0);
+      const parsed = JSON.parse(output) as {
+        hash: string;
+        block: string;
+        status: string;
+        gasUsed: string;
+      };
+      expect(parsed.hash).toBe('0xabc123');
+      expect(parsed.block).toBe('1111111');
+      expect(parsed.status).toBe('success');
+      expect(parsed.gasUsed).toBe('21000');
+    });
+  });
+
   describe('gas oracle', () => {
     it('returns gas price tiers', async () => {
       const { output } = await runCli(
