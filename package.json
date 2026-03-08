@@ -10,7 +10,7 @@
     "build": "pnpm -r build",
     "lint": "biome check .",
     "format": "biome format --write .",
-    "typecheck": "pnpm --filter @spectratools/cli-shared run build && tsc --noEmit -p tsconfig.base.json && pnpm -r run typecheck",
+    "typecheck": "pnpm --filter @spectratools/cli-shared run build && pnpm --filter @spectratools/tx-shared run build && tsc --noEmit -p tsconfig.base.json && pnpm -r run typecheck",
     "test": "vitest run",
     "test:docs": "node --test scripts/generate-docs.test.js scripts/validate-generated-docs.test.js scripts/check-custom-domain-assets.test.js",
     "docs:dev": "vitepress dev docs",
