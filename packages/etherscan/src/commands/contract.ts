@@ -15,18 +15,35 @@ const chainOption = z
   .default(DEFAULT_CHAIN)
   .describe('Chain name (abstract, ethereum, base, arbitrum, ...)');
 
+const etherscanEnv = z.object({
+  ETHERSCAN_API_KEY: z.string().optional().describe('Etherscan V2 API key'),
+});
+
 export const contractCli = Cli.create('contract', {
-  description: 'Query contract ABI, source code, and deployment info',
+  description: 'Query contract ABI, source code, and deployment metadata.',
 });
 
 contractCli.command('abi', {
-  description: 'Get the ABI for a verified contract',
+  description: 'Get the ABI for a verified contract.',
   args: z.object({
     address: z.string().describe('Contract address'),
   }),
   options: z.object({
     chain: chainOption,
   }),
+  env: etherscanEnv,
+  output: z.object({
+    address: z.string(),
+    chain: z.string(),
+    abi: z.array(z.unknown()),
+  }),
+  examples: [
+    {
+      args: { address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' },
+      options: { chain: 'ethereum' },
+      description: 'Fetch ABI for a verified ERC-20 contract',
+    },
+  ],
   async run(c) {
     const { apiKey } = apiKeyAuth('ETHERSCAN_API_KEY');
     const chainId = resolveChainId(c.options.chain);
@@ -73,13 +90,34 @@ interface SourceResult {
 }
 
 contractCli.command('source', {
-  description: 'Get verified source code for a contract',
+  description: 'Get verified source code for a contract.',
   args: z.object({
     address: z.string().describe('Contract address'),
   }),
   options: z.object({
     chain: chainOption,
   }),
+  env: etherscanEnv,
+  output: z.object({
+    address: z.string(),
+    chain: z.string(),
+    name: z.string(),
+    compiler: z.string(),
+    optimized: z.boolean(),
+    runs: z.string(),
+    license: z.string(),
+    proxy: z.boolean(),
+    implementation: z.string().optional(),
+    sourceCode: z.string(),
+    constructorArguments: z.string(),
+  }),
+  examples: [
+    {
+      args: { address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' },
+      options: { chain: 'ethereum' },
+      description: 'Fetch verified source code metadata',
+    },
+  ],
   async run(c) {
     const { apiKey } = apiKeyAuth('ETHERSCAN_API_KEY');
     const chainId = resolveChainId(c.options.chain);
@@ -135,13 +173,27 @@ interface CreationResult {
 }
 
 contractCli.command('creation', {
-  description: 'Get the creation transaction for a contract',
+  description: 'Get the deployment transaction and creator for a contract.',
   args: z.object({
     address: z.string().describe('Contract address'),
   }),
   options: z.object({
     chain: chainOption,
   }),
+  env: etherscanEnv,
+  output: z.object({
+    address: z.string(),
+    creator: z.string(),
+    txHash: z.string(),
+    chain: z.string(),
+  }),
+  examples: [
+    {
+      args: { address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' },
+      options: { chain: 'ethereum' },
+      description: 'Find deployment tx for a contract',
+    },
+  ],
   async run(c) {
     const { apiKey } = apiKeyAuth('ETHERSCAN_API_KEY');
     const chainId = resolveChainId(c.options.chain);

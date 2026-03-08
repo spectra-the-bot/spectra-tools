@@ -7,8 +7,11 @@ const users = Cli.create('users', {
   description: 'Look up X users.',
 });
 
+const xApiEnv = z.object({
+  X_BEARER_TOKEN: z.string().optional().describe('X API bearer token'),
+});
+
 async function resolveUser(client: ReturnType<typeof createXApiClient>, usernameOrId: string) {
-  // If it looks like a numeric ID, fetch by ID; otherwise by username.
   if (/^\d+$/.test(usernameOrId)) {
     return client.getUserById(usernameOrId);
   }
@@ -23,6 +26,7 @@ users.command('get', {
   options: z.object({
     verbose: z.boolean().optional().describe('Show full bio without truncation'),
   }),
+  env: xApiEnv,
   output: z.object({
     id: z.string(),
     name: z.string(),
@@ -87,6 +91,7 @@ users.command('followers', {
     maxResults: z.number().default(100).describe('Maximum followers to return'),
   }),
   alias: { maxResults: 'n' },
+  env: xApiEnv,
   output: z.object({
     users: z.array(
       z.object({
@@ -136,6 +141,7 @@ users.command('following', {
     maxResults: z.number().default(100).describe('Maximum accounts to return'),
   }),
   alias: { maxResults: 'n' },
+  env: xApiEnv,
   output: z.object({
     users: z.array(
       z.object({
@@ -186,6 +192,7 @@ users.command('posts', {
     verbose: z.boolean().optional().describe('Show full text without truncation'),
   }),
   alias: { maxResults: 'n' },
+  env: xApiEnv,
   output: z.object({
     posts: z.array(
       z.object({
@@ -255,6 +262,7 @@ users.command('mentions', {
     verbose: z.boolean().optional().describe('Show full text'),
   }),
   alias: { maxResults: 'n' },
+  env: xApiEnv,
   output: z.object({
     posts: z.array(
       z.object({
@@ -290,6 +298,7 @@ users.command('search', {
   args: z.object({
     query: z.string().describe('Search query'),
   }),
+  env: xApiEnv,
   output: z.object({
     users: z.array(
       z.object({

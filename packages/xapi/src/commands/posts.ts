@@ -7,6 +7,10 @@ const posts = Cli.create('posts', {
   description: 'Manage and search X posts.',
 });
 
+const xApiEnv = z.object({
+  X_BEARER_TOKEN: z.string().optional().describe('X API bearer token'),
+});
+
 posts.command('get', {
   description: 'Get a post by ID.',
   args: z.object({
@@ -15,6 +19,7 @@ posts.command('get', {
   options: z.object({
     verbose: z.boolean().optional().describe('Show full text without truncation'),
   }),
+  env: xApiEnv,
   output: z.object({
     id: z.string(),
     text: z.string(),
@@ -73,6 +78,7 @@ posts.command('search', {
     verbose: z.boolean().optional().describe('Show full text without truncation'),
   }),
   alias: { maxResults: 'n' },
+  env: xApiEnv,
   output: z.object({
     posts: z.array(
       z.object({
@@ -132,6 +138,7 @@ posts.command('create', {
     replyTo: z.string().optional().describe('Reply to post ID'),
     quote: z.string().optional().describe('Quote post ID'),
   }),
+  env: xApiEnv,
   output: z.object({
     id: z.string(),
     text: z.string(),
@@ -160,6 +167,7 @@ posts.command('delete', {
   args: z.object({
     id: z.string().describe('Post ID to delete'),
   }),
+  env: xApiEnv,
   output: z.object({
     deleted: z.boolean(),
     id: z.string(),
@@ -182,6 +190,7 @@ posts.command('likes', {
     maxResults: z.number().default(100).describe('Maximum users to return'),
   }),
   alias: { maxResults: 'n' },
+  env: xApiEnv,
   output: z.object({
     users: z.array(
       z.object({
@@ -240,6 +249,7 @@ posts.command('retweets', {
     maxResults: z.number().default(100).describe('Maximum users to return'),
   }),
   alias: { maxResults: 'n' },
+  env: xApiEnv,
   output: z.object({
     users: z.array(
       z.object({

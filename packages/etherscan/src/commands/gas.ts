@@ -10,8 +10,12 @@ const chainOption = z
   .default(DEFAULT_CHAIN)
   .describe('Chain name (abstract, ethereum, base, arbitrum, ...)');
 
+const etherscanEnv = z.object({
+  ETHERSCAN_API_KEY: z.string().optional().describe('Etherscan V2 API key'),
+});
+
 export const gasCli = Cli.create('gas', {
-  description: 'Query gas oracle and estimate gas costs',
+  description: 'Query gas oracle data and estimate confirmation latency.',
 });
 
 interface GasOracle {
@@ -24,10 +28,21 @@ interface GasOracle {
 }
 
 gasCli.command('oracle', {
-  description: 'Get current gas price recommendations',
+  description: 'Get current gas price recommendations.',
   options: z.object({
     chain: chainOption,
   }),
+  env: etherscanEnv,
+  output: z.object({
+    chain: z.string(),
+    lastBlock: z.string(),
+    slow: z.string(),
+    standard: z.string(),
+    fast: z.string(),
+    baseFee: z.string(),
+    gasUsedRatio: z.string(),
+  }),
+  examples: [{ options: { chain: 'abstract' }, description: 'Get gas oracle on Abstract' }],
   async run(c) {
     const { apiKey } = apiKeyAuth('ETHERSCAN_API_KEY');
     const chainId = resolveChainId(c.options.chain);
@@ -67,11 +82,23 @@ gasCli.command('oracle', {
 });
 
 gasCli.command('estimate', {
-  description: 'Estimate gas cost in wei for a given gas price',
+  description: 'Estimate confirmation time in seconds for a gas price (wei).',
   options: z.object({
     gasprice: z.string().describe('Gas price in wei'),
     chain: chainOption,
   }),
+  env: etherscanEnv,
+  output: z.object({
+    chain: z.string(),
+    gasprice: z.string(),
+    estimatedSeconds: z.string(),
+  }),
+  examples: [
+    {
+      options: { gasprice: '1000000000', chain: 'ethereum' },
+      description: 'Estimate confirmation time at 1 gwei',
+    },
+  ],
   async run(c) {
     const { apiKey } = apiKeyAuth('ETHERSCAN_API_KEY');
     const chainId = resolveChainId(c.options.chain);

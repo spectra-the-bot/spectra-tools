@@ -7,6 +7,10 @@ const timeline = Cli.create('timeline', {
   description: 'View your X timeline.',
 });
 
+const xApiEnv = z.object({
+  X_BEARER_TOKEN: z.string().optional().describe('X API bearer token'),
+});
+
 timeline.command('home', {
   description: 'View your home timeline.',
   options: z.object({
@@ -14,6 +18,7 @@ timeline.command('home', {
     verbose: z.boolean().optional().describe('Show full text without truncation'),
   }),
   alias: { maxResults: 'n' },
+  env: xApiEnv,
   output: z.object({
     posts: z.array(
       z.object({
@@ -86,6 +91,7 @@ timeline.command('mentions', {
     verbose: z.boolean().optional().describe('Show full text without truncation'),
   }),
   alias: { maxResults: 'n' },
+  env: xApiEnv,
   output: z.object({
     posts: z.array(
       z.object({

@@ -10,8 +10,12 @@ const chainOption = z
   .default(DEFAULT_CHAIN)
   .describe('Chain name (abstract, ethereum, base, arbitrum, ...)');
 
+const etherscanEnv = z.object({
+  ETHERSCAN_API_KEY: z.string().optional().describe('Etherscan V2 API key'),
+});
+
 export const statsCli = Cli.create('stats', {
-  description: 'Query ETH price and supply statistics',
+  description: 'Query ETH price and total supply statistics.',
 });
 
 interface EthPrice {
@@ -22,10 +26,19 @@ interface EthPrice {
 }
 
 statsCli.command('ethprice', {
-  description: 'Get the latest ETH price in USD and BTC',
+  description: 'Get latest ETH price in USD and BTC.',
   options: z.object({
     chain: chainOption,
   }),
+  env: etherscanEnv,
+  output: z.object({
+    chain: z.string(),
+    usd: z.string(),
+    btc: z.string(),
+    usdTimestamp: z.string(),
+    btcTimestamp: z.string(),
+  }),
+  examples: [{ options: { chain: 'ethereum' }, description: 'Get ETH spot price on Ethereum' }],
   async run(c) {
     const { apiKey } = apiKeyAuth('ETHERSCAN_API_KEY');
     const chainId = resolveChainId(c.options.chain);
@@ -62,10 +75,16 @@ statsCli.command('ethprice', {
 });
 
 statsCli.command('ethsupply', {
-  description: 'Get the total supply of ETH',
+  description: 'Get total ETH supply in wei.',
   options: z.object({
     chain: chainOption,
   }),
+  env: etherscanEnv,
+  output: z.object({
+    chain: z.string(),
+    totalSupplyWei: z.string(),
+  }),
+  examples: [{ options: { chain: 'ethereum' }, description: 'Get total ETH supply' }],
   async run(c) {
     const { apiKey } = apiKeyAuth('ETHERSCAN_API_KEY');
     const chainId = resolveChainId(c.options.chain);

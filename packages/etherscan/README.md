@@ -1,104 +1,65 @@
-# @spectra-the-bot/etherscan-cli
+# @spectratools/etherscan-cli
 
-Etherscan V2 API CLI built with [incur](https://github.com/wevm/incur). Supports 60+ chains including Abstract (2741).
+Etherscan V2 API CLI for multi-chain explorer automation.
 
-## Setup
+## Install
+
+```bash
+pnpm add -g @spectratools/etherscan-cli
+```
+
+## LLM / Agent Discovery
+
+```bash
+# Emit machine-readable command metadata
+etherscan-cli --llms
+
+# Register as a reusable local skill for agent runtimes
+etherscan-cli skills add
+
+# Register as an MCP server entry
+etherscan-cli mcp add
+```
+
+## Configuration
 
 ```bash
 export ETHERSCAN_API_KEY=your_api_key
 ```
 
-## Commands
+## Command Group Intent Summary
 
-### Account
+- `account` — Wallet balances, normal tx history, token transfer history
+- `contract` — ABI, verified source, and deployment transaction metadata
+- `tx` — Transaction detail, receipt, and pass/fail status checks
+- `token` — Token metadata, holder distribution, and supply
+- `gas` — Current gas oracle and time-to-confirmation estimates
+- `stats` — ETH price and supply snapshots
 
-```bash
-# ETH balance
-etherscan-cli account balance <address> [--chain abstract]
-
-# Transaction list
-etherscan-cli account txlist <address> [--startblock 0] [--endblock latest] [--page 1] [--offset 10] [--sort asc]
-
-# ERC-20 token transfers
-etherscan-cli account tokentx <address> [--contractaddress 0x...] [--chain abstract]
-
-# ERC-20 token balance
-etherscan-cli account tokenbalance <address> --contractaddress <0x...> [--chain abstract]
-```
-
-### Contract
+## Agent-Oriented Examples
 
 ```bash
-# ABI (verified contracts only)
-etherscan-cli contract abi <address> [--chain abstract]
+# 1) Wallet risk scan: balance + recent txs
+etherscan-cli account balance 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --chain ethereum --format json
+etherscan-cli account txlist 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --chain ethereum --sort desc --offset 20 --format json
 
-# Verified source code
-etherscan-cli contract source <address> [--chain abstract]
+# 2) Contract triage for unknown addresses
+etherscan-cli contract creation 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 --chain ethereum --format json
+etherscan-cli contract source 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 --chain ethereum --format json
 
-# Deployment transaction
-etherscan-cli contract creation <address> [--chain abstract]
+# 3) Tx execution diagnosis
+etherscan-cli tx info 0x1234...abcd --chain abstract --format json
+etherscan-cli tx receipt 0x1234...abcd --chain abstract --format json
+
+# 4) Token monitoring loop
+etherscan-cli token info 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 --chain ethereum --format json
+etherscan-cli token holders 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 --offset 25 --chain ethereum --format json
+
+# 5) Gas-aware scheduling
+etherscan-cli gas oracle --chain abstract --format json
+etherscan-cli gas estimate --gasprice 1000000000 --chain abstract --format json
 ```
 
-### Transaction
+## Output Mode
 
-```bash
-etherscan-cli tx info <txhash> [--chain abstract]
-etherscan-cli tx receipt <txhash> [--chain abstract]
-etherscan-cli tx status <txhash> [--chain abstract]
-```
-
-### Token
-
-```bash
-etherscan-cli token info <contractaddress> [--chain abstract]
-etherscan-cli token holders <contractaddress> [--page 1] [--offset 10] [--chain abstract]
-etherscan-cli token supply <contractaddress> [--chain abstract]
-```
-
-### Gas
-
-```bash
-etherscan-cli gas oracle [--chain abstract]
-etherscan-cli gas estimate --gasprice <wei> [--chain abstract]
-```
-
-### Stats
-
-```bash
-etherscan-cli stats ethprice [--chain abstract]
-etherscan-cli stats ethsupply [--chain abstract]
-```
-
-## Supported Chains
-
-| Name | Chain ID |
-|------|----------|
-| abstract | 2741 |
-| ethereum / mainnet | 1 |
-| base | 8453 |
-| arbitrum | 42161 |
-| optimism | 10 |
-| polygon | 137 |
-| avalanche | 43114 |
-| bsc | 56 |
-| linea | 59144 |
-| scroll | 534352 |
-| zksync | 324 |
-| mantle | 5000 |
-| blast | 81457 |
-| mode | 34443 |
-| sepolia | 11155111 |
-
-## Rate Limiting
-
-The free Etherscan API tier allows 5 requests/second. The CLI enforces this automatically using a token-bucket rate limiter from `@spectra-the-bot/cli-shared`.
-
-## Output Formats
-
-```bash
-# Human-readable (default)
-etherscan-cli account balance 0x...
-
-# JSON (for piping/agents)
-etherscan-cli account balance 0x... --json
-```
+Use `--format json` for agent pipelines and tool-calling flows.

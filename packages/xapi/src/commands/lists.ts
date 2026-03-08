@@ -7,11 +7,16 @@ const lists = Cli.create('lists', {
   description: 'Manage and browse X lists.',
 });
 
+const xApiEnv = z.object({
+  X_BEARER_TOKEN: z.string().optional().describe('X API bearer token'),
+});
+
 lists.command('get', {
   description: 'Get a list by ID.',
   args: z.object({
     id: z.string().describe('List ID'),
   }),
+  env: xApiEnv,
   output: z.object({
     id: z.string(),
     name: z.string(),
@@ -55,6 +60,7 @@ lists.command('members', {
     maxResults: z.number().default(100).describe('Maximum members to return'),
   }),
   alias: { maxResults: 'n' },
+  env: xApiEnv,
   output: z.object({
     users: z.array(
       z.object({
@@ -102,6 +108,7 @@ lists.command('posts', {
     verbose: z.boolean().optional().describe('Show full text'),
   }),
   alias: { maxResults: 'n' },
+  env: xApiEnv,
   output: z.object({
     posts: z.array(
       z.object({
