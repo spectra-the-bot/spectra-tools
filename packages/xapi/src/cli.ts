@@ -1,4 +1,5 @@
-import { realpathSync } from 'node:fs';
+import { readFileSync, realpathSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Cli } from 'incur';
 import { dm } from './commands/dm.js';
@@ -8,7 +9,11 @@ import { timeline } from './commands/timeline.js';
 import { trends } from './commands/trends.js';
 import { users } from './commands/users.js';
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const pkg = JSON.parse(readFileSync(resolve(__dirname, '../package.json'), 'utf8'));
+
 const cli = Cli.create('xapi', {
+  version: pkg.version,
   description: 'X (Twitter) API CLI for spectra-the-bot.',
 });
 

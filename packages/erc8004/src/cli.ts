@@ -1,4 +1,5 @@
-import { realpathSync } from 'node:fs';
+import { readFileSync, realpathSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Cli } from 'incur';
 import { discovery } from './commands/discovery.js';
@@ -7,9 +8,12 @@ import { registration } from './commands/registration.js';
 import { reputation } from './commands/reputation.js';
 import { validation } from './commands/validation.js';
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const pkg = JSON.parse(readFileSync(resolve(__dirname, '../package.json'), 'utf8'));
+
 const cli = Cli.create('erc8004', {
+  version: pkg.version,
   description: 'ERC-8004 Trustless Agents registry CLI.',
-  version: '0.0.1',
 });
 
 cli.command(identity);

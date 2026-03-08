@@ -1,4 +1,5 @@
-import { realpathSync } from 'node:fs';
+import { readFileSync, realpathSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Cli } from 'incur';
 import { accountCli } from './commands/account.js';
@@ -8,7 +9,11 @@ import { statsCli } from './commands/stats.js';
 import { tokenCli } from './commands/token.js';
 import { txCli } from './commands/tx.js';
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const pkg = JSON.parse(readFileSync(resolve(__dirname, '../package.json'), 'utf8'));
+
 const cli = Cli.create('etherscan', {
+  version: pkg.version,
   description: 'Query Etherscan API data from the command line.',
 });
 
