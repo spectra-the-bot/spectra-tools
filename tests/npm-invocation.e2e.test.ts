@@ -43,8 +43,14 @@ const CLI_PACKAGES: CliPackage[] = [
 ];
 
 const WORKSPACE_PACKAGES_TO_PACK = [
-  '@spectratools/cli-shared',
-  ...CLI_PACKAGES.map((pkg) => pkg.workspaceName),
+  {
+    workspaceName: '@spectratools/cli-shared',
+    packageDir: 'packages/shared',
+  },
+  ...CLI_PACKAGES.map((pkg) => ({
+    workspaceName: pkg.workspaceName,
+    packageDir: pkg.packageDir,
+  })),
 ];
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const npmToken = process.env.NPM_TOKEN ?? 'test-token';
@@ -114,9 +120,9 @@ describe('CLI npm invocation e2e', () => {
       mkdirSync(globalPrefixDir, { recursive: true });
 
       const tarballs: string[] = [];
-      for (const workspaceName of WORKSPACE_PACKAGES_TO_PACK) {
+      for (const { workspaceName, packageDir } of WORKSPACE_PACKAGES_TO_PACK) {
         const before = new Set(readdirSync(tarballDir));
-        run('pnpm', ['--filter', workspaceName, 'pack', '--pack-destination', tarballDir]);
+        run('pnpm', ['pack', '--pack-destination', tarballDir], resolve(repoRoot, packageDir));
         const packed = readdirSync(tarballDir).find((file) => !before.has(file));
         if (!packed) {
           throw new Error(`pnpm pack did not produce a tarball for ${workspaceName}`);
