@@ -475,7 +475,13 @@ describe('assembly onchain commands', () => {
     };
     expect(data.count).toBe(1);
     expect(data.proposals).toHaveLength(1);
-    expect(data.proposals[0]).toMatchObject({ id: 1, kind: 1, status: 4, voteEndAt: iso(130) });
+    expect(data.proposals[0]).toMatchObject({
+      id: 1,
+      kind: 1,
+      status: 'defeated',
+      statusCode: 4,
+      voteEndAt: iso(130),
+    });
   });
 
   it('governance proposals --format json keeps proposal data under a proposals array key', async () => {
@@ -549,7 +555,8 @@ describe('assembly onchain commands', () => {
 
     const data = out.data as Record<string, unknown>;
     expect(data.kind).toBe(1);
-    expect(data.status).toBe(4);
+    expect(data.status).toBe('defeated');
+    expect(data.statusCode).toBe(4);
     expect(data.forVotes).toBe('16');
     expect(data.amount).toBe('19');
   });

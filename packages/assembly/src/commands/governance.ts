@@ -62,6 +62,54 @@ type DecodedProposal = {
 
 const timestampOutput = z.union([z.number(), z.string()]);
 
+// Derived from verified Governance.sol source on Abstract mainnet:
+// enum ProposalStatus { Deliberation, Voting, Timelock, Executed, Defeated, Cancelled }
+const proposalStatusLabels: Record<number, string> = {
+  0: 'pending',
+  1: 'active',
+  2: 'passed',
+  3: 'executed',
+  4: 'defeated',
+  5: 'cancelled',
+};
+
+function proposalStatus(status: bigint): { status: string; statusCode: number } {
+  const statusCode = asNum(status);
+  return {
+    status: proposalStatusLabels[statusCode] ?? `unknown-${statusCode}`,
+    statusCode,
+  };
+}
+
+const proposalOutputSchema = z.object({
+  kind: z.number(),
+  configRiskTier: z.number(),
+  origin: z.number(),
+  status: z.string(),
+  statusCode: z.number(),
+  proposer: z.string(),
+  threadId: z.number(),
+  petitionId: z.number(),
+  createdAt: z.number(),
+  deliberationEndsAt: z.number(),
+  voteStartAt: z.number(),
+  voteEndAt: z.number(),
+  timelockEndsAt: z.number(),
+  activeSeatsSnapshot: z.number(),
+  forVotes: z.string(),
+  againstVotes: z.string(),
+  abstainVotes: z.string(),
+  amount: z.string(),
+  snapshotAssetBalance: z.string(),
+  transferIntent: z.boolean(),
+  intentDeadline: z.number(),
+  intentMaxRiskTier: z.number(),
+  title: z.string(),
+  description: z.string(),
+});
+
+type ProposalOutput = z.infer<typeof proposalOutputSchema>;
+
 function decodeProposal(value: unknown): DecodedProposal {
   const [
     kind,
@@ -116,12 +164,15 @@ function decodeProposal(value: unknown): DecodedProposal {
   };
 }
 
-function serializeProposal(proposal: DecodedProposal): Record<string, unknown> {
+function serializeProposal(proposal: DecodedProposal): ProposalOutput {
+  const status = proposalStatus(proposal.status);
+
   return {
     kind: asNum(proposal.kind),
     configRiskTier: asNum(proposal.configRiskTier),
     origin: asNum(proposal.origin),
-    status: asNum(proposal.status),
+    status: status.status,
+    statusCode: status.statusCode,
     proposer: proposal.proposer,
     threadId: asNum(proposal.threadId),
     petitionId: asNum(proposal.petitionId),
@@ -156,7 +207,8 @@ governance.command('proposals', {
       z.object({
         id: z.number(),
         kind: z.number(),
-        status: z.number(),
+        status: z.string(),
+        statusCode: z.number(),
         title: z.string().nullable().optional(),
         voteEndAt: timestampOutput,
         voteEndRelative: z.string(),
@@ -186,9 +238,9 @@ governance.command('proposals', {
       : [];
     const proposals = (proposalTuples as unknown[]).map(decodeProposal);
     const items = proposals.map((p, i: number) => ({
+      ...proposalStatus(p.status),
       id: i + 1,
       kind: asNum(p.kind),
-      status: asNum(p.status),
       title: p.title ?? null,
       voteEndAt: timeValue(p.voteEndAt, c.format),
       voteEndRelative: relTime(p.voteEndAt),
@@ -218,7 +270,7 @@ governance.command('proposal', {
     id: z.coerce.number().int().positive().describe('Proposal id (1-indexed)'),
   }),
   env,
-  output: z.record(z.string(), z.unknown()),
+  output: proposalOutputSchema,
   examples: [{ args: { id: 1 }, description: 'Fetch proposal #1' }],
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
