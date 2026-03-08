@@ -1,6 +1,7 @@
-import { apiKeyAuth, paginateCursor } from '@spectra-the-bot/cli-shared';
+import { apiKeyAuth } from '@spectra-the-bot/cli-shared';
 import { Cli, z } from 'incur';
 import { createXApiClient, relativeTime, truncateText } from '../api.js';
+import { collectPaged } from '../collect-paged.js';
 
 const timeline = Cli.create('timeline', {
   description: 'View your X timeline.',
@@ -35,35 +36,25 @@ timeline.command('home', {
     const client = createXApiClient(apiKey);
     const meRes = await client.getMe();
     const userId = meRes.data.id;
-    const allPosts: Array<{
-      id: string;
-      text: string;
-      author_id: string | undefined;
-      created_at: string | undefined;
-      likes: number | undefined;
-      retweets: number | undefined;
-    }> = [];
-
-    for await (const post of paginateCursor({
-      fetchPage: async (cursor: string | null) => {
-        const res = await client.getHomeTimeline(
-          userId,
-          Math.min(c.options.maxResults, 100),
-          cursor ?? undefined,
-        );
-        return { items: res.data ?? [], nextCursor: res.meta?.next_token ?? null };
-      },
-    })) {
-      allPosts.push({
+    const allPosts = await collectPaged(
+      (limit, cursor) => client.getHomeTimeline(userId, limit, cursor),
+      (post): {
+        id: string;
+        text: string;
+        author_id: string | undefined;
+        created_at: string | undefined;
+        likes: number | undefined;
+        retweets: number | undefined;
+      } => ({
         id: post.id,
         text: c.options.verbose ? post.text : truncateText(post.text),
         author_id: post.author_id,
         created_at: post.created_at ? relativeTime(post.created_at) : undefined,
         likes: post.public_metrics?.like_count,
         retweets: post.public_metrics?.retweet_count,
-      });
-      if (allPosts.length >= c.options.maxResults) break;
-    }
+      }),
+      c.options.maxResults,
+    );
 
     const firstId = allPosts[0]?.id;
     return c.ok(
@@ -110,31 +101,21 @@ timeline.command('mentions', {
     const client = createXApiClient(apiKey);
     const meRes = await client.getMe();
     const userId = meRes.data.id;
-    const allPosts: Array<{
-      id: string;
-      text: string;
-      author_id: string | undefined;
-      created_at: string | undefined;
-    }> = [];
-
-    for await (const post of paginateCursor({
-      fetchPage: async (cursor: string | null) => {
-        const res = await client.getMentionsTimeline(
-          userId,
-          Math.min(c.options.maxResults, 100),
-          cursor ?? undefined,
-        );
-        return { items: res.data ?? [], nextCursor: res.meta?.next_token ?? null };
-      },
-    })) {
-      allPosts.push({
+    const allPosts = await collectPaged(
+      (limit, cursor) => client.getMentionsTimeline(userId, limit, cursor),
+      (post): {
+        id: string;
+        text: string;
+        author_id: string | undefined;
+        created_at: string | undefined;
+      } => ({
         id: post.id,
         text: c.options.verbose ? post.text : truncateText(post.text),
         author_id: post.author_id,
         created_at: post.created_at ? relativeTime(post.created_at) : undefined,
-      });
-      if (allPosts.length >= c.options.maxResults) break;
-    }
+      }),
+      c.options.maxResults,
+    );
 
     return c.ok({ posts: allPosts, count: allPosts.length });
   },

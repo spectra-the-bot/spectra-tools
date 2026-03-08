@@ -1,6 +1,7 @@
-import { apiKeyAuth, paginateCursor } from '@spectra-the-bot/cli-shared';
+import { apiKeyAuth } from '@spectra-the-bot/cli-shared';
 import { Cli, z } from 'incur';
 import { createXApiClient } from '../api.js';
+import { collectPaged } from '../collect-paged.js';
 
 const dm = Cli.create('dm', {
   description: 'Manage X direct messages.',
@@ -27,24 +28,14 @@ dm.command('conversations', {
     const client = createXApiClient(apiKey);
     const meRes = await client.getMe();
     const userId = meRes.data.id;
-    const allConvos: Array<{ dm_conversation_id: string; participant_ids: string[] }> = [];
-
-    for await (const convo of paginateCursor({
-      fetchPage: async (cursor: string | null) => {
-        const res = await client.getDmConversations(
-          userId,
-          Math.min(c.options.maxResults, 100),
-          cursor ?? undefined,
-        );
-        return { items: res.data ?? [], nextCursor: res.meta?.next_token ?? null };
-      },
-    })) {
-      allConvos.push({
+    const allConvos = await collectPaged(
+      (limit, cursor) => client.getDmConversations(userId, limit, cursor),
+      (convo): { dm_conversation_id: string; participant_ids: string[] } => ({
         dm_conversation_id: convo.dm_conversation_id,
         participant_ids: convo.participant_ids,
-      });
-      if (allConvos.length >= c.options.maxResults) break;
-    }
+      }),
+      c.options.maxResults,
+    );
 
     const firstParticipant = allConvos[0]?.participant_ids[0];
     return c.ok(

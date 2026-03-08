@@ -1,6 +1,7 @@
-import { apiKeyAuth, paginateCursor } from '@spectra-the-bot/cli-shared';
+import { apiKeyAuth } from '@spectra-the-bot/cli-shared';
 import { Cli, z } from 'incur';
 import { createXApiClient, relativeTime, truncateText } from '../api.js';
+import { collectPaged } from '../collect-paged.js';
 
 const users = Cli.create('users', {
   description: 'Look up X users.',
@@ -103,31 +104,22 @@ users.command('followers', {
     const client = createXApiClient(apiKey);
     const userRes = await resolveUser(client, c.args.username);
     const userId = userRes.data.id;
-    const allUsers: Array<{
-      id: string;
-      name: string;
-      username: string;
-      followers: number | undefined;
-    }> = [];
-
-    for await (const user of paginateCursor({
-      fetchPage: async (cursor: string | null) => {
-        const res = await client.getUserFollowers(
-          userId,
-          Math.min(c.options.maxResults, 1000),
-          cursor ?? undefined,
-        );
-        return { items: res.data ?? [], nextCursor: res.meta?.next_token ?? null };
-      },
-    })) {
-      allUsers.push({
+    const allUsers = await collectPaged(
+      (limit, cursor) => client.getUserFollowers(userId, limit, cursor),
+      (user): {
+        id: string;
+        name: string;
+        username: string;
+        followers: number | undefined;
+      } => ({
         id: user.id,
         name: user.name,
         username: user.username,
         followers: user.public_metrics?.followers_count,
-      });
-      if (allUsers.length >= c.options.maxResults) break;
-    }
+      }),
+      c.options.maxResults,
+      1000,
+    );
 
     return c.ok({ users: allUsers, count: allUsers.length });
   },
@@ -159,31 +151,22 @@ users.command('following', {
     const client = createXApiClient(apiKey);
     const userRes = await resolveUser(client, c.args.username);
     const userId = userRes.data.id;
-    const allUsers: Array<{
-      id: string;
-      name: string;
-      username: string;
-      followers: number | undefined;
-    }> = [];
-
-    for await (const user of paginateCursor({
-      fetchPage: async (cursor: string | null) => {
-        const res = await client.getUserFollowing(
-          userId,
-          Math.min(c.options.maxResults, 1000),
-          cursor ?? undefined,
-        );
-        return { items: res.data ?? [], nextCursor: res.meta?.next_token ?? null };
-      },
-    })) {
-      allUsers.push({
+    const allUsers = await collectPaged(
+      (limit, cursor) => client.getUserFollowing(userId, limit, cursor),
+      (user): {
+        id: string;
+        name: string;
+        username: string;
+        followers: number | undefined;
+      } => ({
         id: user.id,
         name: user.name,
         username: user.username,
         followers: user.public_metrics?.followers_count,
-      });
-      if (allUsers.length >= c.options.maxResults) break;
-    }
+      }),
+      c.options.maxResults,
+      1000,
+    );
 
     return c.ok({ users: allUsers, count: allUsers.length });
   },
@@ -217,33 +200,23 @@ users.command('posts', {
     const client = createXApiClient(apiKey);
     const userRes = await resolveUser(client, c.args.username);
     const userId = userRes.data.id;
-    const allPosts: Array<{
-      id: string;
-      text: string;
-      created_at: string | undefined;
-      likes: number | undefined;
-      retweets: number | undefined;
-    }> = [];
-
-    for await (const post of paginateCursor({
-      fetchPage: async (cursor: string | null) => {
-        const res = await client.getUserPosts(
-          userId,
-          Math.min(c.options.maxResults, 100),
-          cursor ?? undefined,
-        );
-        return { items: res.data ?? [], nextCursor: res.meta?.next_token ?? null };
-      },
-    })) {
-      allPosts.push({
+    const allPosts = await collectPaged(
+      (limit, cursor) => client.getUserPosts(userId, limit, cursor),
+      (post): {
+        id: string;
+        text: string;
+        created_at: string | undefined;
+        likes: number | undefined;
+        retweets: number | undefined;
+      } => ({
         id: post.id,
         text: c.options.verbose ? post.text : truncateText(post.text),
         created_at: post.created_at ? relativeTime(post.created_at) : undefined,
         likes: post.public_metrics?.like_count,
         retweets: post.public_metrics?.retweet_count,
-      });
-      if (allPosts.length >= c.options.maxResults) break;
-    }
+      }),
+      c.options.maxResults,
+    );
 
     const firstId = allPosts[0]?.id;
     return c.ok(
@@ -292,25 +265,15 @@ users.command('mentions', {
     const client = createXApiClient(apiKey);
     const userRes = await resolveUser(client, c.args.username);
     const userId = userRes.data.id;
-    const allPosts: Array<{ id: string; text: string; created_at: string | undefined }> = [];
-
-    for await (const post of paginateCursor({
-      fetchPage: async (cursor: string | null) => {
-        const res = await client.getUserMentions(
-          userId,
-          Math.min(c.options.maxResults, 100),
-          cursor ?? undefined,
-        );
-        return { items: res.data ?? [], nextCursor: res.meta?.next_token ?? null };
-      },
-    })) {
-      allPosts.push({
+    const allPosts = await collectPaged(
+      (limit, cursor) => client.getUserMentions(userId, limit, cursor),
+      (post): { id: string; text: string; created_at: string | undefined } => ({
         id: post.id,
         text: c.options.verbose ? post.text : truncateText(post.text),
         created_at: post.created_at ? relativeTime(post.created_at) : undefined,
-      });
-      if (allPosts.length >= c.options.maxResults) break;
-    }
+      }),
+      c.options.maxResults,
+    );
 
     return c.ok({ posts: allPosts, count: allPosts.length });
   },

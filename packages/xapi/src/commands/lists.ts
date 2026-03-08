@@ -1,6 +1,7 @@
-import { apiKeyAuth, paginateCursor } from '@spectra-the-bot/cli-shared';
+import { apiKeyAuth } from '@spectra-the-bot/cli-shared';
 import { Cli, z } from 'incur';
 import { createXApiClient, relativeTime, truncateText } from '../api.js';
+import { collectPaged } from '../collect-paged.js';
 
 const lists = Cli.create('lists', {
   description: 'Manage and browse X lists.',
@@ -69,31 +70,21 @@ lists.command('members', {
   async run(c) {
     const { apiKey } = apiKeyAuth('X_BEARER_TOKEN');
     const client = createXApiClient(apiKey);
-    const allUsers: Array<{
-      id: string;
-      name: string;
-      username: string;
-      followers: number | undefined;
-    }> = [];
-
-    for await (const user of paginateCursor({
-      fetchPage: async (cursor: string | null) => {
-        const res = await client.getListMembers(
-          c.args.id,
-          Math.min(c.options.maxResults, 100),
-          cursor ?? undefined,
-        );
-        return { items: res.data ?? [], nextCursor: res.meta?.next_token ?? null };
-      },
-    })) {
-      allUsers.push({
+    const allUsers = await collectPaged(
+      (limit, cursor) => client.getListMembers(c.args.id, limit, cursor),
+      (user): {
+        id: string;
+        name: string;
+        username: string;
+        followers: number | undefined;
+      } => ({
         id: user.id,
         name: user.name,
         username: user.username,
         followers: user.public_metrics?.followers_count,
-      });
-      if (allUsers.length >= c.options.maxResults) break;
-    }
+      }),
+      c.options.maxResults,
+    );
 
     return c.ok({ users: allUsers, count: allUsers.length });
   },
@@ -125,33 +116,23 @@ lists.command('posts', {
   async run(c) {
     const { apiKey } = apiKeyAuth('X_BEARER_TOKEN');
     const client = createXApiClient(apiKey);
-    const allPosts: Array<{
-      id: string;
-      text: string;
-      author_id: string | undefined;
-      created_at: string | undefined;
-      likes: number | undefined;
-    }> = [];
-
-    for await (const post of paginateCursor({
-      fetchPage: async (cursor: string | null) => {
-        const res = await client.getListPosts(
-          c.args.id,
-          Math.min(c.options.maxResults, 100),
-          cursor ?? undefined,
-        );
-        return { items: res.data ?? [], nextCursor: res.meta?.next_token ?? null };
-      },
-    })) {
-      allPosts.push({
+    const allPosts = await collectPaged(
+      (limit, cursor) => client.getListPosts(c.args.id, limit, cursor),
+      (post): {
+        id: string;
+        text: string;
+        author_id: string | undefined;
+        created_at: string | undefined;
+        likes: number | undefined;
+      } => ({
         id: post.id,
         text: c.options.verbose ? post.text : truncateText(post.text),
         author_id: post.author_id,
         created_at: post.created_at ? relativeTime(post.created_at) : undefined,
         likes: post.public_metrics?.like_count,
-      });
-      if (allPosts.length >= c.options.maxResults) break;
-    }
+      }),
+      c.options.maxResults,
+    );
 
     const firstId = allPosts[0]?.id;
     return c.ok(
