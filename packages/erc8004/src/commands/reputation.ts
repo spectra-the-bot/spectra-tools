@@ -10,6 +10,7 @@ import {
   getWalletClient,
 } from '../contracts/client.js';
 import { validateBigIntArg } from '../utils/validate-agent-id.js';
+import { mapContractRevertError } from '../utils/viem-errors.js';
 
 const reputation = Cli.create('reputation', {
   description:
@@ -52,16 +53,22 @@ reputation.command('get', {
     const address = getReputationRegistryAddress(c.env, c.options.registry);
     const tokenId = validateBigIntArg(c.args.agentId, 'agentId');
 
-    const [totalScore, count] = await withRetry(
-      () =>
-        readContract(client, {
-          address,
-          abi: reputationRegistryAbi,
-          functionName: 'getScore',
-          args: [tokenId],
-        }),
-      { maxRetries: 3, baseMs: 500, maxMs: 5000 },
-    );
+    let totalScore: bigint;
+    let count: bigint;
+    try {
+      [totalScore, count] = await withRetry(
+        () =>
+          readContract(client, {
+            address,
+            abi: reputationRegistryAbi,
+            functionName: 'getScore',
+            args: [tokenId],
+          }),
+        { maxRetries: 3, baseMs: 500, maxMs: 5000 },
+      );
+    } catch (error) {
+      return mapContractRevertError(c, error, 'getScore');
+    }
 
     const countNum = Number(count);
     const avgScore = countNum > 0 ? (Number(totalScore) / countNum).toFixed(2) : '0.00';
@@ -186,12 +193,17 @@ reputation.command('history', {
     const address = getReputationRegistryAddress(c.env, c.options.registry);
     const tokenId = validateBigIntArg(c.args.agentId, 'agentId');
 
-    const count = await readContract(client, {
-      address,
-      abi: reputationRegistryAbi,
-      functionName: 'getFeedbackCount',
-      args: [tokenId],
-    });
+    let count: bigint;
+    try {
+      count = await readContract(client, {
+        address,
+        abi: reputationRegistryAbi,
+        functionName: 'getFeedbackCount',
+        args: [tokenId],
+      });
+    } catch (error) {
+      return mapContractRevertError(c, error, 'getFeedbackCount');
+    }
 
     const totalNum = Number(count);
     const fetchCount = Math.min(totalNum, c.options.limit);
