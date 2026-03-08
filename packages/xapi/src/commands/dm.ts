@@ -1,6 +1,12 @@
 import { Cli, z } from 'incur';
 import { createXApiClient } from '../api.js';
-import { readAuthToken, toWriteAuthError, writeAuthToken, xApiEnv } from '../auth.js';
+import {
+  readAuthToken,
+  toWriteAuthError,
+  writeAuthToken,
+  xApiReadEnv,
+  xApiWriteEnv,
+} from '../auth.js';
 import { collectPaged } from '../collect-paged.js';
 
 const dm = Cli.create('dm', {
@@ -13,7 +19,7 @@ dm.command('conversations', {
     maxResults: z.number().default(20).describe('Maximum conversations to return'),
   }),
   alias: { maxResults: 'n' },
-  env: xApiEnv,
+  env: xApiReadEnv,
   output: z.object({
     conversations: z.array(
       z.object({
@@ -25,7 +31,7 @@ dm.command('conversations', {
   }),
   examples: [{ description: 'List your DM conversations' }],
   async run(c) {
-    const client = createXApiClient(readAuthToken());
+    const client = createXApiClient(readAuthToken(c.env));
     const meRes = await client.getMe();
     const userId = meRes.data.id;
     const allConvos = await collectPaged(
@@ -67,7 +73,7 @@ dm.command('send', {
   options: z.object({
     text: z.string().describe('Message text'),
   }),
-  env: xApiEnv,
+  env: xApiWriteEnv,
   output: z.object({
     dm_conversation_id: z.string(),
     dm_event_id: z.string(),
@@ -81,7 +87,7 @@ dm.command('send', {
   ],
   async run(c) {
     try {
-      const client = createXApiClient(writeAuthToken());
+      const client = createXApiClient(writeAuthToken(c.env));
       const res = await client.sendDm(c.args.participantId, c.options.text);
       return c.ok(res.data);
     } catch (error) {

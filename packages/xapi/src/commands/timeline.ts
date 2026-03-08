@@ -1,6 +1,6 @@
 import { Cli, z } from 'incur';
 import { createXApiClient, relativeTime, truncateText } from '../api.js';
-import { readAuthToken, xApiEnv } from '../auth.js';
+import { readAuthToken, xApiReadEnv } from '../auth.js';
 import { collectPaged } from '../collect-paged.js';
 
 const timeline = Cli.create('timeline', {
@@ -14,7 +14,7 @@ timeline.command('home', {
     verbose: z.boolean().optional().describe('Show full text without truncation'),
   }),
   alias: { maxResults: 'n' },
-  env: xApiEnv,
+  env: xApiReadEnv,
   output: z.object({
     posts: z.array(
       z.object({
@@ -33,7 +33,7 @@ timeline.command('home', {
     { options: { maxResults: 50 }, description: 'View 50 posts' },
   ],
   async run(c) {
-    const client = createXApiClient(readAuthToken());
+    const client = createXApiClient(readAuthToken(c.env));
     const meRes = await client.getMe();
     const userId = meRes.data.id;
     const allPosts = await collectPaged(
@@ -86,7 +86,7 @@ timeline.command('mentions', {
     verbose: z.boolean().optional().describe('Show full text without truncation'),
   }),
   alias: { maxResults: 'n' },
-  env: xApiEnv,
+  env: xApiReadEnv,
   output: z.object({
     posts: z.array(
       z.object({
@@ -100,7 +100,7 @@ timeline.command('mentions', {
   }),
   examples: [{ description: 'View your recent mentions' }],
   async run(c) {
-    const client = createXApiClient(readAuthToken());
+    const client = createXApiClient(readAuthToken(c.env));
     const meRes = await client.getMe();
     const userId = meRes.data.id;
     const allPosts = await collectPaged(

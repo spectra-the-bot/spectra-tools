@@ -1,5 +1,4 @@
 import {
-  apiKeyAuth,
   checksumAddress,
   createRateLimiter,
   formatTimestamp,
@@ -8,6 +7,7 @@ import {
 } from '@spectratools/cli-shared';
 import { Cli, z } from 'incur';
 import { createEtherscanClient } from '../api.js';
+import { etherscanEnv } from '../auth.js';
 import { DEFAULT_CHAIN, resolveChainId } from '../chains.js';
 
 const rateLimiter = createRateLimiter({ requestsPerSecond: 5 });
@@ -16,10 +16,6 @@ const chainOption = z
   .string()
   .default(DEFAULT_CHAIN)
   .describe('Chain name (abstract, ethereum, base, arbitrum, ...)');
-
-const etherscanEnv = z.object({
-  ETHERSCAN_API_KEY: z.string().optional().describe('Etherscan V2 API key'),
-});
 
 const txListItemSchema = z.object({
   hash: z.string(),
@@ -79,7 +75,7 @@ accountCli.command('balance', {
     },
   ],
   async run(c) {
-    const { apiKey } = apiKeyAuth('ETHERSCAN_API_KEY');
+    const apiKey = c.env.ETHERSCAN_API_KEY;
     const chainId = resolveChainId(c.options.chain);
     const address = normalizeAddress(c.args.address);
     const client = createEtherscanClient(apiKey);
@@ -155,7 +151,7 @@ accountCli.command('txlist', {
     },
   ],
   async run(c) {
-    const { apiKey } = apiKeyAuth('ETHERSCAN_API_KEY');
+    const apiKey = c.env.ETHERSCAN_API_KEY;
     const chainId = resolveChainId(c.options.chain);
     const address = normalizeAddress(c.args.address);
     const client = createEtherscanClient(apiKey);
@@ -246,7 +242,7 @@ accountCli.command('tokentx', {
     },
   ],
   async run(c) {
-    const { apiKey } = apiKeyAuth('ETHERSCAN_API_KEY');
+    const apiKey = c.env.ETHERSCAN_API_KEY;
     const chainId = resolveChainId(c.options.chain);
     const address = normalizeAddress(c.args.address);
     const client = createEtherscanClient(apiKey);
@@ -318,7 +314,7 @@ accountCli.command('tokenbalance', {
     },
   ],
   async run(c) {
-    const { apiKey } = apiKeyAuth('ETHERSCAN_API_KEY');
+    const apiKey = c.env.ETHERSCAN_API_KEY;
     const chainId = resolveChainId(c.options.chain);
     const address = normalizeAddress(c.args.address);
     const contract = normalizeAddress(c.options.contractaddress);
