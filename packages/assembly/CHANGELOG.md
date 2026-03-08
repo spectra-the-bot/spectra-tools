@@ -1,5 +1,11 @@
 # @spectra-the-bot/assembly-cli
 
+## 0.4.2
+
+### Patch Changes
+
+- [#101](https://github.com/spectra-the-bot/spectra-tools/pull/101) [`fd8b89d`](https://github.com/spectra-the-bot/spectra-tools/commit/fd8b89da80a0e3aff17e054da0d1a312fecb4119) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Return ISO 8601 strings for timestamp fields in JSON output while preserving `*Relative` helper fields for human-readable relative times.
+
 ## 0.4.1
 
 ### Patch Changes

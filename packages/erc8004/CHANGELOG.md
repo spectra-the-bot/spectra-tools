@@ -1,5 +1,11 @@
 # @spectra-the-bot/erc8004-cli
 
+## 0.0.8
+
+### Patch Changes
+
+- [#112](https://github.com/spectra-the-bot/spectra-tools/pull/112) [`6579024`](https://github.com/spectra-the-bot/spectra-tools/commit/6579024814bfe85cd9c0e4e348b5d86ffbe18ba4) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Fix `identity list` and `discovery search` for non-enumerable registries by avoiding owner-path `totalSupply()` usage, adding owner event-based lookup, and returning structured friendly errors instead of raw viem errors.
+
 ## 0.0.7
 
 ### Patch Changes
