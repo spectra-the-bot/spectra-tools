@@ -1,4 +1,3 @@
-export { createHttpClient, HttpError } from './http.js';
+export { checksumAddress, formatTimestamp, truncate, weiToEth } from './format.js';
 export type { HttpClientOptions, RequestOptions } from './http.js';
-
-export { weiToEth, checksumAddress, formatTimestamp, truncate } from './format.js';
+export { createHttpClient, HttpError } from './http.js';

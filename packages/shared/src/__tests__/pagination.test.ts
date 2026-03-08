@@ -81,9 +81,7 @@ describe('paginateOffset', () => {
 
   it('iterates multiple pages using offset + limit', async () => {
     const fetchPage = vi
-      .fn<
-        (offset: number, limit: number) => Promise<{ items: number[]; total: number }>
-      >()
+      .fn<(offset: number, limit: number) => Promise<{ items: number[]; total: number }>>()
       .mockImplementation(async (offset: number) => {
         if (offset === 0) return { items: [1, 2], total: 5 };
         if (offset === 2) return { items: [3, 4], total: 5 };

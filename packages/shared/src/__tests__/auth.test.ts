@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MissingApiKeyError, apiKeyAuth } from '../middleware/auth.js';
+import { apiKeyAuth, MissingApiKeyError } from '../middleware/auth.js';
 
 describe('apiKeyAuth', () => {
   it('reads and returns the configured API key from env', () => {

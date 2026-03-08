@@ -1,5 +1,5 @@
-import { createMockServer } from '@spectra-the-bot/cli-shared/testing';
 import type { MockServer } from '@spectra-the-bot/cli-shared/testing';
+import { createMockServer } from '@spectra-the-bot/cli-shared/testing';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createXApiClient, relativeTime, truncateText } from '../api.js';
 
