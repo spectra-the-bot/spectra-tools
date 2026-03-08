@@ -40,11 +40,18 @@ describe('createXApiClient', () => {
     mocks.createHttpClient.mockReturnValue({ request: mocks.request });
   });
 
-  it('creates an HTTP client with base URL and bearer token header', () => {
+  it('creates v2 and v1.1 HTTP clients with bearer token auth', () => {
     createXApiClient('test-bearer');
 
     expect(mocks.createHttpClient).toHaveBeenCalledWith({
       baseUrl: 'https://api.x.com/2',
+      defaultHeaders: {
+        Authorization: 'Bearer test-bearer',
+      },
+    });
+
+    expect(mocks.createHttpClient).toHaveBeenCalledWith({
+      baseUrl: 'https://api.x.com/1.1',
       defaultHeaders: {
         Authorization: 'Bearer test-bearer',
       },
@@ -71,6 +78,41 @@ describe('createXApiClient', () => {
       maxRetries: 3,
       baseMs: 500,
       maxMs: 10000,
+    });
+  });
+
+  it('calls v1.1 trends available endpoint and normalizes to { data }', async () => {
+    const places = [{ woeid: 1, name: 'Worldwide', country: '' }];
+    mocks.request.mockResolvedValueOnce(places);
+    const client = createXApiClient('token');
+
+    const response = await client.getTrendingPlaces();
+
+    expect(mocks.request).toHaveBeenCalledWith('/trends/available.json', {});
+    expect(response).toEqual({ data: places });
+  });
+
+  it('calls v1.1 trends place endpoint and normalizes tweet_volume nulls', async () => {
+    mocks.request.mockResolvedValueOnce([
+      {
+        trends: [
+          { name: '#one', query: '%23one', tweet_volume: null },
+          { name: '#two', query: '%23two', tweet_volume: 1234 },
+        ],
+      },
+    ]);
+    const client = createXApiClient('token');
+
+    const response = await client.getTrendsByLocation(1);
+
+    expect(mocks.request).toHaveBeenCalledWith('/trends/place.json', {
+      query: { id: 1 },
+    });
+    expect(response).toEqual({
+      data: [
+        { name: '#one', query: '%23one', tweet_volume: undefined },
+        { name: '#two', query: '%23two', tweet_volume: 1234 },
+      ],
     });
   });
 
