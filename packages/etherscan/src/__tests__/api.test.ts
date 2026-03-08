@@ -1,5 +1,6 @@
+import { z } from 'incur';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { EtherscanError, createEtherscanClient } from '../api.js';
+import { EtherscanError, EtherscanValidationError, createEtherscanClient } from '../api.js';
 
 function makeJsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -26,19 +27,22 @@ describe('createEtherscanClient', () => {
         makeJsonResponse({ status: '1', message: 'OK', result: '1000000000000000000' }),
       );
       const client = createEtherscanClient('test-key', 'http://localhost');
-      const result = await client.call<string>({
-        chainid: 1,
-        module: 'account',
-        action: 'balance',
-        address: '0xabc',
-      });
+      const result = await client.call<string>(
+        {
+          chainid: 1,
+          module: 'account',
+          action: 'balance',
+          address: '0xabc',
+        },
+        z.string(),
+      );
       expect(result).toBe('1000000000000000000');
     });
 
     it('includes apikey in query params', async () => {
       mockFetch.mockResolvedValue(makeJsonResponse({ status: '1', message: 'OK', result: '0' }));
       const client = createEtherscanClient('my-api-key', 'http://localhost');
-      await client.call({ module: 'account', action: 'balance', address: '0xabc' });
+      await client.call({ module: 'account', action: 'balance', address: '0xabc' }, z.string());
       const url = (mockFetch.mock.calls[0]?.[0] as string) ?? '';
       expect(url).toContain('apikey=my-api-key');
     });
@@ -49,7 +53,7 @@ describe('createEtherscanClient', () => {
       );
       const client = createEtherscanClient('bad-key', 'http://localhost');
       await expect(
-        client.call({ module: 'account', action: 'balance', address: '0xabc' }),
+        client.call({ module: 'account', action: 'balance', address: '0xabc' }, z.string()),
       ).rejects.toThrow(EtherscanError);
     });
 
@@ -58,13 +62,28 @@ describe('createEtherscanClient', () => {
         makeJsonResponse({ status: '0', message: 'NOTOK', result: 'Rate limit exceeded' }),
       );
       const client = createEtherscanClient('key', 'http://localhost');
-      await expect(client.call({})).rejects.toThrow('Rate limit exceeded');
+      await expect(client.call({}, z.string())).rejects.toThrow('Rate limit exceeded');
+    });
+
+    it('throws EtherscanValidationError for malformed envelope', async () => {
+      mockFetch.mockResolvedValue(makeJsonResponse({ ok: true, payload: '123' }));
+      const client = createEtherscanClient('key', 'http://localhost');
+      await expect(client.call({}, z.string())).rejects.toBeInstanceOf(EtherscanValidationError);
+    });
+
+    it('throws EtherscanValidationError for malformed result', async () => {
+      mockFetch.mockResolvedValue(makeJsonResponse({ status: '1', message: 'OK', result: 123 }));
+      const client = createEtherscanClient('key', 'http://localhost');
+      await expect(client.call({}, z.string())).rejects.toBeInstanceOf(EtherscanValidationError);
     });
 
     it('includes all params in URL', async () => {
       mockFetch.mockResolvedValue(makeJsonResponse({ status: '1', message: 'OK', result: [] }));
       const client = createEtherscanClient('key', 'http://localhost');
-      await client.call({ chainid: 2741, module: 'account', action: 'txlist', address: '0xabc' });
+      await client.call(
+        { chainid: 2741, module: 'account', action: 'txlist', address: '0xabc' },
+        z.array(z.unknown()),
+      );
       const url = (mockFetch.mock.calls[0]?.[0] as string) ?? '';
       expect(url).toContain('chainid=2741');
       expect(url).toContain('module=account');
@@ -74,7 +93,10 @@ describe('createEtherscanClient', () => {
     it('skips undefined params', async () => {
       mockFetch.mockResolvedValue(makeJsonResponse({ status: '1', message: 'OK', result: '0' }));
       const client = createEtherscanClient('key', 'http://localhost');
-      await client.call({ module: 'account', action: 'balance', contractaddress: undefined });
+      await client.call(
+        { module: 'account', action: 'balance', contractaddress: undefined },
+        z.string(),
+      );
       const url = (mockFetch.mock.calls[0]?.[0] as string) ?? '';
       expect(url).not.toContain('contractaddress');
     });
@@ -85,13 +107,39 @@ describe('createEtherscanClient', () => {
       const txData = { hash: '0xabc', from: '0x1', to: '0x2', value: '0x0' };
       mockFetch.mockResolvedValue(makeJsonResponse({ jsonrpc: '2.0', id: 1, result: txData }));
       const client = createEtherscanClient('key', 'http://localhost');
-      const result = await client.callProxy<typeof txData>({
-        chainid: 1,
-        module: 'proxy',
-        action: 'eth_getTransactionByHash',
-        txhash: '0xabc',
-      });
+      const result = await client.callProxy(
+        {
+          chainid: 1,
+          module: 'proxy',
+          action: 'eth_getTransactionByHash',
+          txhash: '0xabc',
+        },
+        z.object({
+          hash: z.string(),
+          from: z.string(),
+          to: z.string(),
+          value: z.string(),
+        }),
+      );
       expect(result).toEqual(txData);
+    });
+
+    it('throws EtherscanValidationError for invalid proxy result schema', async () => {
+      mockFetch.mockResolvedValue(
+        makeJsonResponse({ jsonrpc: '2.0', id: 1, result: { hash: '0xabc' } }),
+      );
+      const client = createEtherscanClient('key', 'http://localhost');
+      await expect(
+        client.callProxy(
+          {
+            chainid: 1,
+            module: 'proxy',
+            action: 'eth_getTransactionByHash',
+            txhash: '0xabc',
+          },
+          z.object({ hash: z.string(), from: z.string() }),
+        ),
+      ).rejects.toBeInstanceOf(EtherscanValidationError);
     });
   });
 });

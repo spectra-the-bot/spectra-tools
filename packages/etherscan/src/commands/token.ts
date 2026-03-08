@@ -23,31 +23,36 @@ export const tokenCli = Cli.create('token', {
   description: 'Query token metadata, holders, and supply.',
 });
 
-interface TokenInfo {
-  contractAddress: string;
-  tokenName: string;
-  symbol: string;
-  divisor: string;
-  tokenType: string;
-  totalSupply: string;
-  blueCheckmark: string;
-  description: string;
-  website: string;
-  email: string;
-  blog: string;
-  reddit: string;
-  slack: string;
-  facebook: string;
-  twitter: string;
-  bitcointalk: string;
-  github: string;
-  telegram: string;
-  wechat: string;
-  linkedin: string;
-  discord: string;
-  whitepaper: string;
-  tokenPriceUSD: string;
-}
+const tokenInfoSchema = z.object({
+  contractAddress: z.string(),
+  tokenName: z.string(),
+  symbol: z.string(),
+  divisor: z.string(),
+  tokenType: z.string(),
+  totalSupply: z.string(),
+  blueCheckmark: z.string(),
+  description: z.string(),
+  website: z.string(),
+  email: z.string(),
+  blog: z.string(),
+  reddit: z.string(),
+  slack: z.string(),
+  facebook: z.string(),
+  twitter: z.string(),
+  bitcointalk: z.string(),
+  github: z.string(),
+  telegram: z.string(),
+  wechat: z.string(),
+  linkedin: z.string(),
+  discord: z.string(),
+  whitepaper: z.string(),
+  tokenPriceUSD: z.string(),
+});
+
+const holderEntrySchema = z.object({
+  TokenHolderAddress: z.string(),
+  TokenHolderQuantity: z.string(),
+});
 
 tokenCli.command('info', {
   description: 'Get metadata for a token contract.',
@@ -84,12 +89,15 @@ tokenCli.command('info', {
     const client = createEtherscanClient(apiKey);
     const results = await withRateLimit(
       () =>
-        client.call<TokenInfo[]>({
-          chainid: chainId,
-          module: 'token',
-          action: 'tokeninfo',
-          contractaddress: address,
-        }),
+        client.call(
+          {
+            chainid: chainId,
+            module: 'token',
+            action: 'tokeninfo',
+            contractaddress: address,
+          },
+          z.array(tokenInfoSchema),
+        ),
       rateLimiter,
     );
     const info = results[0];
@@ -129,11 +137,6 @@ tokenCli.command('info', {
   },
 });
 
-interface HolderEntry {
-  TokenHolderAddress: string;
-  TokenHolderQuantity: string;
-}
-
 tokenCli.command('holders', {
   description: 'List top token holders.',
   args: z.object({
@@ -171,14 +174,17 @@ tokenCli.command('holders', {
     const client = createEtherscanClient(apiKey);
     const holders = await withRateLimit(
       () =>
-        client.call<HolderEntry[]>({
-          chainid: chainId,
-          module: 'token',
-          action: 'tokenholderlist',
-          contractaddress: address,
-          page: c.options.page,
-          offset: c.options.offset,
-        }),
+        client.call(
+          {
+            chainid: chainId,
+            module: 'token',
+            action: 'tokenholderlist',
+            contractaddress: address,
+            page: c.options.page,
+            offset: c.options.offset,
+          },
+          z.array(holderEntrySchema),
+        ),
       rateLimiter,
     );
     const formatted = holders.map((h, i) => ({
@@ -236,12 +242,15 @@ tokenCli.command('supply', {
     const client = createEtherscanClient(apiKey);
     const supply = await withRateLimit(
       () =>
-        client.call<string>({
-          chainid: chainId,
-          module: 'stats',
-          action: 'tokensupply',
-          contractaddress: address,
-        }),
+        client.call<string>(
+          {
+            chainid: chainId,
+            module: 'stats',
+            action: 'tokensupply',
+            contractaddress: address,
+          },
+          z.string(),
+        ),
       rateLimiter,
     );
     return c.ok(

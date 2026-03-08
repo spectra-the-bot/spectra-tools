@@ -21,6 +21,29 @@ const etherscanEnv = z.object({
   ETHERSCAN_API_KEY: z.string().optional().describe('Etherscan V2 API key'),
 });
 
+const txListItemSchema = z.object({
+  hash: z.string(),
+  from: z.string(),
+  to: z.string(),
+  value: z.string(),
+  timeStamp: z.string(),
+  blockNumber: z.string(),
+  isError: z.string(),
+  gasUsed: z.string(),
+});
+
+const tokenTxItemSchema = z.object({
+  hash: z.string(),
+  from: z.string(),
+  to: z.string(),
+  value: z.string(),
+  tokenName: z.string(),
+  tokenSymbol: z.string(),
+  tokenDecimal: z.string(),
+  timeStamp: z.string(),
+  contractAddress: z.string(),
+});
+
 function normalizeAddress(address: string): string {
   try {
     return checksumAddress(address);
@@ -62,13 +85,16 @@ accountCli.command('balance', {
     const client = createEtherscanClient(apiKey);
     const wei = await withRateLimit(
       () =>
-        client.call<string>({
-          chainid: chainId,
-          module: 'account',
-          action: 'balance',
-          address,
-          tag: 'latest',
-        }),
+        client.call<string>(
+          {
+            chainid: chainId,
+            module: 'account',
+            action: 'balance',
+            address,
+            tag: 'latest',
+          },
+          z.string(),
+        ),
       rateLimiter,
     );
     return c.ok(
@@ -88,17 +114,6 @@ accountCli.command('balance', {
     );
   },
 });
-
-interface TxListItem {
-  hash: string;
-  from: string;
-  to: string;
-  value: string;
-  timeStamp: string;
-  blockNumber: string;
-  isError: string;
-  gasUsed: string;
-}
 
 accountCli.command('txlist', {
   description: 'List normal transactions for an address.',
@@ -146,17 +161,20 @@ accountCli.command('txlist', {
     const client = createEtherscanClient(apiKey);
     const txs = await withRateLimit(
       () =>
-        client.call<TxListItem[]>({
-          chainid: chainId,
-          module: 'account',
-          action: 'txlist',
-          address,
-          startblock: c.options.startblock,
-          endblock: c.options.endblock,
-          page: c.options.page,
-          offset: c.options.offset,
-          sort: c.options.sort,
-        }),
+        client.call(
+          {
+            chainid: chainId,
+            module: 'account',
+            action: 'txlist',
+            address,
+            startblock: c.options.startblock,
+            endblock: c.options.endblock,
+            page: c.options.page,
+            offset: c.options.offset,
+            sort: c.options.sort,
+          },
+          z.array(txListItemSchema),
+        ),
       rateLimiter,
     );
     const formatted = txs.map((tx) => ({
@@ -189,18 +207,6 @@ accountCli.command('txlist', {
     );
   },
 });
-
-interface TokenTxItem {
-  hash: string;
-  from: string;
-  to: string;
-  value: string;
-  tokenName: string;
-  tokenSymbol: string;
-  tokenDecimal: string;
-  timeStamp: string;
-  contractAddress: string;
-}
 
 accountCli.command('tokentx', {
   description: 'List ERC-20 token transfers for an address.',
@@ -246,15 +252,18 @@ accountCli.command('tokentx', {
     const client = createEtherscanClient(apiKey);
     const transfers = await withRateLimit(
       () =>
-        client.call<TokenTxItem[]>({
-          chainid: chainId,
-          module: 'account',
-          action: 'tokentx',
-          address,
-          contractaddress: c.options.contractaddress,
-          page: c.options.page,
-          offset: c.options.offset,
-        }),
+        client.call(
+          {
+            chainid: chainId,
+            module: 'account',
+            action: 'tokentx',
+            address,
+            contractaddress: c.options.contractaddress,
+            page: c.options.page,
+            offset: c.options.offset,
+          },
+          z.array(tokenTxItemSchema),
+        ),
       rateLimiter,
     );
     const formatted = transfers.map((tx) => ({
@@ -316,14 +325,17 @@ accountCli.command('tokenbalance', {
     const client = createEtherscanClient(apiKey);
     const balance = await withRateLimit(
       () =>
-        client.call<string>({
-          chainid: chainId,
-          module: 'account',
-          action: 'tokenbalance',
-          address,
-          contractaddress: contract,
-          tag: 'latest',
-        }),
+        client.call<string>(
+          {
+            chainid: chainId,
+            module: 'account',
+            action: 'tokenbalance',
+            address,
+            contractaddress: contract,
+            tag: 'latest',
+          },
+          z.string(),
+        ),
       rateLimiter,
     );
     return c.ok(

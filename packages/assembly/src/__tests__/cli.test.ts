@@ -31,6 +31,7 @@ describe('assembly onchain commands', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it('members count', async () => {
@@ -38,6 +39,22 @@ describe('assembly onchain commands', () => {
     const out = await run(['members', 'count']);
     expect(out.ok).toBe(true);
     expect(mockClient.readContract).toHaveBeenCalledTimes(2);
+  });
+
+  it('members list returns structured error for invalid snapshot payload', async () => {
+    const mockFetch = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ members: [] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    vi.stubGlobal('fetch', mockFetch);
+
+    const out = await run(['members', 'list']);
+
+    expect(out.ok).toBe(false);
+    expect(JSON.stringify(out.error)).toContain('INVALID_ASSEMBLY_API_RESPONSE');
+    expect(JSON.stringify(out.error)).toContain('Member snapshot response failed validation');
   });
 
   it('council is-member', async () => {

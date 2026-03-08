@@ -23,6 +23,25 @@ export const contractCli = Cli.create('contract', {
   description: 'Query contract ABI, source code, and deployment metadata.',
 });
 
+const sourceResultSchema = z.object({
+  SourceCode: z.string(),
+  ABI: z.string(),
+  ContractName: z.string(),
+  CompilerVersion: z.string(),
+  OptimizationUsed: z.string(),
+  Runs: z.string(),
+  ConstructorArguments: z.string(),
+  LicenseType: z.string(),
+  Proxy: z.string(),
+  Implementation: z.string(),
+});
+
+const creationResultSchema = z.object({
+  contractAddress: z.string(),
+  contractCreator: z.string(),
+  txHash: z.string(),
+});
+
 contractCli.command('abi', {
   description: 'Get the ABI for a verified contract.',
   args: z.object({
@@ -51,12 +70,15 @@ contractCli.command('abi', {
     const client = createEtherscanClient(apiKey);
     const abi = await withRateLimit(
       () =>
-        client.call<string>({
-          chainid: chainId,
-          module: 'contract',
-          action: 'getabi',
-          address,
-        }),
+        client.call<string>(
+          {
+            chainid: chainId,
+            module: 'contract',
+            action: 'getabi',
+            address,
+          },
+          z.string(),
+        ),
       rateLimiter,
     );
     return c.ok(
@@ -75,19 +97,6 @@ contractCli.command('abi', {
     );
   },
 });
-
-interface SourceResult {
-  SourceCode: string;
-  ABI: string;
-  ContractName: string;
-  CompilerVersion: string;
-  OptimizationUsed: string;
-  Runs: string;
-  ConstructorArguments: string;
-  LicenseType: string;
-  Proxy: string;
-  Implementation: string;
-}
 
 contractCli.command('source', {
   description: 'Get verified source code for a contract.',
@@ -125,12 +134,15 @@ contractCli.command('source', {
     const client = createEtherscanClient(apiKey);
     const results = await withRateLimit(
       () =>
-        client.call<SourceResult[]>({
-          chainid: chainId,
-          module: 'contract',
-          action: 'getsourcecode',
-          address,
-        }),
+        client.call(
+          {
+            chainid: chainId,
+            module: 'contract',
+            action: 'getsourcecode',
+            address,
+          },
+          z.array(sourceResultSchema),
+        ),
       rateLimiter,
     );
     const result = results[0];
@@ -166,12 +178,6 @@ contractCli.command('source', {
   },
 });
 
-interface CreationResult {
-  contractAddress: string;
-  contractCreator: string;
-  txHash: string;
-}
-
 contractCli.command('creation', {
   description: 'Get the deployment transaction and creator for a contract.',
   args: z.object({
@@ -201,12 +207,15 @@ contractCli.command('creation', {
     const client = createEtherscanClient(apiKey);
     const results = await withRateLimit(
       () =>
-        client.call<CreationResult[]>({
-          chainid: chainId,
-          module: 'contract',
-          action: 'getcontractcreation',
-          contractaddresses: address,
-        }),
+        client.call(
+          {
+            chainid: chainId,
+            module: 'contract',
+            action: 'getcontractcreation',
+            contractaddresses: address,
+          },
+          z.array(creationResultSchema),
+        ),
       rateLimiter,
     );
     const result = results[0];
