@@ -2,7 +2,10 @@ import { HttpError } from '@spectratools/cli-shared';
 import { describe, expect, it } from 'vitest';
 import {
   readAuthToken,
+  toReadAuthError,
   toWriteAuthError,
+  toXApiCommandError,
+  toXApiHttpError,
   writeAuthToken,
   xApiReadEnv,
   xApiWriteEnv,
@@ -55,5 +58,68 @@ describe('toWriteAuthError', () => {
   it('returns undefined for non-auth errors', () => {
     const err = new HttpError(500, 'Internal Server Error', '{"detail":"oops"}');
     expect(toWriteAuthError('posts delete', err)).toBeUndefined();
+  });
+});
+
+describe('toReadAuthError', () => {
+  it('maps 403 responses to insufficient read auth and user-token requirement', () => {
+    const err = new HttpError(
+      403,
+      'Forbidden',
+      JSON.stringify({ detail: 'Authenticating with OAuth 2.0 Application-Only is forbidden' }),
+    );
+
+    const mapped = toReadAuthError('users search', err);
+
+    expect(mapped?.code).toBe('INSUFFICIENT_READ_AUTH');
+    expect(mapped?.message).toContain('operation: users search');
+    expect(mapped?.message).toContain(
+      'X_ACCESS_TOKEN (OAuth 2.0 user token required for this endpoint)',
+    );
+    expect(mapped?.message).toContain(
+      'x_api_detail: Authenticating with OAuth 2.0 Application-Only is forbidden',
+    );
+  });
+
+  it('returns undefined for non-auth errors', () => {
+    const err = new HttpError(400, 'Bad Request', '{"detail":"oops"}');
+    expect(toReadAuthError('posts search', err)).toBeUndefined();
+  });
+});
+
+describe('toXApiHttpError', () => {
+  it('parses X API detail from error body', () => {
+    const err = new HttpError(
+      400,
+      'Bad Request',
+      JSON.stringify({
+        errors: [
+          { message: 'The `max_results` query parameter value [3] is not between 10 and 100' },
+        ],
+      }),
+    );
+
+    const mapped = toXApiHttpError('posts search', err);
+
+    expect(mapped?.code).toBe('X_API_REQUEST_FAILED');
+    expect(mapped?.message).toContain('operation: posts search');
+    expect(mapped?.message).toContain('status: 400 Bad Request');
+    expect(mapped?.message).toContain(
+      'x_api_detail: The `max_results` query parameter value [3] is not between 10 and 100',
+    );
+  });
+});
+
+describe('toXApiCommandError', () => {
+  it('prefers auth mapping before general HTTP mapping', () => {
+    const err = new HttpError(
+      403,
+      'Forbidden',
+      JSON.stringify({ detail: 'Authenticating with OAuth 2.0 Application-Only is forbidden' }),
+    );
+
+    const mapped = toXApiCommandError('users search', err, 'read');
+
+    expect(mapped?.code).toBe('INSUFFICIENT_READ_AUTH');
   });
 });

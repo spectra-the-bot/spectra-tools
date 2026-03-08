@@ -74,7 +74,13 @@ posts.command('search', {
     query: z.string().describe('Search query'),
   }),
   options: z.object({
-    maxResults: z.number().default(10).describe('Maximum results to return (10–100)'),
+    maxResults: z
+      .number()
+      .int()
+      .min(10)
+      .max(100)
+      .default(10)
+      .describe('Maximum results to return (10–100)'),
     sort: z.enum(['recency', 'relevancy']).default('recency').describe('Sort order'),
     verbose: z.boolean().optional().describe('Show full text without truncation'),
   }),
