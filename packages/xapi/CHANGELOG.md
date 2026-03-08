@@ -1,5 +1,11 @@
 # @spectra-the-bot/xapi-cli
 
+## 0.2.3
+
+### Patch Changes
+
+- [#164](https://github.com/spectra-the-bot/spectra-tools/pull/164) [`269a085`](https://github.com/spectra-the-bot/spectra-tools/commit/269a0854ef6150a451129cf9a733876123b94948) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - docs(xapi): add VitePress overview, configuration, and guide pages.
+
 ## 0.2.2
 
 ### Patch Changes
