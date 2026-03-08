@@ -1,4 +1,4 @@
-import { checksumAddress, formatTimestamp, withRetry } from '@spectra-the-bot/cli-shared';
+import { checksumAddress, formatTimestamp, withRetry } from '@spectratools/cli-shared';
 import { Cli, z } from 'incur';
 import { readContract, writeContract } from 'viem/actions';
 import { reputationRegistryAbi } from '../contracts/abis.js';

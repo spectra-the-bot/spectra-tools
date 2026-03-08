@@ -3,7 +3,7 @@ import {
   createRateLimiter,
   withRateLimit,
   withRetry,
-} from '@spectra-the-bot/cli-shared';
+} from '@spectratools/cli-shared';
 
 const DEFAULT_BASE_URL = 'https://api.etherscan.io/v2/api';
 const RETRY_OPTIONS = { maxRetries: 3, baseMs: 500, maxMs: 10000 };

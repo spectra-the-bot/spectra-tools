@@ -3,7 +3,7 @@ import {
   checksumAddress,
   createRateLimiter,
   withRateLimit,
-} from '@spectra-the-bot/cli-shared';
+} from '@spectratools/cli-shared';
 import { Cli, z } from 'incur';
 import { createEtherscanClient } from '../api.js';
 import { DEFAULT_CHAIN, resolveChainId } from '../chains.js';

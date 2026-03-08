@@ -7,7 +7,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "build": "pnpm -r run build",
+    "build": "pnpm -r build",
     "lint": "biome check .",
     "format": "biome format --write .",
     "typecheck": "pnpm --filter @spectra-the-bot/cli-shared run build && tsc --noEmit -p tsconfig.base.json && pnpm -r run typecheck",
@@ -19,6 +19,7 @@
     "@changesets/changelog-github": "^0.5.0",
     "@changesets/cli": "^2.27.10",
     "@types/node": "^20.0.0",
+    "tsup": "^8.5.1",
     "typescript": "^5.7.3",
     "vitest": "^2.1.8"
   }

@@ -1,5 +1,5 @@
 {
-  "name": "@spectra-the-bot/assembly-cli",
+  "name": "@spectratools/assembly-cli",
   "version": "0.1.0",
   "description": "Assembly CLI for spectra-the-bot",
   "type": "module",
@@ -18,12 +18,13 @@
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsup",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepublishOnly": "pnpm build"
   },
   "dependencies": {
-    "@spectra-the-bot/cli-shared": "workspace:*",
+    "@spectratools/cli-shared": "workspace:*",
     "incur": "^0.2.2",
     "ox": "^0.14.0",
     "viem": "^2.47.0"
@@ -32,5 +33,6 @@
     "typescript": "5.7.3",
     "vitest": "2.1.8"
   },
-  "files": ["dist"]
+  "files": ["dist", "README.md"],
+  "main": "./dist/cli.js"
 }

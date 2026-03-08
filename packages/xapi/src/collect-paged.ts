@@ -1,4 +1,4 @@
-import { paginateCursor } from '@spectra-the-bot/cli-shared';
+import { paginateCursor } from '@spectratools/cli-shared';
 
 interface XPagedResponse<T> {
   data?: T[];

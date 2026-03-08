@@ -1,6 +1,6 @@
-import type { MockServer } from '@spectra-the-bot/cli-shared/testing';
-import { createMockServer } from '@spectra-the-bot/cli-shared/testing';
-import { createHttpClient } from '@spectra-the-bot/cli-shared/utils';
+import type { MockServer } from '@spectratools/cli-shared/testing';
+import { createMockServer } from '@spectratools/cli-shared/testing';
+import { createHttpClient } from '@spectratools/cli-shared/utils';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 const MOCK_USER = {
@@ -150,7 +150,7 @@ describe('error handling', () => {
       body: { title: 'Not Found', detail: 'User not found' },
     });
 
-    const { HttpError } = await import('@spectra-the-bot/cli-shared/utils');
+    const { HttpError } = await import('@spectratools/cli-shared/utils');
     const http = createHttpClient({ baseUrl: server.url });
     await expect(http.request('/2/users/by/username/notfound')).rejects.toThrow(HttpError);
   });
@@ -161,7 +161,7 @@ describe('error handling', () => {
       body: { title: 'Unauthorized', type: 'about:blank' },
     });
 
-    const { HttpError } = await import('@spectra-the-bot/cli-shared/utils');
+    const { HttpError } = await import('@spectratools/cli-shared/utils');
     const http = createHttpClient({ baseUrl: server.url });
     await expect(http.request('/2/users/me')).rejects.toThrow(HttpError);
   });

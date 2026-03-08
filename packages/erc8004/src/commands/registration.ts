@@ -1,4 +1,4 @@
-import { createHttpClient } from '@spectra-the-bot/cli-shared';
+import { createHttpClient } from '@spectratools/cli-shared';
 import { Cli, z } from 'incur';
 import { type Registration, registrationSchema } from '../schema.js';
 

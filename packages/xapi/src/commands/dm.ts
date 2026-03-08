@@ -1,4 +1,4 @@
-import { apiKeyAuth } from '@spectra-the-bot/cli-shared';
+import { apiKeyAuth } from '@spectratools/cli-shared';
 import { Cli, z } from 'incur';
 import { createXApiClient } from '../api.js';
 import { collectPaged } from '../collect-paged.js';
