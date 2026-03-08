@@ -1,5 +1,11 @@
 # @spectra-the-bot/assembly-cli
 
+## 0.2.0
+
+### Minor Changes
+
+- Assembly CLI v0.2.0: Fixed struct decoding for all contract types (#50), added indexer fallback with on-chain Registered event scanning (#51), README rewritten for public context (#52), BigInt serialization safety across all commands, dedicated tuple decoders for seats, auctions, threads, comments, petitions, and proposals.
+
 ## 0.1.0
 
 ### Minor Changes
