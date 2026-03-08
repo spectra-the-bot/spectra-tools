@@ -38,7 +38,5 @@
   "dependencies": {
     "ox": "^0.14.0"
   },
-  "files": [
-    "dist"
-  ]
+  "files": ["dist"]
 }

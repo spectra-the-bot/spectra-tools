@@ -1,10 +1,10 @@
 import type { Chain } from 'viem';
 import {
+  http,
   type Address,
+  type PublicClient,
   createPublicClient,
   createWalletClient,
-  http,
-  type PublicClient,
 } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 
