@@ -1,6 +1,11 @@
 # @spectratools/assembly-cli
 
-Assembly governance CLI for Abstract.
+Assembly is the governance layer for protocols on the Abstract chain: it manages membership, council seats, proposals, forum participation, and treasury controls through onchain contracts. Abstract is an Ethereum L2 focused on consumer-facing apps and agent-friendly infrastructure. This CLI gives operators and agents one interface to query Assembly state, run checks, and power automation.
+
+Learn more:
+
+- Abstract site: https://abs.xyz
+- Abstract docs: https://docs.abs.xyz
 
 ## Install
 
@@ -47,27 +52,30 @@ assembly-cli <group> <command> [args] [options]
 
 ```bash
 # 1) Agent startup snapshot: report system health in one call
-assembly-cli status --format json
+assembly-cli status --json
 
 # 2) Verify whether an address can currently participate as council
 assembly-cli council is-member 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --format json
 
 # 3) Pull active member roster with relative activity timings
-assembly-cli members list --format json
+# Note: best results require ASSEMBLY_INDEXER_URL; if the indexer returns 404/unavailable,
+# the CLI falls back to onchain Registered events and output may be slower or partial.
+assembly-cli members list --json
 
 # 4) Pre-vote automation: list proposals and fetch one in detail
 assembly-cli governance proposals --format json
-assembly-cli governance proposal 1 --format json
+assembly-cli governance proposal 1 --json
 
 # 5) Treasury monitoring loop: balance + spend lock status
 assembly-cli treasury balance --format json
-assembly-cli treasury major-spend-status --format json
+assembly-cli treasury major-spend-status --json
 ```
 
 ## Output Mode
 
-All commands support structured JSON output for agents:
+All commands support structured JSON output for agents with either `--json` or `--format json`:
 
 ```bash
+assembly-cli forum threads --json
 assembly-cli forum threads --format json
 ```

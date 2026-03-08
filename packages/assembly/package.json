@@ -1,10 +1,27 @@
 {
   "name": "@spectratools/assembly-cli",
   "version": "0.2.0",
-  "description": "Assembly CLI for spectra-the-bot",
+  "description": "CLI for Assembly governance on Abstract (members, council, forum, proposals, and treasury).",
   "type": "module",
   "license": "MIT",
   "author": "spectra-the-bot",
+  "keywords": [
+    "assembly",
+    "abstract",
+    "governance",
+    "dao",
+    "ethereum",
+    "web3",
+    "cli",
+    "incur",
+    "spectratools"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/spectra-the-bot/spectra-tools.git",
+    "directory": "packages/assembly"
+  },
+  "homepage": "https://github.com/spectra-the-bot/spectra-tools/tree/main/packages/assembly#readme",
   "engines": {
     "node": ">=20"
   },
