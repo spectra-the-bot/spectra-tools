@@ -1,5 +1,19 @@
 # @spectra-the-bot/etherscan-cli
 
+## 0.2.1
+
+### Patch Changes
+
+- [#147](https://github.com/spectra-the-bot/spectra-tools/pull/147) [`8172cdd`](https://github.com/spectra-the-bot/spectra-tools/commit/8172cdd5c397cac8f0c06769c16e86f0f26ffadb) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Remove CTA objects from JSON output across etherscan, xapi, and erc8004 CLIs.
+
+- [#146](https://github.com/spectra-the-bot/spectra-tools/pull/146) [`1fd0020`](https://github.com/spectra-the-bot/spectra-tools/commit/1fd002049b943f0925b752fbc130885215477f03) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add address validation before API calls to return structured errors for invalid addresses.
+
+- [#145](https://github.com/spectra-the-bot/spectra-tools/pull/145) [`8b2924d`](https://github.com/spectra-the-bot/spectra-tools/commit/8b2924dae4fc22b42158f44bdb1761961f75bac6) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Fix tx status command schema mismatch with Etherscan V2 API response.
+
+- [#158](https://github.com/spectra-the-bot/spectra-tools/pull/158) [`a3b3594`](https://github.com/spectra-the-bot/spectra-tools/commit/a3b359464c6d06483fd74af8593d1ee881cf4e27) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Decode hex values to decimal strings in tx info and receipt output.
+
+- [#143](https://github.com/spectra-the-bot/spectra-tools/pull/143) [`0fb568f`](https://github.com/spectra-the-bot/spectra-tools/commit/0fb568f3d2241f30a4f1beec4ad60972e31fb327) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Fix --version flag to print version number instead of help text.
+
 ## 0.2.0
 
 ### Minor Changes

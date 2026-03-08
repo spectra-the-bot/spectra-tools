@@ -1,5 +1,15 @@
 # @spectra-the-bot/erc8004-cli
 
+## 0.1.1
+
+### Patch Changes
+
+- [#159](https://github.com/spectra-the-bot/spectra-tools/pull/159) [`63b7475`](https://github.com/spectra-the-bot/spectra-tools/commit/63b7475aa7c97646ea635c5f9b772018f7965c1d) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add agentId validation to return structured error instead of raw BigInt exception.
+
+- [#147](https://github.com/spectra-the-bot/spectra-tools/pull/147) [`8172cdd`](https://github.com/spectra-the-bot/spectra-tools/commit/8172cdd5c397cac8f0c06769c16e86f0f26ffadb) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Remove CTA objects from JSON output across etherscan, xapi, and erc8004 CLIs.
+
+- [#143](https://github.com/spectra-the-bot/spectra-tools/pull/143) [`0fb568f`](https://github.com/spectra-the-bot/spectra-tools/commit/0fb568f3d2241f30a4f1beec4ad60972e31fb327) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Fix --version flag to print version number instead of help text.
+
 ## 0.1.0
 
 ### Minor Changes
