@@ -291,6 +291,24 @@ describe('assembly onchain commands', () => {
     expect(typeof data.auctions[0]?.windowEndRelative).toBe('string');
   });
 
+  it('council auctions --format json keeps auction data under auctions key without CTA', async () => {
+    mockClient.readContract
+      .mockResolvedValueOnce(0n)
+      .mockResolvedValueOnce(0n)
+      .mockResolvedValueOnce(1n);
+    mockClient.multicall
+      .mockResolvedValueOnce([[addrA, 123n, false]])
+      .mockResolvedValueOnce([200n]);
+    mockClient.getBlock.mockResolvedValueOnce({ timestamp: 150n });
+
+    const out = await runJson(['council', 'auctions']);
+
+    expect(Array.isArray(out.auctions)).toBe(true);
+    expect(out.count).toBeUndefined();
+    expect(out).not.toHaveProperty('0');
+    expect(out).not.toHaveProperty('cta');
+  });
+
   it('council auction includes window metadata and settled status', async () => {
     mockClient.readContract.mockResolvedValueOnce([addrA, 123n, true]).mockResolvedValueOnce(999n);
     mockClient.getBlock.mockResolvedValueOnce({ timestamp: 150n });
@@ -343,6 +361,7 @@ describe('assembly onchain commands', () => {
 
     expect(Array.isArray(out.threads)).toBe(true);
     expect(out).not.toHaveProperty('0');
+    expect(out).not.toHaveProperty('cta');
     expect(out.count).toBe(1);
   });
 
@@ -518,6 +537,7 @@ describe('assembly onchain commands', () => {
 
     expect(Array.isArray(out.proposals)).toBe(true);
     expect(out).not.toHaveProperty('0');
+    expect(out).not.toHaveProperty('cta');
     expect(out.count).toBe(1);
   });
 
