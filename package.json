@@ -12,9 +12,12 @@
     "format": "biome format --write .",
     "typecheck": "pnpm --filter @spectratools/cli-shared run build && tsc --noEmit -p tsconfig.base.json && pnpm -r run typecheck",
     "test": "vitest run",
+    "test:docs": "node --test scripts/generate-docs.test.js scripts/validate-generated-docs.test.js",
     "docs:dev": "vitepress dev docs",
     "docs:build": "node scripts/generate-docs.js && vitepress build docs",
     "docs:generate": "node scripts/generate-docs.js",
+    "docs:validate": "node scripts/validate-generated-docs.js",
+    "docs:ci": "pnpm docs:generate && pnpm docs:build && pnpm docs:validate",
     "docs:preview": "vitepress preview docs",
     "changeset": "changeset",
     "changeset:version": "changeset version && pnpm biome format --write packages/*/package.json"
