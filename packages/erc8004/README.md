@@ -28,11 +28,13 @@ erc8004-cli mcp add
 | Variable | Required | Description |
 |---|---|---|
 | `ABSTRACT_RPC_URL` | No | RPC URL override (defaults to package client default) |
-| `IDENTITY_REGISTRY_ADDRESS` | Optional override | Identity registry contract |
-| `REPUTATION_REGISTRY_ADDRESS` | Optional override | Reputation registry contract |
-| `VALIDATION_REGISTRY_ADDRESS` | Optional override | Validation registry contract |
+| `IDENTITY_REGISTRY_ADDRESS` | Optional override | Identity registry contract (default: `0x8004a169fb4a3325136eb29fa0ceb6d2e539a432`) |
+| `REPUTATION_REGISTRY_ADDRESS` | Optional override | Reputation registry contract (default: `0x8004baa17c55a88189ae136b182e5fda19de9b63`) |
+| `VALIDATION_REGISTRY_ADDRESS` | Optional override | Validation registry contract (default: `0x8004cc8439f36fd5f9f049d9ff86523df6daab58`) |
 | `IPFS_GATEWAY` | No | IPFS HTTP gateway for resolving `ipfs://` URIs (defaults to `https://ipfs.io`) |
 | `PRIVATE_KEY` | Write commands only | `0x`-prefixed signing key |
+
+You can override registry addresses per command with `--registry` (supported in `reputation` and `validation`) instead of setting env vars.
 
 ## Command Group Intent Summary
 
@@ -79,3 +81,6 @@ erc8004-cli reputation feedback 42 --value 10 --tag1 accuracy --format json
 ## Network
 
 - Chain: Abstract mainnet (`2741`)
+- Default identity registry: `0x8004a169fb4a3325136eb29fa0ceb6d2e539a432`
+- Default reputation registry: `0x8004baa17c55a88189ae136b182e5fda19de9b63`
+- Default validation registry: `0x8004cc8439f36fd5f9f049d9ff86523df6daab58`

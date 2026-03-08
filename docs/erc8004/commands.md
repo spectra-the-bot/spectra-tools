@@ -536,7 +536,7 @@ erc8004 registration validate ipfs://QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnP
 
 ## erc8004 reputation
 
-Manage ERC-8004 agent reputation and feedback.
+Manage ERC-8004 agent reputation and feedback. Defaults to the Abstract mainnet reputation registry deployment.
 
 ### erc8004 reputation feedback
 
@@ -553,7 +553,7 @@ Submit feedback for an agent.
 | Name | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
 | `ABSTRACT_RPC_URL` | `string` | no |  | Abstract RPC URL |
-| `REPUTATION_REGISTRY_ADDRESS` | `string` | no |  | Reputation registry contract address |
+| `REPUTATION_REGISTRY_ADDRESS` | `string` | no |  | Reputation registry contract address override (defaults on Abstract mainnet) |
 | `PRIVATE_KEY` | `string` | no |  | Private key for signing |
 
 #### Options
@@ -564,6 +564,7 @@ Submit feedback for an agent.
 | `--tag1` | `string` |  | Primary tag (e.g. "accuracy", "speed") |
 | `--tag2` | `string` |  | Secondary tag |
 | `--fileUri` | `string` |  | URI to a supporting file or report |
+| `--registry` | `string` |  | Reputation registry contract address override |
 
 #### Output
 
@@ -583,7 +584,7 @@ erc8004 reputation feedback 1 --value 10 --tag1 accuracy --tag2 helpful
 erc8004 reputation feedback 1 --value -5 --tag1 accuracy
 ```
 
-&gt; Requires PRIVATE_KEY environment variable. Value is int128 (positive = good, negative = bad).
+&gt; Requires PRIVATE_KEY environment variable. Value is int128 (positive = good, negative = bad). Defaults to the Abstract mainnet reputation registry; override via --registry or REPUTATION_REGISTRY_ADDRESS.
 
 ### erc8004 reputation get
 
@@ -600,7 +601,13 @@ Get the reputation score for an agent.
 | Name | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
 | `ABSTRACT_RPC_URL` | `string` | no |  | Abstract RPC URL |
-| `REPUTATION_REGISTRY_ADDRESS` | `string` | no |  | Reputation registry contract address |
+| `REPUTATION_REGISTRY_ADDRESS` | `string` | no |  | Reputation registry contract address override (defaults on Abstract mainnet) |
+
+#### Options
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--registry` | `string` |  | Reputation registry contract address override |
 
 #### Output
 
@@ -618,6 +625,8 @@ Get the reputation score for an agent.
 erc8004 reputation get 1
 ```
 
+&gt; Defaults to the Abstract mainnet reputation registry. Override via --registry or REPUTATION_REGISTRY_ADDRESS.
+
 ### erc8004 reputation history
 
 View feedback history for an agent.
@@ -633,13 +642,14 @@ View feedback history for an agent.
 | Name | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
 | `ABSTRACT_RPC_URL` | `string` | no |  | Abstract RPC URL |
-| `REPUTATION_REGISTRY_ADDRESS` | `string` | no |  | Reputation registry contract address |
+| `REPUTATION_REGISTRY_ADDRESS` | `string` | no |  | Reputation registry contract address override (defaults on Abstract mainnet) |
 
 #### Options
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
 | `--limit` | `number` | `50` | Maximum number of results |
+| `--registry` | `string` |  | Reputation registry contract address override |
 
 #### Output
 
@@ -666,9 +676,11 @@ erc8004 reputation history 1
 erc8004 reputation history 1 --limit 10
 ```
 
+&gt; Defaults to the Abstract mainnet reputation registry. Override via --registry or REPUTATION_REGISTRY_ADDRESS.
+
 ## erc8004 validation
 
-Manage ERC-8004 agent validation requests.
+Manage ERC-8004 agent validation requests. Defaults to the Abstract mainnet validation registry deployment.
 
 ### erc8004 validation history
 
@@ -685,7 +697,13 @@ View validation request history for an agent.
 | Name | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
 | `ABSTRACT_RPC_URL` | `string` | no |  | Abstract RPC URL |
-| `VALIDATION_REGISTRY_ADDRESS` | `string` | no |  | Validation registry contract address |
+| `VALIDATION_REGISTRY_ADDRESS` | `string` | no |  | Validation registry contract address override (defaults on Abstract mainnet) |
+
+#### Options
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--registry` | `string` |  | Validation registry contract address override |
 
 #### Output
 
@@ -706,6 +724,8 @@ View validation request history for an agent.
 erc8004 validation history 1
 ```
 
+&gt; Defaults to the Abstract mainnet validation registry. Override via --registry or VALIDATION_REGISTRY_ADDRESS.
+
 ### erc8004 validation request
 
 Submit a validation request for an agent.
@@ -721,7 +741,7 @@ Submit a validation request for an agent.
 | Name | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
 | `ABSTRACT_RPC_URL` | `string` | no |  | Abstract RPC URL |
-| `VALIDATION_REGISTRY_ADDRESS` | `string` | no |  | Validation registry contract address |
+| `VALIDATION_REGISTRY_ADDRESS` | `string` | no |  | Validation registry contract address override (defaults on Abstract mainnet) |
 | `PRIVATE_KEY` | `string` | no |  | Private key for signing |
 
 #### Options
@@ -730,6 +750,7 @@ Submit a validation request for an agent.
 |------|------|---------|-------------|
 | `--validator` | `string` |  | Validator address |
 | `--jobHash` | `string` |  | Job hash (bytes32 hex, 0x-prefixed) |
+| `--registry` | `string` |  | Validation registry contract address override |
 
 #### Output
 
@@ -747,7 +768,7 @@ Submit a validation request for an agent.
 erc8004 validation request 1 --validator 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --jobHash 0x0000000000000000000000000000000000000000000000000000000000000000
 ```
 
-&gt; Requires PRIVATE_KEY environment variable. jobHash must be a 0x-prefixed 32-byte hex string.
+&gt; Requires PRIVATE_KEY environment variable. jobHash must be a 0x-prefixed 32-byte hex string. Defaults to the Abstract mainnet validation registry; override via --registry or VALIDATION_REGISTRY_ADDRESS.
 
 ### erc8004 validation status
 
@@ -764,7 +785,13 @@ Get the status of a validation request.
 | Name | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
 | `ABSTRACT_RPC_URL` | `string` | no |  | Abstract RPC URL |
-| `VALIDATION_REGISTRY_ADDRESS` | `string` | no |  | Validation registry contract address |
+| `VALIDATION_REGISTRY_ADDRESS` | `string` | no |  | Validation registry contract address override (defaults on Abstract mainnet) |
+
+#### Options
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--registry` | `string` |  | Validation registry contract address override |
 
 #### Output
 
@@ -784,3 +811,5 @@ Get the status of a validation request.
 # Get status of request #1
 erc8004 validation status 1
 ```
+
+&gt; Defaults to the Abstract mainnet validation registry. Override via --registry or VALIDATION_REGISTRY_ADDRESS.

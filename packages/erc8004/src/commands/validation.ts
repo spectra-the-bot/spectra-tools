@@ -11,7 +11,8 @@ import {
 } from '../contracts/client.js';
 
 const validation = Cli.create('validation', {
-  description: 'Manage ERC-8004 agent validation requests.',
+  description:
+    'Manage ERC-8004 agent validation requests. Defaults to the Abstract mainnet validation registry deployment.',
 });
 
 function chunk<T>(items: readonly T[], size: number): T[][] {
@@ -24,20 +25,21 @@ function chunk<T>(items: readonly T[], size: number): T[][] {
 
 validation.command('request', {
   description: 'Submit a validation request for an agent.',
-  hint: 'Requires PRIVATE_KEY environment variable. jobHash must be a 0x-prefixed 32-byte hex string.',
+  hint: 'Requires PRIVATE_KEY environment variable. jobHash must be a 0x-prefixed 32-byte hex string. Defaults to the Abstract mainnet validation registry; override via --registry or VALIDATION_REGISTRY_ADDRESS.',
   args: z.object({
     agentId: z.string().describe('Agent token ID to validate'),
   }),
   options: z.object({
     validator: z.string().describe('Validator address'),
     jobHash: z.string().describe('Job hash (bytes32 hex, 0x-prefixed)'),
+    registry: z.string().optional().describe('Validation registry contract address override'),
   }),
   env: z.object({
     ABSTRACT_RPC_URL: z.string().optional().describe('Abstract RPC URL'),
     VALIDATION_REGISTRY_ADDRESS: z
       .string()
       .optional()
-      .describe('Validation registry contract address'),
+      .describe('Validation registry contract address override (defaults on Abstract mainnet)'),
     PRIVATE_KEY: z.string().optional().describe('Private key for signing'),
   }),
   output: z.object({
@@ -68,7 +70,7 @@ validation.command('request', {
 
     const walletClient = getWalletClient(privateKey, c.env.ABSTRACT_RPC_URL);
     const publicClient = getPublicClient(c.env.ABSTRACT_RPC_URL);
-    const address = getValidationRegistryAddress(c.env);
+    const address = getValidationRegistryAddress(c.env, c.options.registry);
 
     const jobHash = c.options.jobHash as `0x${string}`;
     if (jobHash.length !== 66) {
@@ -122,15 +124,19 @@ validation.command('request', {
 
 validation.command('status', {
   description: 'Get the status of a validation request.',
+  hint: 'Defaults to the Abstract mainnet validation registry. Override via --registry or VALIDATION_REGISTRY_ADDRESS.',
   args: z.object({
     requestId: z.string().describe('Validation request ID'),
+  }),
+  options: z.object({
+    registry: z.string().optional().describe('Validation registry contract address override'),
   }),
   env: z.object({
     ABSTRACT_RPC_URL: z.string().optional().describe('Abstract RPC URL'),
     VALIDATION_REGISTRY_ADDRESS: z
       .string()
       .optional()
-      .describe('Validation registry contract address'),
+      .describe('Validation registry contract address override (defaults on Abstract mainnet)'),
   }),
   output: z.object({
     requestId: z.string(),
@@ -144,7 +150,7 @@ validation.command('status', {
   examples: [{ args: { requestId: '1' }, description: 'Get status of request #1' }],
   async run(c) {
     const client = getPublicClient(c.env.ABSTRACT_RPC_URL);
-    const address = getValidationRegistryAddress(c.env);
+    const address = getValidationRegistryAddress(c.env, c.options.registry);
 
     const result = await readContract(client, {
       address,
@@ -170,15 +176,19 @@ validation.command('status', {
 
 validation.command('history', {
   description: 'View validation request history for an agent.',
+  hint: 'Defaults to the Abstract mainnet validation registry. Override via --registry or VALIDATION_REGISTRY_ADDRESS.',
   args: z.object({
     agentId: z.string().describe('Agent token ID'),
+  }),
+  options: z.object({
+    registry: z.string().optional().describe('Validation registry contract address override'),
   }),
   env: z.object({
     ABSTRACT_RPC_URL: z.string().optional().describe('Abstract RPC URL'),
     VALIDATION_REGISTRY_ADDRESS: z
       .string()
       .optional()
-      .describe('Validation registry contract address'),
+      .describe('Validation registry contract address override (defaults on Abstract mainnet)'),
   }),
   output: z.object({
     agentId: z.string(),
@@ -195,7 +205,7 @@ validation.command('history', {
   examples: [{ args: { agentId: '1' }, description: 'View validation history for agent #1' }],
   async run(c) {
     const client = getPublicClient(c.env.ABSTRACT_RPC_URL);
-    const address = getValidationRegistryAddress(c.env);
+    const address = getValidationRegistryAddress(c.env, c.options.registry);
     const tokenId = BigInt(c.args.agentId);
 
     const count = await readContract(client, {

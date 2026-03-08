@@ -11,9 +11,9 @@ This page centralizes environment variables used across `@spectratools/*-cli` pa
 | `ETHERSCAN_API_KEY` | `etherscan-cli` | Yes for Etherscan commands | API key for Etherscan V2 endpoints across account/contract/tx/token/gas/stats commands. |
 | `X_BEARER_TOKEN` | `xapi-cli` | Required for read-only auth when `X_ACCESS_TOKEN` is absent | App bearer token for search/profile/timeline/list/trend reads. |
 | `X_ACCESS_TOKEN` | `xapi-cli` | Required for write actions (`posts create`, `posts delete`, `dm send`) | OAuth 2.0 user-context token; also preferred for read requests when present. |
-| `IDENTITY_REGISTRY_ADDRESS` | `erc8004-cli` | Optional override | ERC-8004 identity registry contract address. |
-| `REPUTATION_REGISTRY_ADDRESS` | `erc8004-cli` | Optional override | ERC-8004 reputation registry contract address. |
-| `VALIDATION_REGISTRY_ADDRESS` | `erc8004-cli` | Optional override | ERC-8004 validation registry contract address. |
+| `IDENTITY_REGISTRY_ADDRESS` | `erc8004-cli` | Optional override | ERC-8004 identity registry contract address (default: `0x8004a169fb4a3325136eb29fa0ceb6d2e539a432`). |
+| `REPUTATION_REGISTRY_ADDRESS` | `erc8004-cli` | Optional override | ERC-8004 reputation registry contract address (default: `0x8004baa17c55a88189ae136b182e5fda19de9b63`). |
+| `VALIDATION_REGISTRY_ADDRESS` | `erc8004-cli` | Optional override | ERC-8004 validation registry contract address (default: `0x8004cc8439f36fd5f9f049d9ff86523df6daab58`). |
 | `IPFS_GATEWAY` | `erc8004-cli` | No | Gateway for resolving `ipfs://` metadata (default: `https://ipfs.io`). |
 | `PRIVATE_KEY` | `erc8004-cli` write operations | Required for write commands | `0x`-prefixed signing key for registration/reputation/validation transactions. |
 
