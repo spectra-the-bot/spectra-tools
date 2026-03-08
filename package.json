@@ -16,7 +16,8 @@
     "docs:build": "node scripts/generate-docs.js && vitepress build docs",
     "docs:generate": "node scripts/generate-docs.js",
     "docs:preview": "vitepress preview docs",
-    "changeset": "changeset"
+    "changeset": "changeset",
+    "changeset:version": "changeset version && pnpm biome format --write packages/*/package.json"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
