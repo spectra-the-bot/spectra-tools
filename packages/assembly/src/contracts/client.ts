@@ -8,6 +8,11 @@ export const abstractMainnet = defineChain({
     default: { http: ['https://api.mainnet.abs.xyz'] },
     public: { http: ['https://api.mainnet.abs.xyz'] },
   },
+  contracts: {
+    multicall3: {
+      address: '0xcA11bde05977b3631167028862bE2a173976CA11',
+    },
+  },
 });
 
 export function createAssemblyPublicClient(rpcUrl?: string) {
