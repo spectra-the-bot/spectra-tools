@@ -1,5 +1,11 @@
 # @spectra-the-bot/erc8004-cli
 
+## 0.0.9
+
+### Patch Changes
+
+- [#115](https://github.com/spectra-the-bot/spectra-tools/pull/115) [`ed00af7`](https://github.com/spectra-the-bot/spectra-tools/commit/ed00af74108cb211d8c2e2fecb77a6522cfcc44d) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - add Abstract mainnet default addresses for reputation/validation registries, add per-command `--registry` overrides, and update docs to describe default registry behavior.
+
 ## 0.0.8
 
 ### Patch Changes

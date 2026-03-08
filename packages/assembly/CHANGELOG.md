@@ -1,5 +1,11 @@
 # @spectra-the-bot/assembly-cli
 
+## 0.4.3
+
+### Patch Changes
+
+- [#111](https://github.com/spectra-the-bot/spectra-tools/pull/111) [`b473e00`](https://github.com/spectra-the-bot/spectra-tools/commit/b473e00c26e009595f2bc8a3ed1112d846ec7d8f) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add human-readable governance proposal status labels and include raw `statusCode` in proposal list/detail outputs.
+
 ## 0.4.2
 
 ### Patch Changes
