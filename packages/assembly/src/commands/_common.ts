@@ -27,6 +27,20 @@ export function asNum(value: bigint): number {
   return Number(value);
 }
 
+export function jsonSafe(value: unknown): unknown {
+  if (typeof value === 'bigint') return value.toString();
+  if (Array.isArray(value)) return value.map((item) => jsonSafe(item));
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([key, entry]) => [
+        key,
+        jsonSafe(entry),
+      ]),
+    );
+  }
+  return value;
+}
+
 export const baseEnv = {
   ABSTRACT_RPC_URL: undefined,
 };

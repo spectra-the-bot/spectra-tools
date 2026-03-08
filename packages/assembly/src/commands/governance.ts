@@ -8,6 +8,140 @@ const env = z.object({
   ABSTRACT_RPC_URL: z.string().optional().describe('Abstract RPC URL override'),
 });
 
+type ProposalTuple = readonly [
+  bigint,
+  bigint,
+  bigint,
+  bigint,
+  string,
+  bigint,
+  bigint,
+  bigint,
+  bigint,
+  bigint,
+  bigint,
+  bigint,
+  bigint,
+  bigint,
+  bigint,
+  bigint,
+  bigint,
+  bigint,
+  boolean,
+  bigint,
+  bigint,
+  string,
+  string,
+];
+
+type DecodedProposal = {
+  kind: bigint;
+  configRiskTier: bigint;
+  origin: bigint;
+  status: bigint;
+  proposer: string;
+  threadId: bigint;
+  petitionId: bigint;
+  createdAt: bigint;
+  deliberationEndsAt: bigint;
+  voteStartAt: bigint;
+  voteEndAt: bigint;
+  timelockEndsAt: bigint;
+  activeSeatsSnapshot: bigint;
+  forVotes: bigint;
+  againstVotes: bigint;
+  abstainVotes: bigint;
+  amount: bigint;
+  snapshotAssetBalance: bigint;
+  transferIntent: boolean;
+  intentDeadline: bigint;
+  intentMaxRiskTier: bigint;
+  title: string;
+  description: string;
+};
+
+function decodeProposal(value: unknown): DecodedProposal {
+  const [
+    kind,
+    configRiskTier,
+    origin,
+    status,
+    proposer,
+    threadId,
+    petitionId,
+    createdAt,
+    deliberationEndsAt,
+    voteStartAt,
+    voteEndAt,
+    timelockEndsAt,
+    activeSeatsSnapshot,
+    forVotes,
+    againstVotes,
+    abstainVotes,
+    amount,
+    snapshotAssetBalance,
+    transferIntent,
+    intentDeadline,
+    intentMaxRiskTier,
+    title,
+    description,
+  ] = value as ProposalTuple;
+
+  return {
+    kind,
+    configRiskTier,
+    origin,
+    status,
+    proposer: toChecksum(proposer),
+    threadId,
+    petitionId,
+    createdAt,
+    deliberationEndsAt,
+    voteStartAt,
+    voteEndAt,
+    timelockEndsAt,
+    activeSeatsSnapshot,
+    forVotes,
+    againstVotes,
+    abstainVotes,
+    amount,
+    snapshotAssetBalance,
+    transferIntent,
+    intentDeadline,
+    intentMaxRiskTier,
+    title,
+    description,
+  };
+}
+
+function serializeProposal(proposal: DecodedProposal): Record<string, unknown> {
+  return {
+    kind: asNum(proposal.kind),
+    configRiskTier: asNum(proposal.configRiskTier),
+    origin: asNum(proposal.origin),
+    status: asNum(proposal.status),
+    proposer: proposal.proposer,
+    threadId: asNum(proposal.threadId),
+    petitionId: asNum(proposal.petitionId),
+    createdAt: asNum(proposal.createdAt),
+    deliberationEndsAt: asNum(proposal.deliberationEndsAt),
+    voteStartAt: asNum(proposal.voteStartAt),
+    voteEndAt: asNum(proposal.voteEndAt),
+    timelockEndsAt: asNum(proposal.timelockEndsAt),
+    activeSeatsSnapshot: asNum(proposal.activeSeatsSnapshot),
+    forVotes: proposal.forVotes.toString(),
+    againstVotes: proposal.againstVotes.toString(),
+    abstainVotes: proposal.abstainVotes.toString(),
+    amount: proposal.amount.toString(),
+    snapshotAssetBalance: proposal.snapshotAssetBalance.toString(),
+    transferIntent: proposal.transferIntent,
+    intentDeadline: asNum(proposal.intentDeadline),
+    intentMaxRiskTier: asNum(proposal.intentMaxRiskTier),
+    title: proposal.title,
+    description: proposal.description,
+  };
+}
+
 export const governance = Cli.create('governance', {
   description: 'Inspect Assembly governance proposals, votes, and parameters.',
 });
@@ -34,27 +168,27 @@ governance.command('proposals', {
       functionName: 'proposalCount',
     });
     const ids = Array.from({ length: Number(count) }, (_, i) => BigInt(i + 1));
-    const proposals = (
-      ids.length
-        ? await client.multicall({
-            allowFailure: false,
-            contracts: ids.map((id) => ({
-              abi: governanceAbi,
-              address: ABSTRACT_MAINNET_ADDRESSES.governance,
-              functionName: 'proposals',
-              args: [id] as const,
-            })),
-          })
-        : []
-    ) as Array<Record<string, unknown>>;
+    const proposalTuples = ids.length
+      ? await client.multicall({
+          allowFailure: false,
+          contracts: ids.map((id) => ({
+            abi: governanceAbi,
+            address: ABSTRACT_MAINNET_ADDRESSES.governance,
+            functionName: 'proposals',
+            args: [id] as const,
+          })),
+        })
+      : [];
+    const proposals = (proposalTuples as unknown[]).map(decodeProposal);
+
     return c.ok(
       proposals.map((p, i: number) => ({
         id: i + 1,
-        kind: asNum(p.kind as bigint),
-        status: asNum(p.status as bigint),
-        title: (p.title as string | undefined) ?? null,
-        voteEndAt: asNum(p.voteEndAt as bigint),
-        voteEndRelative: relTime(p.voteEndAt as bigint),
+        kind: asNum(p.kind),
+        status: asNum(p.status),
+        title: p.title ?? null,
+        voteEndAt: asNum(p.voteEndAt),
+        voteEndRelative: relTime(p.voteEndAt),
       })),
       {
         cta: {
@@ -79,13 +213,15 @@ governance.command('proposal', {
   examples: [{ args: { id: 1 }, description: 'Fetch proposal #1' }],
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
-    const proposal = (await client.readContract({
-      abi: governanceAbi,
-      address: ABSTRACT_MAINNET_ADDRESSES.governance,
-      functionName: 'proposals',
-      args: [BigInt(c.args.id)],
-    })) as Record<string, unknown>;
-    return c.ok(proposal);
+    const proposal = decodeProposal(
+      await client.readContract({
+        abi: governanceAbi,
+        address: ABSTRACT_MAINNET_ADDRESSES.governance,
+        functionName: 'proposals',
+        args: [BigInt(c.args.id)],
+      }),
+    );
+    return c.ok(serializeProposal(proposal));
   },
 });
 
