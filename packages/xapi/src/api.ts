@@ -1,6 +1,7 @@
 import { createHttpClient, withRetry } from '@spectratools/cli-shared';
 
-const BASE_URL = 'https://api.x.com/2';
+const BASE_URL_V2 = 'https://api.x.com/2';
+const BASE_URL_V1_1 = 'https://api.x.com/1.1';
 
 const RETRY_OPTIONS = { maxRetries: 3, baseMs: 500, maxMs: 10000 };
 
@@ -72,11 +73,18 @@ export interface XSingleResponse<T> {
 // ── Client factory ────────────────────────────────────────────────────────────
 
 export function createXApiClient(bearerToken: string) {
-  const http = createHttpClient({
-    baseUrl: BASE_URL,
-    defaultHeaders: {
-      Authorization: `Bearer ${bearerToken}`,
-    },
+  const defaultHeaders = {
+    Authorization: `Bearer ${bearerToken}`,
+  };
+
+  const httpV2 = createHttpClient({
+    baseUrl: BASE_URL_V2,
+    defaultHeaders,
+  });
+
+  const httpV1_1 = createHttpClient({
+    baseUrl: BASE_URL_V1_1,
+    defaultHeaders,
   });
 
   function get<T>(
@@ -84,17 +92,27 @@ export function createXApiClient(bearerToken: string) {
     query?: Record<string, string | number | boolean | undefined | null>,
   ): Promise<T> {
     return withRetry(
-      () => http.request<T>(path, query !== undefined ? { query } : {}),
+      () => httpV2.request<T>(path, query !== undefined ? { query } : {}),
+      RETRY_OPTIONS,
+    );
+  }
+
+  function getV1_1<T>(
+    path: string,
+    query?: Record<string, string | number | boolean | undefined | null>,
+  ): Promise<T> {
+    return withRetry(
+      () => httpV1_1.request<T>(path, query !== undefined ? { query } : {}),
       RETRY_OPTIONS,
     );
   }
 
   function post<T>(path: string, body?: unknown): Promise<T> {
-    return withRetry(() => http.request<T>(path, { method: 'POST', body }), RETRY_OPTIONS);
+    return withRetry(() => httpV2.request<T>(path, { method: 'POST', body }), RETRY_OPTIONS);
   }
 
   function del<T>(path: string): Promise<T> {
-    return withRetry(() => http.request<T>(path, { method: 'DELETE' }), RETRY_OPTIONS);
+    return withRetry(() => httpV2.request<T>(path, { method: 'DELETE' }), RETRY_OPTIONS);
   }
 
   // ── Posts ──────────────────────────────────────────────────────────────────
@@ -244,15 +262,27 @@ export function createXApiClient(bearerToken: string) {
   // ── Trends ─────────────────────────────────────────────────────────────────
 
   function getTrendingPlaces() {
-    return get<{ data: Array<{ woeid: number; name: string; country: string }> }>(
-      '/trends/available',
-    );
+    // Trends are only available in X API v1.1; there is no v2 equivalent.
+    return getV1_1<Array<{ woeid: number; name: string; country: string }>>(
+      '/trends/available.json',
+    ).then((places) => ({ data: places }));
   }
 
   function getTrendsByLocation(woeid: number) {
-    return get<{ data: Array<{ name: string; query: string; tweet_volume?: number }> }>(
-      `/trends/place/${woeid}`,
-    );
+    // Trends are only available in X API v1.1; there is no v2 equivalent.
+    return getV1_1<
+      Array<{
+        trends?: Array<{ name: string; query: string; tweet_volume?: number | null }>;
+      }>
+    >('/trends/place.json', { id: woeid }).then((locations) => {
+      const trends = (locations[0]?.trends ?? []).map((trend) => ({
+        name: trend.name,
+        query: trend.query,
+        tweet_volume: trend.tweet_volume ?? undefined,
+      }));
+
+      return { data: trends };
+    });
   }
 
   // ── DMs ────────────────────────────────────────────────────────────────────
