@@ -34,6 +34,21 @@ async function run(argv: string[]) {
   return JSON.parse(json) as Envelope;
 }
 
+async function runJson(argv: string[]) {
+  const { cli } = await import('../cli.js');
+  const lines: string[] = [];
+  await cli.serve([...argv, '--format', 'json'], {
+    stdout: (line) => lines.push(line),
+    exit: () => undefined,
+  });
+  const json =
+    [...lines].reverse().find((x) => {
+      const trimmed = x.trim();
+      return trimmed.startsWith('{') || trimmed.startsWith('[');
+    }) ?? '{}';
+  return JSON.parse(json) as Record<string, unknown>;
+}
+
 function createViemError(options: { message: string; name: string; shortMessage: string }) {
   const error = new Error(options.message) as Error & { shortMessage?: string };
   error.name = options.name;
@@ -227,6 +242,41 @@ describe('assembly onchain commands', () => {
     expect(typeof data.windowEndRelative).toBe('string');
   });
 
+  it('forum threads wraps array results in an object when CTA metadata is present', async () => {
+    mockClient.readContract.mockResolvedValueOnce(1n);
+    mockClient.multicall.mockResolvedValueOnce([
+      [1n, 2n, addrA, 1700000000n, 'general', 'hello', 'world', 0n, 0n],
+    ]);
+
+    const out = await run(['forum', 'threads']);
+    expect(out.ok).toBe(true);
+
+    const data = out.data as {
+      threads: Array<Record<string, unknown>>;
+      count: number;
+    };
+    expect(data.count).toBe(1);
+    expect(data.threads).toHaveLength(1);
+    expect(data.threads[0]).toMatchObject({
+      id: 1,
+      kind: 2,
+      author: '0x00000000000000000000000000000000000000AA',
+    });
+  });
+
+  it('forum threads --format json keeps thread data under a threads array key', async () => {
+    mockClient.readContract.mockResolvedValueOnce(1n);
+    mockClient.multicall.mockResolvedValueOnce([
+      [1n, 2n, addrA, 1700000000n, 'general', 'hello', 'world', 0n, 0n],
+    ]);
+
+    const out = await runJson(['forum', 'threads']);
+
+    expect(Array.isArray(out.threads)).toBe(true);
+    expect(out).not.toHaveProperty('0');
+    expect(out.count).toBe(1);
+  });
+
   it('forum thread decodes tuples and filters comments by thread id', async () => {
     mockClient.readContract
       .mockResolvedValueOnce([1n, 2n, addrA, 1700000000n, 'general', 'hello', 'world', 0n, 0n])
@@ -315,9 +365,50 @@ describe('assembly onchain commands', () => {
     const out = await run(['governance', 'proposals']);
     expect(out.ok).toBe(true);
 
-    const data = out.data as Array<Record<string, unknown>>;
-    expect(data).toHaveLength(1);
-    expect(data[0]).toMatchObject({ id: 1, kind: 1, status: 4, voteEndAt: 130 });
+    const data = out.data as {
+      proposals: Array<Record<string, unknown>>;
+      count: number;
+    };
+    expect(data.count).toBe(1);
+    expect(data.proposals).toHaveLength(1);
+    expect(data.proposals[0]).toMatchObject({ id: 1, kind: 1, status: 4, voteEndAt: 130 });
+  });
+
+  it('governance proposals --format json keeps proposal data under a proposals array key', async () => {
+    mockClient.readContract.mockResolvedValueOnce(1n);
+    mockClient.multicall.mockResolvedValueOnce([
+      [
+        1n,
+        2n,
+        3n,
+        4n,
+        addrA,
+        11n,
+        12n,
+        100n,
+        110n,
+        120n,
+        130n,
+        140n,
+        15n,
+        16n,
+        17n,
+        18n,
+        19n,
+        20n,
+        false,
+        200n,
+        1n,
+        'Proposal title',
+        'Proposal description',
+      ],
+    ]);
+
+    const out = await runJson(['governance', 'proposals']);
+
+    expect(Array.isArray(out.proposals)).toBe(true);
+    expect(out).not.toHaveProperty('0');
+    expect(out.count).toBe(1);
   });
 
   it('governance proposal serializes bigint fields to JSON-safe values', async () => {
