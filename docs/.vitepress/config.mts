@@ -104,7 +104,22 @@ export default defineConfig({
             collapsed: false,
             items: [
               { text: 'Overview', link: '/xapi/' },
+              { text: 'Configuration', link: '/xapi/configuration' },
               { text: 'Commands', link: '/xapi/commands' },
+              {
+                text: 'Guides',
+                collapsed: false,
+                items: [
+                  {
+                    text: 'Social Monitoring',
+                    link: '/xapi/guides/social-monitoring',
+                  },
+                  {
+                    text: 'Agent Integration',
+                    link: '/xapi/guides/agent-integration',
+                  },
+                ],
+              },
             ],
           },
           {
