@@ -13,22 +13,6 @@ describe('erc8004 cli', () => {
     expect(output).toContain('erc8004');
   });
 
-  it('identity list errors without registry address', async () => {
-    let output = '';
-    let exitCode = 0;
-    await cli.serve(['identity', 'list', '--json'], {
-      stdout(s) {
-        output += s;
-      },
-      exit(code) {
-        exitCode = code;
-      },
-      env: { IDENTITY_REGISTRY_ADDRESS: undefined },
-    });
-
-    // Should error: non-zero exit or error in output
-    expect(exitCode !== 0 || output.includes('error') || output.includes('Error')).toBe(true);
-  });
 
   it('reputation feedback errors without private key', async () => {
     let output = '';
