@@ -1,44 +1,101 @@
 # spectra-tools
 
-Agent-friendly CLI tools built on the [incur](https://github.com/wevm/incur) framework.
+CLI tools for the Abstract ecosystem — query governance, explore chains, monitor social feeds, and discover onchain agents.
 
-## Packages
+**[📖 Documentation](https://spectra-the-bot.github.io/spectra-tools/)**
 
-| Package | Description |
-|---------|-------------|
-| [`@spectratools/cli-shared`](./packages/shared) | Shared middleware, utilities, and testing helpers |
-| [`@spectratools/etherscan-cli`](./packages/etherscan) | Etherscan API CLI |
-| [`@spectratools/assembly-cli`](./packages/assembly) | Assembly CLI |
-| [`@spectratools/xapi-cli`](./packages/xapi) | X (Twitter) API CLI |
-| [`@spectratools/erc8004-cli`](./packages/erc8004) | ERC-8004 CLI |
+## Quick start
+
+No install required:
+
+```bash
+# Check Assembly governance status on Abstract
+npx @spectratools/assembly-cli status
+
+# Look up an Ethereum account balance
+npx @spectratools/etherscan-cli account balance 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --chain ethereum
+
+# Search posts on X
+npx @spectratools/xapi-cli posts search "abstract chain" --limit 5
+```
+
+## CLIs
+
+| CLI | What it does | Status |
+|-----|-------------|--------|
+| [**Assembly CLI**](https://spectra-the-bot.github.io/spectra-tools/assembly/) | Governance proposals, council, treasury, forum, and members on Abstract | ✅ Stable |
+| [**Etherscan CLI**](https://spectra-the-bot.github.io/spectra-tools/etherscan/) | Balances, transactions, contracts, tokens, and gas across EVM chains | ✅ Stable |
+| [**X API CLI**](https://spectra-the-bot.github.io/spectra-tools/xapi/) | Posts, timelines, users, lists, trends, and DMs via X API v2 | ✅ Stable |
+| [**ERC-8004 CLI**](https://spectra-the-bot.github.io/spectra-tools/erc8004/) | Agent identity, reputation, and validation registries on Abstract | 🧪 Preview |
+
+## Built for agents
+
+Every CLI outputs structured data and includes built-in agent integration:
+
+```bash
+# JSON output for scripts and agents
+assembly-cli governance proposals --json
+
+# Export full CLI manifest
+assembly-cli --llms
+
+# Register as an agent skill or MCP server
+assembly-cli skills add
+assembly-cli mcp add
+```
+
+All CLIs support `--format json`, `--schema`, `--llms`, `skills add`, and `mcp add` out of the box.
+
+→ [Agent integration guide](https://spectra-the-bot.github.io/spectra-tools/agent-integration)
+
+## Install
+
+```bash
+# Install globally
+npm install -g @spectratools/assembly-cli
+
+# Or use any package manager
+pnpm add -g @spectratools/assembly-cli
+```
+
+Install only the CLIs you need — they're independent packages.
 
 ## Documentation
 
-- [CLI Output Contract v1 (Incur-aligned)](./docs/cli-output-contract-v1.md) — runtime contract split into incur-native guarantees + spectra package policy.
-- [CLI Output Contract v1 — Implementation Plan (Incur-aligned)](./docs/cli-output-contract-implementation-plan.md) — low-risk rollout focused on docs/tests and targeted command-level improvements.
+Full docs, command references, and configuration guides:
 
-## Development
+**https://spectra-the-bot.github.io/spectra-tools/**
+
+---
+
+## Contributing
+
+### Development setup
 
 ```bash
+git clone https://github.com/spectra-the-bot/spectra-tools.git
+cd spectra-tools
 pnpm install
 pnpm lint
 pnpm typecheck
 pnpm test
 ```
 
-## Release process (Changesets + npm)
+### Docs
 
-1. Add a changeset in every PR that should ship a package change:
-   ```bash
-   pnpm changeset
-   ```
-2. Merge the PR into `main`. The release workflow will create or update a **Version Packages** release PR when changesets are present.
-3. Merge the release PR. That merge triggers publish and pushes only unpublished, versioned `@spectratools/*` packages to npm (`registry.npmjs.org`).
-4. If `main` has no pending changesets and no unpublished versions, the workflow exits cleanly with an explicit skip message.
+```bash
+pnpm docs:dev       # local preview
+pnpm docs:generate  # rebuild command references
+pnpm docs:build     # production build
+```
 
-### Required repository secret
+### Release process
 
-- `NPM_TOKEN`: npm automation token with publish access to `@spectratools` packages.
+1. Add a changeset: `pnpm changeset`
+2. Merge to `main` — the release workflow creates a Version Packages PR
+3. Merge the release PR to publish to npm
+
+Required repository secret: `NPM_TOKEN` with publish access to `@spectratools`.
 
 ## License
 
