@@ -141,6 +141,54 @@ describe('etherscan CLI', () => {
     });
   });
 
+  describe('tx status', () => {
+    it('returns success for isError 0', async () => {
+      const { output, exitCode } = await runCli(
+        ['tx', 'status', '0xabc123', '--json'],
+        makeResponse({
+          status: '1',
+          message: 'OK',
+          result: { isError: '0', errDescription: '' },
+        }),
+      );
+      expect(exitCode).toBe(0);
+      const parsed = JSON.parse(output) as { hash: string; status: string; error?: string };
+      expect(parsed.hash).toBe('0xabc123');
+      expect(parsed.status).toBe('success');
+      expect(parsed.error).toBeUndefined();
+    });
+
+    it('returns failed with error description for isError 1', async () => {
+      const { output, exitCode } = await runCli(
+        ['tx', 'status', '0xdead', '--json'],
+        makeResponse({
+          status: '1',
+          message: 'OK',
+          result: { isError: '1', errDescription: 'Bad jump destination' },
+        }),
+      );
+      expect(exitCode).toBe(0);
+      const parsed = JSON.parse(output) as { hash: string; status: string; error?: string };
+      expect(parsed.hash).toBe('0xdead');
+      expect(parsed.status).toBe('failed');
+      expect(parsed.error).toBe('Bad jump destination');
+    });
+
+    it('calls the getstatus action', async () => {
+      const { calledUrl } = await runCli(
+        ['tx', 'status', '0xabc', '--chain', 'ethereum', '--json'],
+        makeResponse({
+          status: '1',
+          message: 'OK',
+          result: { isError: '0', errDescription: '' },
+        }),
+      );
+      expect(calledUrl).toContain('action=getstatus');
+      expect(calledUrl).toContain('module=transaction');
+      expect(calledUrl).toContain('chainid=1');
+    });
+  });
+
   describe('gas oracle', () => {
     it('returns gas price tiers', async () => {
       const { output } = await runCli(
