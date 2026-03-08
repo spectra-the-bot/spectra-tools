@@ -1,5 +1,11 @@
 # @spectra-the-bot/xapi-cli
 
+## 0.2.1
+
+### Patch Changes
+
+- [#127](https://github.com/spectra-the-bot/spectra-tools/pull/127) [`53005bd`](https://github.com/spectra-the-bot/spectra-tools/commit/53005bdc388e432bcc1ea38c7142ce7d3528c1fc) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Fix trends commands to use X API v1.1 endpoints and normalize responses to existing output shapes.
+
 ## 0.2.0
 
 ### Minor Changes
