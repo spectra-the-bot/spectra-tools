@@ -30,6 +30,10 @@
     "./chain": {
       "types": "./dist/chain.d.ts",
       "default": "./dist/chain.js"
+    },
+    "./execute-tx": {
+      "types": "./dist/execute-tx.d.ts",
+      "default": "./dist/execute-tx.js"
     }
   },
   "scripts": {
