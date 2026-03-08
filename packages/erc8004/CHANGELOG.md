@@ -1,5 +1,11 @@
 # @spectra-the-bot/erc8004-cli
 
+## 0.1.2
+
+### Patch Changes
+
+- [#167](https://github.com/spectra-the-bot/spectra-tools/pull/167) [`eb5c491`](https://github.com/spectra-the-bot/spectra-tools/commit/eb5c49103b5ec99ab6dba38159e3654ddd9e316f) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Map contract revert errors to structured error codes for reputation/validation commands.
+
 ## 0.1.1
 
 ### Patch Changes
