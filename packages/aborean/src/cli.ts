@@ -3,6 +3,9 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Cli, z } from 'incur';
 
+import { gauges } from './commands/gauges.js';
+import { ve } from './commands/ve.js';
+import { voter } from './commands/voter.js';
 import { clFactoryAbi, poolFactoryAbi, voterAbi, votingEscrowAbi } from './contracts/abis.js';
 import { ABOREAN_CL_ADDRESSES, ABOREAN_V2_ADDRESSES } from './contracts/addresses.js';
 import { createAboreanPublicClient } from './contracts/client.js';
@@ -15,6 +18,10 @@ const cli = Cli.create('aborean', {
   version: pkg.version,
   description: 'Aborean Finance DEX CLI for Abstract chain.',
 });
+
+cli.command(gauges);
+cli.command(ve);
+cli.command(voter);
 
 const rootEnv = z.object({
   ABSTRACT_RPC_URL: z.string().optional().describe('Abstract RPC URL override'),
