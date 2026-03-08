@@ -22,6 +22,8 @@ export const abstractMainnet: Chain = {
 };
 
 const DEFAULT_RPC = 'https://api.mainnet.abs.xyz';
+const DEFAULT_CHAIN_ID = abstractMainnet.id;
+const DEFAULT_IDENTITY_REGISTRY_ADDRESS: Address = '0x8004a169fb4a3325136eb29fa0ceb6d2e539a432';
 
 /** Creates a viem public client for the Abstract mainnet. */
 export function getPublicClient(rpcUrl?: string): PublicClient {
@@ -44,10 +46,18 @@ export function getWalletClient(privateKey: string, rpcUrl?: string) {
 /** Resolves the identity registry address from env or throws. */
 export function getIdentityRegistryAddress(env: Record<string, string | undefined>): Address {
   const addr = env.IDENTITY_REGISTRY_ADDRESS;
-  if (!addr) {
-    throw new Error('IDENTITY_REGISTRY_ADDRESS is not set. Export it or pass via env.');
+  if (addr) {
+    return addr as Address;
   }
-  return addr as Address;
+
+  const chainIdRaw = env.CHAIN_ID;
+  const chainId = chainIdRaw ? Number(chainIdRaw) : DEFAULT_CHAIN_ID;
+
+  if (chainId === abstractMainnet.id) {
+    return DEFAULT_IDENTITY_REGISTRY_ADDRESS;
+  }
+
+  throw new Error('IDENTITY_REGISTRY_ADDRESS is not set. Export it or pass via env.');
 }
 
 /** Resolves the reputation registry address from env or throws. */
