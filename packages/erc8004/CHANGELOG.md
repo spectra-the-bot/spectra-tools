@@ -1,5 +1,11 @@
 # @spectra-the-bot/erc8004-cli
 
+## 0.0.7
+
+### Patch Changes
+
+- [#92](https://github.com/spectra-the-bot/spectra-tools/pull/92) [`b85c533`](https://github.com/spectra-the-bot/spectra-tools/commit/b85c533dc47ac8885aae2ad1f77fb7ae9ab03b67) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Fix CLI entrypoint main-module detection to resolve symlinks before comparison. This restores npm/npx/bin invocations that run through `node_modules/.bin` symlinks instead of direct file paths.
+
 ## 0.0.6
 
 ### Patch Changes
