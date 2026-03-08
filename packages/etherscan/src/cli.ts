@@ -1,3 +1,4 @@
+import { realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { Cli } from 'incur';
 import { accountCli } from './commands/account.js';
@@ -21,6 +22,19 @@ cli.command(statsCli);
 export { cli };
 
 // Only auto-serve when executed directly (not imported by tests or other modules)
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+const isMain = (() => {
+  const entrypoint = process.argv[1];
+  if (!entrypoint) {
+    return false;
+  }
+
+  try {
+    return realpathSync(entrypoint) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
+})();
+
+if (isMain) {
   cli.serve();
 }

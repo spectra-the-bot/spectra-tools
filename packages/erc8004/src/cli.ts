@@ -1,3 +1,4 @@
+import { realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { Cli } from 'incur';
 import { discovery } from './commands/discovery.js';
@@ -20,6 +21,19 @@ cli.command(discovery);
 export { cli };
 
 // Only serve when run directly (not when imported by tests)
-if (fileURLToPath(import.meta.url) === process.argv[1]) {
+const isMain = (() => {
+  const entrypoint = process.argv[1];
+  if (!entrypoint) {
+    return false;
+  }
+
+  try {
+    return realpathSync(entrypoint) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
+})();
+
+if (isMain) {
   cli.serve();
 }
