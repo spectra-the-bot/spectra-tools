@@ -1,4 +1,9 @@
-import { createHttpClient, createRateLimiter, withRateLimit, withRetry } from '@spectra-the-bot/cli-shared';
+import {
+  createHttpClient,
+  createRateLimiter,
+  withRateLimit,
+  withRetry,
+} from '@spectra-the-bot/cli-shared';
 
 const DEFAULT_BASE_URL = 'https://api.etherscan.io/v2/api';
 const RETRY_OPTIONS = { maxRetries: 3, baseMs: 500, maxMs: 10000 };
