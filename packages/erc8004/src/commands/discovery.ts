@@ -2,7 +2,11 @@ import { checksumAddress } from '@spectratools/cli-shared';
 import { Cli, z } from 'incur';
 import { readContract } from 'viem/actions';
 import { identityRegistryAbi } from '../contracts/abis.js';
-import { getIdentityRegistryAddress, getPublicClient } from '../contracts/client.js';
+import {
+  MULTICALL_BATCH_SIZE,
+  getIdentityRegistryAddress,
+  getPublicClient,
+} from '../contracts/client.js';
 import { registrationSchema } from '../schema.js';
 import { fetchRegistrationUri } from '../utils/fetch-uri.js';
 
@@ -19,6 +23,14 @@ async function tryFetchRegistration(uri: string) {
   } catch {
     return null;
   }
+}
+
+function chunk<T>(items: readonly T[], size: number): T[][] {
+  const batches: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    batches.push(items.slice(i, i + size));
+  }
+  return batches;
 }
 
 discovery.command('search', {
@@ -75,60 +87,116 @@ discovery.command('search', {
     }[] = [];
 
     const totalNum = Number(total);
+    const indexedBatches = chunk(
+      Array.from({ length: totalNum }, (_, i) => BigInt(i)),
+      MULTICALL_BATCH_SIZE,
+    );
 
-    for (let i = 0; i < totalNum && results.length < limit; i++) {
-      const tokenId = await readContract(client, {
-        address,
-        abi: identityRegistryAbi,
-        functionName: 'tokenByIndex',
-        args: [BigInt(i)],
+    for (const indexBatch of indexedBatches) {
+      if (results.length >= limit) {
+        break;
+      }
+
+      const tokenIdResults = await client.multicall({
+        allowFailure: true,
+        contracts: indexBatch.map((index) => ({
+          address,
+          abi: identityRegistryAbi,
+          functionName: 'tokenByIndex',
+          args: [index] as const,
+        })),
       });
 
-      const [owner, uri] = await Promise.all([
-        readContract(client, {
-          address,
-          abi: identityRegistryAbi,
-          functionName: 'ownerOf',
-          args: [tokenId],
-        }),
-        readContract(client, {
-          address,
-          abi: identityRegistryAbi,
-          functionName: 'tokenURI',
-          args: [tokenId],
-        }),
-      ]);
+      const tokenIds: bigint[] = [];
+      for (const tokenIdResult of tokenIdResults) {
+        if (tokenIdResult.status === 'success') {
+          tokenIds.push(tokenIdResult.result as bigint);
+        }
+      }
 
-      const reg = await tryFetchRegistration(uri);
-
-      // Apply filters
-      if (name && reg && !reg.name.toLowerCase().includes(name.toLowerCase())) {
+      if (tokenIds.length === 0) {
         continue;
       }
-      if (service && reg?.services) {
-        const needle = service.toLowerCase();
-        const hasService = reg.services.some((s) => {
-          const typeOrName = s.type ?? s.name;
-          return typeOrName !== undefined && typeOrName.toLowerCase() === needle;
-        });
-        if (!hasService) continue;
-      }
-      if (service && !reg?.services) continue;
 
-      results.push({
-        agentId: tokenId.toString(),
-        owner: checksumAddress(owner),
-        ...(reg?.name !== undefined ? { name: reg.name } : {}),
-        ...(reg?.description !== undefined ? { description: reg.description } : {}),
-        ...(reg?.services !== undefined
-          ? {
-              services: reg.services
-                .map((s) => s.type ?? s.name)
-                .filter((value): value is string => value !== undefined),
-            }
-          : {}),
-        uri,
+      const detailsResults = await client.multicall({
+        allowFailure: true,
+        contracts: tokenIds.flatMap((tokenId) => [
+          {
+            address,
+            abi: identityRegistryAbi,
+            functionName: 'ownerOf' as const,
+            args: [tokenId] as const,
+          },
+          {
+            address,
+            abi: identityRegistryAbi,
+            functionName: 'tokenURI' as const,
+            args: [tokenId] as const,
+          },
+        ]),
       });
+
+      const details: { tokenId: bigint; owner: `0x${string}`; uri: string }[] = [];
+      for (let i = 0; i < tokenIds.length; i++) {
+        const ownerResult = detailsResults[i * 2];
+        const uriResult = detailsResults[i * 2 + 1];
+
+        if (!ownerResult || !uriResult) {
+          continue;
+        }
+
+        if (ownerResult.status !== 'success' || uriResult.status !== 'success') {
+          continue;
+        }
+
+        details.push({
+          tokenId: tokenIds[i],
+          owner: ownerResult.result as `0x${string}`,
+          uri: uriResult.result as string,
+        });
+      }
+
+      const registrations = await Promise.all(
+        details.map((detail) => tryFetchRegistration(detail.uri)),
+      );
+
+      for (let i = 0; i < details.length; i++) {
+        if (results.length >= limit) {
+          break;
+        }
+
+        const detail = details[i];
+        const reg = registrations[i];
+
+        // Apply filters
+        if (name && reg && !reg.name.toLowerCase().includes(name.toLowerCase())) {
+          continue;
+        }
+        if (service && reg?.services) {
+          const needle = service.toLowerCase();
+          const hasService = reg.services.some((s) => {
+            const typeOrName = s.type ?? s.name;
+            return typeOrName !== undefined && typeOrName.toLowerCase() === needle;
+          });
+          if (!hasService) continue;
+        }
+        if (service && !reg?.services) continue;
+
+        results.push({
+          agentId: detail.tokenId.toString(),
+          owner: checksumAddress(detail.owner),
+          ...(reg?.name !== undefined ? { name: reg.name } : {}),
+          ...(reg?.description !== undefined ? { description: reg.description } : {}),
+          ...(reg?.services !== undefined
+            ? {
+                services: reg.services
+                  .map((s) => s.type ?? s.name)
+                  .filter((value): value is string => value !== undefined),
+              }
+            : {}),
+          uri: detail.uri,
+        });
+      }
     }
 
     return c.ok(
