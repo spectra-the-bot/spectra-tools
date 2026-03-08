@@ -5,7 +5,7 @@ import {
   ABSTRACT_MAINNET_DEPLOYMENT_BLOCKS,
 } from '../contracts/addresses.js';
 import { createAssemblyPublicClient } from '../contracts/client.js';
-import { asNum, eth, relTime, toChecksum } from './_common.js';
+import { asNum, eth, relTime, timeValue, toChecksum } from './_common.js';
 
 const DEFAULT_MEMBER_SNAPSHOT_URL = 'https://www.theaiassembly.org/api/indexer/members';
 const REGISTERED_EVENT_SCAN_STEP = 100_000n;
@@ -21,6 +21,7 @@ const env = z.object({
     .describe('Optional members snapshot endpoint (default: theaiassembly.org indexer)'),
 });
 
+const timestampOutput = z.union([z.number(), z.string()]);
 const memberSnapshotSchema = z.array(z.string());
 
 class AssemblyApiValidationError extends Error {
@@ -175,9 +176,9 @@ members.command('list', {
         address: z.string(),
         active: z.boolean(),
         registered: z.boolean(),
-        activeUntil: z.number(),
+        activeUntil: timestampOutput,
         activeUntilRelative: z.string(),
-        lastHeartbeatAt: z.number(),
+        lastHeartbeatAt: timestampOutput,
         lastHeartbeatRelative: z.string(),
       }),
     ),
@@ -254,9 +255,9 @@ members.command('list', {
         address: toChecksum(address),
         active,
         registered: info.registered,
-        activeUntil: Number(info.activeUntil),
+        activeUntil: timeValue(info.activeUntil, c.format),
         activeUntilRelative: relTime(info.activeUntil),
-        lastHeartbeatAt: Number(info.lastHeartbeatAt),
+        lastHeartbeatAt: timeValue(info.lastHeartbeatAt, c.format),
         lastHeartbeatRelative: relTime(info.lastHeartbeatAt),
       };
     });
@@ -276,8 +277,8 @@ members.command('info', {
   output: z.object({
     address: z.string(),
     active: z.boolean(),
-    activeUntil: z.number(),
-    lastHeartbeatAt: z.number(),
+    activeUntil: timestampOutput,
+    lastHeartbeatAt: timestampOutput,
     activeUntilRelative: z.string(),
     lastHeartbeatRelative: z.string(),
   }),
@@ -306,8 +307,8 @@ members.command('info', {
     return c.ok({
       address: toChecksum(c.args.address),
       active,
-      activeUntil: Number(member.activeUntil),
-      lastHeartbeatAt: Number(member.lastHeartbeatAt),
+      activeUntil: timeValue(member.activeUntil, c.format),
+      lastHeartbeatAt: timeValue(member.lastHeartbeatAt, c.format),
       activeUntilRelative: relTime(member.activeUntil),
       lastHeartbeatRelative: relTime(member.lastHeartbeatAt),
     });

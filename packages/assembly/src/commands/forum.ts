@@ -2,7 +2,7 @@ import { Cli, z } from 'incur';
 import { forumAbi } from '../contracts/abis.js';
 import { ABSTRACT_MAINNET_ADDRESSES } from '../contracts/addresses.js';
 import { createAssemblyPublicClient } from '../contracts/client.js';
-import { asNum, jsonSafe, relTime, toChecksum } from './_common.js';
+import { asNum, jsonSafe, relTime, timeValue, toChecksum } from './_common.js';
 
 const env = z.object({
   ABSTRACT_RPC_URL: z.string().optional().describe('Abstract RPC URL override'),
@@ -32,6 +32,8 @@ type PetitionTuple = readonly [
   bigint,
   unknown,
 ];
+
+const timestampOutput = z.union([z.number(), z.string()]);
 
 function decodeThread(value: unknown) {
   const [id, kind, author, createdAt, category, title, body, proposalId, petitionId] =
@@ -104,7 +106,7 @@ forum.command('threads', {
         id: z.number(),
         kind: z.number(),
         author: z.string(),
-        createdAt: z.number(),
+        createdAt: timestampOutput,
         createdAtRelative: z.string(),
         category: z.string().nullable().optional(),
         title: z.string().nullable().optional(),
@@ -137,7 +139,7 @@ forum.command('threads', {
       id: x.id,
       kind: x.kind,
       author: x.author,
-      createdAt: x.createdAt,
+      createdAt: timeValue(x.createdAt, c.format),
       createdAtRelative: relTime(x.createdAt),
       category: x.category ?? null,
       title: x.title ?? null,

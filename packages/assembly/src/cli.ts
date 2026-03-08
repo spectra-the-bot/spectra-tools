@@ -1,7 +1,7 @@
 import { realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { Cli, z } from 'incur';
-import { eth, toChecksum } from './commands/_common.js';
+import { eth, relTime, timeValue, toChecksum } from './commands/_common.js';
 import { council } from './commands/council.js';
 import { forum } from './commands/forum.js';
 import { governance } from './commands/governance.js';
@@ -25,6 +25,8 @@ cli.command(treasury);
 const rootEnv = z.object({
   ABSTRACT_RPC_URL: z.string().optional().describe('Abstract RPC URL override'),
 });
+
+const timestampOutput = z.union([z.number(), z.string()]);
 
 cli.command('status', {
   description: 'Get a cross-contract Assembly snapshot (members, council, governance, treasury).',
@@ -95,7 +97,8 @@ cli.command('health', {
   output: z.object({
     address: z.string(),
     isActive: z.boolean(),
-    activeUntil: z.number(),
+    activeUntil: timestampOutput,
+    activeUntilRelative: z.string(),
     isCouncilMember: z.boolean(),
     pendingReturnsWei: z.string(),
     votingPower: z.number(),
@@ -143,7 +146,8 @@ cli.command('health', {
     return c.ok({
       address: toChecksum(c.args.address),
       isActive,
-      activeUntil: Number(member.activeUntil),
+      activeUntil: timeValue(member.activeUntil, c.format),
+      activeUntilRelative: relTime(member.activeUntil),
       isCouncilMember,
       pendingReturnsWei: pendingReturns.toString(),
       votingPower: Number(votingPower),
