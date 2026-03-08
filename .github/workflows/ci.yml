@@ -13,6 +13,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Detect docs-impacting changes
+        id: docs_changes
+        if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            docs:
+              - 'docs/**'
+              - 'scripts/**'
+              - 'packages/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+
       - uses: pnpm/action-setup@v4
         with:
           version: 9
@@ -36,3 +50,7 @@ jobs:
 
       - name: Run tests
         run: pnpm test
+
+      - name: Run docs generation/build/validation gate
+        if: github.event_name != 'pull_request' || steps.docs_changes.outputs.docs == 'true'
+        run: pnpm docs:ci

@@ -38,11 +38,17 @@ function run(command, args, options = {}) {
   });
 }
 
+function escapePlaceholderAngleBrackets(line) {
+  return line.replace(/<([A-Za-z][A-Za-z0-9_-]*)>/g, (_match, token) => {
+    return `&lt;${token}&gt;`;
+  });
+}
+
 function normalizeMarkdown(markdown) {
   const lines = markdown.replace(/\r\n/g, '\n').split('\n');
   let inCodeFence = false;
 
-  const escaped = lines.map((line) => {
+  const sanitized = lines.map((line) => {
     if (line.trimStart().startsWith('```')) {
       inCodeFence = !inCodeFence;
       return line;
@@ -52,10 +58,10 @@ function normalizeMarkdown(markdown) {
       return line;
     }
 
-    return line.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return escapePlaceholderAngleBrackets(line);
   });
 
-  return `${escaped.join('\n').trimEnd()}\n`;
+  return `${sanitized.join('\n').trimEnd()}\n`;
 }
 
 function main() {
@@ -76,4 +82,11 @@ function main() {
   console.log('Docs generated successfully.');
 }
 
-main();
+if (require.main === module) {
+  main();
+}
+
+module.exports = {
+  escapePlaceholderAngleBrackets,
+  normalizeMarkdown,
+};

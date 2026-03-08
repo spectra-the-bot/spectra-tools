@@ -232,7 +232,7 @@ Register a new agent identity.
 erc8004 identity register --uri ipfs://QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG
 ```
 
-&gt; Requires PRIVATE_KEY environment variable for signing.
+> Requires PRIVATE_KEY environment variable for signing.
 
 ### erc8004 identity set-wallet
 
@@ -274,7 +274,7 @@ Set an agent's associated wallet address.
 erc8004 identity set-wallet 1 --wallet 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --signature 0x1234...abcd
 ```
 
-&gt; Requires PRIVATE_KEY environment variable. The signature must be from the new wallet.
+> Requires PRIVATE_KEY environment variable. The signature must be from the new wallet.
 
 ### erc8004 identity update
 
@@ -315,7 +315,7 @@ Update an agent's registration URI.
 erc8004 identity update 1 --uri ipfs://bafybeihash/new-agent-registration.json
 ```
 
-&gt; Requires PRIVATE_KEY environment variable for signing.
+> Requires PRIVATE_KEY environment variable for signing.
 
 ### erc8004 identity wallet
 
@@ -584,7 +584,7 @@ erc8004 reputation feedback 1 --value 10 --tag1 accuracy --tag2 helpful
 erc8004 reputation feedback 1 --value -5 --tag1 accuracy
 ```
 
-&gt; Requires PRIVATE_KEY environment variable. Value is int128 (positive = good, negative = bad). Defaults to the Abstract mainnet reputation registry; override via --registry or REPUTATION_REGISTRY_ADDRESS.
+> Requires PRIVATE_KEY environment variable. Value is int128 (positive = good, negative = bad). Defaults to the Abstract mainnet reputation registry; override via --registry or REPUTATION_REGISTRY_ADDRESS.
 
 ### erc8004 reputation get
 
@@ -625,7 +625,7 @@ Get the reputation score for an agent.
 erc8004 reputation get 1
 ```
 
-&gt; Defaults to the Abstract mainnet reputation registry. Override via --registry or REPUTATION_REGISTRY_ADDRESS.
+> Defaults to the Abstract mainnet reputation registry. Override via --registry or REPUTATION_REGISTRY_ADDRESS.
 
 ### erc8004 reputation history
 
@@ -676,7 +676,7 @@ erc8004 reputation history 1
 erc8004 reputation history 1 --limit 10
 ```
 
-&gt; Defaults to the Abstract mainnet reputation registry. Override via --registry or REPUTATION_REGISTRY_ADDRESS.
+> Defaults to the Abstract mainnet reputation registry. Override via --registry or REPUTATION_REGISTRY_ADDRESS.
 
 ## erc8004 validation
 
@@ -724,7 +724,7 @@ View validation request history for an agent.
 erc8004 validation history 1
 ```
 
-&gt; Defaults to the Abstract mainnet validation registry. Override via --registry or VALIDATION_REGISTRY_ADDRESS.
+> Defaults to the Abstract mainnet validation registry. Override via --registry or VALIDATION_REGISTRY_ADDRESS.
 
 ### erc8004 validation request
 
@@ -768,7 +768,7 @@ Submit a validation request for an agent.
 erc8004 validation request 1 --validator 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --jobHash 0x0000000000000000000000000000000000000000000000000000000000000000
 ```
 
-&gt; Requires PRIVATE_KEY environment variable. jobHash must be a 0x-prefixed 32-byte hex string. Defaults to the Abstract mainnet validation registry; override via --registry or VALIDATION_REGISTRY_ADDRESS.
+> Requires PRIVATE_KEY environment variable. jobHash must be a 0x-prefixed 32-byte hex string. Defaults to the Abstract mainnet validation registry; override via --registry or VALIDATION_REGISTRY_ADDRESS.
 
 ### erc8004 validation status
 
@@ -812,4 +812,4 @@ Get the status of a validation request.
 erc8004 validation status 1
 ```
 
-&gt; Defaults to the Abstract mainnet validation registry. Override via --registry or VALIDATION_REGISTRY_ADDRESS.
+> Defaults to the Abstract mainnet validation registry. Override via --registry or VALIDATION_REGISTRY_ADDRESS.
