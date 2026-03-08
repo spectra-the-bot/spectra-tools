@@ -1,5 +1,5 @@
 import { Cli, z } from 'incur';
-import { treasuryAbi } from '../contracts/abis.js';
+import { governanceAbi, treasuryAbi } from '../contracts/abis.js';
 import { ABSTRACT_MAINNET_ADDRESSES } from '../contracts/addresses.js';
 import { createAssemblyPublicClient } from '../contracts/client.js';
 import { asNum, eth, relTime, toChecksum } from './_common.js';
@@ -113,6 +113,20 @@ treasury.command('executed', {
   examples: [{ args: { proposalId: 1 }, description: 'Check execution status for proposal #1' }],
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
+    const proposalCount = (await client.readContract({
+      abi: governanceAbi,
+      address: ABSTRACT_MAINNET_ADDRESSES.governance,
+      functionName: 'proposalCount',
+    })) as bigint;
+
+    if (c.args.proposalId > Number(proposalCount)) {
+      return c.error({
+        code: 'OUT_OF_RANGE',
+        message: `Proposal id ${c.args.proposalId} does not exist (proposalCount: ${proposalCount})`,
+        retryable: false,
+      });
+    }
+
     const executed = (await client.readContract({
       abi: treasuryAbi,
       address: ABSTRACT_MAINNET_ADDRESSES.treasury,

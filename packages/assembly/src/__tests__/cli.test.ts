@@ -201,6 +201,17 @@ describe('assembly onchain commands', () => {
     expect(data[1]).toMatchObject({ id: 1, startAt: 300, endAt: 400, forfeited: true });
   });
 
+  it('council seat returns OUT_OF_RANGE when id >= seatCount', async () => {
+    mockClient.readContract.mockResolvedValueOnce(2n);
+
+    const out = await run(['council', 'seat', '2']);
+
+    expect(out.ok).toBe(false);
+    expect(out.error).toMatchObject({ code: 'OUT_OF_RANGE' });
+    expect(out.error?.message).toContain('seatCount: 2');
+    expect(mockClient.readContract).toHaveBeenCalledTimes(1);
+  });
+
   it('council auctions includes window metadata and derives bidding/closed status', async () => {
     mockClient.readContract
       .mockResolvedValueOnce(0n)
@@ -279,6 +290,7 @@ describe('assembly onchain commands', () => {
 
   it('forum thread decodes tuples and filters comments by thread id', async () => {
     mockClient.readContract
+      .mockResolvedValueOnce(2n)
       .mockResolvedValueOnce([1n, 2n, addrA, 1700000000n, 'general', 'hello', 'world', 0n, 0n])
       .mockResolvedValueOnce(2n);
     mockClient.multicall.mockResolvedValueOnce([
@@ -298,8 +310,31 @@ describe('assembly onchain commands', () => {
     expect(data.comments[0]?.threadId).toBe(1);
   });
 
+  it('forum thread returns OUT_OF_RANGE when id > threadCount', async () => {
+    mockClient.readContract.mockResolvedValueOnce(1n);
+
+    const out = await run(['forum', 'thread', '2']);
+
+    expect(out.ok).toBe(false);
+    expect(out.error).toMatchObject({ code: 'OUT_OF_RANGE' });
+    expect(out.error?.message).toContain('threadCount: 1');
+    expect(mockClient.readContract).toHaveBeenCalledTimes(1);
+  });
+
+  it('forum comment returns OUT_OF_RANGE when id > commentCount', async () => {
+    mockClient.readContract.mockResolvedValueOnce(1n);
+
+    const out = await run(['forum', 'comment', '2']);
+
+    expect(out.ok).toBe(false);
+    expect(out.error).toMatchObject({ code: 'OUT_OF_RANGE' });
+    expect(out.error?.message).toContain('commentCount: 1');
+    expect(mockClient.readContract).toHaveBeenCalledTimes(1);
+  });
+
   it('forum petition decodes tuple and remains JSON-safe', async () => {
     mockClient.readContract
+      .mockResolvedValueOnce(1n)
       .mockResolvedValueOnce([
         1n,
         addrA,
@@ -320,6 +355,17 @@ describe('assembly onchain commands', () => {
     const data = out.data as Record<string, unknown>;
     expect(data.proposerSigned).toBe(true);
     expect(data.signatures).toBe(5);
+  });
+
+  it('forum petition returns OUT_OF_RANGE when id > petitionCount', async () => {
+    mockClient.readContract.mockResolvedValueOnce(1n);
+
+    const out = await run(['forum', 'petition', '2']);
+
+    expect(out.ok).toBe(false);
+    expect(out.error).toMatchObject({ code: 'OUT_OF_RANGE' });
+    expect(out.error?.message).toContain('petitionCount: 1');
+    expect(mockClient.readContract).toHaveBeenCalledTimes(1);
   });
 
   it('forum stats', async () => {
@@ -412,31 +458,33 @@ describe('assembly onchain commands', () => {
   });
 
   it('governance proposal serializes bigint fields to JSON-safe values', async () => {
-    mockClient.readContract.mockResolvedValueOnce([
-      1n,
-      2n,
-      3n,
-      4n,
-      addrA,
-      11n,
-      12n,
-      100n,
-      110n,
-      120n,
-      130n,
-      140n,
-      15n,
-      16n,
-      17n,
-      18n,
-      19n,
-      20n,
-      false,
-      200n,
-      1n,
-      'Proposal title',
-      'Proposal description',
-    ]);
+    mockClient.readContract
+      .mockResolvedValueOnce(1n)
+      .mockResolvedValueOnce([
+        1n,
+        2n,
+        3n,
+        4n,
+        addrA,
+        11n,
+        12n,
+        100n,
+        110n,
+        120n,
+        130n,
+        140n,
+        15n,
+        16n,
+        17n,
+        18n,
+        19n,
+        20n,
+        false,
+        200n,
+        1n,
+        'Proposal title',
+        'Proposal description',
+      ]);
 
     const out = await run(['governance', 'proposal', '1']);
     expect(out.ok).toBe(true);
@@ -446,6 +494,17 @@ describe('assembly onchain commands', () => {
     expect(data.status).toBe(4);
     expect(data.forVotes).toBe('16');
     expect(data.amount).toBe('19');
+  });
+
+  it('governance proposal returns OUT_OF_RANGE when id > proposalCount', async () => {
+    mockClient.readContract.mockResolvedValueOnce(1n);
+
+    const out = await run(['governance', 'proposal', '2']);
+
+    expect(out.ok).toBe(false);
+    expect(out.error).toMatchObject({ code: 'OUT_OF_RANGE' });
+    expect(out.error?.message).toContain('proposalCount: 1');
+    expect(mockClient.readContract).toHaveBeenCalledTimes(1);
   });
 
   it('governance params uses multicall', async () => {
@@ -459,6 +518,17 @@ describe('assembly onchain commands', () => {
     mockClient.getBalance.mockResolvedValueOnce(1000000000000000000n);
     const out = await run(['treasury', 'balance']);
     expect(out.ok).toBe(true);
+  });
+
+  it('treasury executed returns OUT_OF_RANGE when proposalId > proposalCount', async () => {
+    mockClient.readContract.mockResolvedValueOnce(1n);
+
+    const out = await run(['treasury', 'executed', '2']);
+
+    expect(out.ok).toBe(false);
+    expect(out.error).toMatchObject({ code: 'OUT_OF_RANGE' });
+    expect(out.error?.message).toContain('proposalCount: 1');
+    expect(mockClient.readContract).toHaveBeenCalledTimes(1);
   });
 
   it('status', async () => {
