@@ -1,6 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-type Envelope = { ok: boolean; data?: unknown; error?: unknown };
+type Envelope = {
+  ok: boolean;
+  data?: unknown;
+  error?: {
+    code?: string;
+    message?: string;
+  };
+};
 
 const mockClient = {
   readContract: vi.fn(),
@@ -23,6 +30,13 @@ async function run(argv: string[]) {
   });
   const json = [...lines].reverse().find((x) => x.trim().startsWith('{')) ?? '{}';
   return JSON.parse(json) as Envelope;
+}
+
+function createViemError(options: { message: string; name: string; shortMessage: string }) {
+  const error = new Error(options.message) as Error & { shortMessage?: string };
+  error.name = options.name;
+  error.shortMessage = options.shortMessage;
+  return error;
 }
 
 const addrA = '0x00000000000000000000000000000000000000aa';
@@ -301,5 +315,72 @@ describe('assembly onchain commands', () => {
     mockClient.getBalance.mockResolvedValueOnce(100n);
     const out = await run(['status']);
     expect(out.ok).toBe(true);
+  });
+
+  it('sanitizes invalid address viem internals by default', async () => {
+    mockClient.readContract.mockRejectedValueOnce(
+      createViemError({
+        name: 'InvalidAddressError',
+        shortMessage: 'Address "0xinvalid" is invalid.',
+        message:
+          'Address "0xinvalid" is invalid.\n\n- Address must be a hex value of 20 bytes (40 hex characters).\n\nVersion: viem@2.47.0',
+      }),
+    );
+
+    const out = await run(['health', '0xinvalid']);
+
+    expect(out.ok).toBe(false);
+    expect(out.error?.code).toBe('INVALID_ADDRESS');
+    expect(out.error?.message).toContain('Address "0xinvalid" is invalid.');
+    expect(out.error?.message).toContain('Use a valid 0x-prefixed 20-byte address.');
+    expect(out.error?.message).not.toContain('Version: viem@');
+  });
+
+  it('returns actionable RPC failure message without leaking request internals', async () => {
+    mockClient.readContract.mockRejectedValueOnce(
+      createViemError({
+        name: 'ContractFunctionExecutionError',
+        shortMessage: 'HTTP request failed.',
+        message:
+          'HTTP request failed.\n\nURL: https://fake-rpc.example.com/\nRequest body: {"method":"eth_call"}\nVersion: viem@2.47.0',
+      }),
+    );
+
+    const out = await run(['status']);
+
+    expect(out.ok).toBe(false);
+    expect(out.error?.code).toBe('RPC_CONNECTION_FAILED');
+    expect(out.error?.message).toContain(
+      'RPC connection failed. Check ABSTRACT_RPC_URL and try again.',
+    );
+    expect(out.error?.message).not.toContain('URL: https://fake-rpc.example.com/');
+    expect(out.error?.message).not.toContain('Request body:');
+  });
+
+  it('shows help guidance for missing required args', async () => {
+    const out = await run(['treasury', 'whitelist']);
+
+    expect(out.ok).toBe(false);
+    expect(out.error?.code).toBe('VALIDATION_ERROR');
+    expect(out.error?.message).toContain('Missing required argument: asset.');
+    expect(out.error?.message).toContain('assembly treasury whitelist --help');
+    expect(out.error?.message).not.toContain('Invalid input: expected string, received undefined');
+  });
+
+  it('keeps raw upstream errors when --debug is enabled', async () => {
+    mockClient.readContract.mockRejectedValueOnce(
+      createViemError({
+        name: 'InvalidAddressError',
+        shortMessage: 'Address "0xinvalid" is invalid.',
+        message:
+          'Address "0xinvalid" is invalid.\n\n- Address must be a hex value of 20 bytes (40 hex characters).\n\nVersion: viem@2.47.0',
+      }),
+    );
+
+    const out = await run(['health', '0xinvalid', '--debug']);
+
+    expect(out.ok).toBe(false);
+    expect(out.error?.code).toBe('UNKNOWN');
+    expect(out.error?.message).toContain('Version: viem@2.47.0');
   });
 });
