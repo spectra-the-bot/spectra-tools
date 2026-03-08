@@ -18,7 +18,7 @@ jobs:
     if: github.event_name == 'issues'
     runs-on: ubuntu-latest
     steps:
-      - name: Label issue source + intake gate
+      - name: Label issue source
         uses: actions/github-script@v7
         with:
           script: |
@@ -33,8 +33,8 @@ jobs:
               add.push('source:internal');
               remove.push('source:external');
             } else {
-              add.push('source:external', 'status:needs-human-triage');
-              remove.push('source:internal', 'status:ready');
+              add.push('source:external');
+              remove.push('source:internal');
             }
 
             for (const name of remove) {
