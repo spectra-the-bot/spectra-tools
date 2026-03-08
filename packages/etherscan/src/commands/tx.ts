@@ -6,6 +6,11 @@ import { DEFAULT_CHAIN, resolveChainId } from '../chains.js';
 
 const rateLimiter = createRateLimiter({ requestsPerSecond: 5 });
 
+/** Convert a hex string (e.g. "0x3061ea") to a decimal string ("198122"). */
+function hexToDecimal(hex: string): string {
+  return BigInt(hex).toString();
+}
+
 const chainOption = z
   .string()
   .default(DEFAULT_CHAIN)
@@ -95,11 +100,11 @@ txCli.command('info', {
         hash: tx.hash,
         from: tx.from,
         to: tx.to,
-        value: tx.value,
-        gas: tx.gas,
-        gasPrice: tx.gasPrice,
-        nonce: tx.nonce,
-        block: tx.blockNumber,
+        value: hexToDecimal(tx.value),
+        gas: hexToDecimal(tx.gas),
+        gasPrice: hexToDecimal(tx.gasPrice),
+        nonce: hexToDecimal(tx.nonce),
+        block: hexToDecimal(tx.blockNumber),
         chain: c.options.chain,
       },
       c.format === 'json' || c.format === 'jsonl'
@@ -171,11 +176,11 @@ txCli.command('receipt', {
     return c.ok(
       {
         hash: receipt.transactionHash,
-        block: receipt.blockNumber,
+        block: hexToDecimal(receipt.blockNumber),
         from: receipt.from,
         to: receipt.to,
         status: receipt.status === '0x1' ? 'success' : 'failed',
-        gasUsed: receipt.gasUsed,
+        gasUsed: hexToDecimal(receipt.gasUsed),
         contractAddress: receipt.contractAddress,
         logCount: receipt.logs.length,
         chain: c.options.chain,
