@@ -31,6 +31,10 @@ discovery.command('search', {
   env: z.object({
     ABSTRACT_RPC_URL: z.string().optional().describe('Abstract RPC URL'),
     IDENTITY_REGISTRY_ADDRESS: z.string().optional().describe('Identity registry contract address'),
+    IPFS_GATEWAY: z
+      .string()
+      .optional()
+      .describe('IPFS gateway override (default: https://ipfs.io)'),
   }),
   output: z.object({
     results: z.array(
@@ -150,6 +154,10 @@ discovery.command('resolve', {
   }),
   env: z.object({
     ABSTRACT_RPC_URL: z.string().optional().describe('Abstract RPC URL'),
+    IPFS_GATEWAY: z
+      .string()
+      .optional()
+      .describe('IPFS gateway override (default: https://ipfs.io)'),
   }),
   output: z.object({
     identifier: z.string(),

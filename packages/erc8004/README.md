@@ -29,6 +29,7 @@ erc8004-cli mcp add
 | `IDENTITY_REGISTRY_ADDRESS` | Optional override | Identity registry contract |
 | `REPUTATION_REGISTRY_ADDRESS` | Optional override | Reputation registry contract |
 | `VALIDATION_REGISTRY_ADDRESS` | Optional override | Validation registry contract |
+| `IPFS_GATEWAY` | No | IPFS HTTP gateway for resolving `ipfs://` URIs (defaults to `https://ipfs.io`) |
 | `PRIVATE_KEY` | Write commands only | `0x`-prefixed signing key |
 
 ## Command Group Intent Summary
