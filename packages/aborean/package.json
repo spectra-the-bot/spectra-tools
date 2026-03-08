@@ -1,0 +1,50 @@
+{
+  "name": "@spectratools/aborean-cli",
+  "version": "0.1.0",
+  "description": "CLI for Aborean Finance DEX on Abstract (pools, swaps, gauges, voting escrow).",
+  "type": "module",
+  "license": "MIT",
+  "author": "spectra-the-bot",
+  "keywords": [
+    "aborean",
+    "abstract",
+    "dex",
+    "amm",
+    "ve33",
+    "ethereum",
+    "web3",
+    "cli",
+    "incur",
+    "spectratools"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/spectra-the-bot/spectra-tools.git",
+    "directory": "packages/aborean"
+  },
+  "homepage": "https://github.com/spectra-the-bot/spectra-tools/tree/main/packages/aborean#readme",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "aborean-cli": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "prepublishOnly": "pnpm build"
+  },
+  "dependencies": {
+    "@spectratools/cli-shared": "workspace:*",
+    "incur": "^0.2.2",
+    "ox": "^0.14.0",
+    "viem": "^2.47.0"
+  },
+  "devDependencies": {
+    "typescript": "5.7.3",
+    "vitest": "2.1.8"
+  },
+  "files": ["dist", "README.md"],
+  "main": "./dist/cli.js"
+}
