@@ -24,6 +24,8 @@ jobs:
   build:
     name: Build docs
     runs-on: ubuntu-latest
+    outputs:
+      pages_enabled: ${{ steps.pages-status.outputs.enabled }}
     steps:
       - uses: actions/checkout@v4
 
@@ -37,9 +39,21 @@ jobs:
           cache: 'pnpm'
 
       - name: Configure GitHub Pages
+        id: pages-config
+        continue-on-error: true
         uses: actions/configure-pages@v5
         with:
           enablement: true
+
+      - name: Detect Pages availability
+        id: pages-status
+        run: |
+          if [ "${{ steps.pages-config.outcome }}" = "success" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::GitHub Pages is not enabled or this workflow token cannot manage it. Skipping deploy."
+          fi
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -54,12 +68,14 @@ jobs:
         run: pnpm docs:build
 
       - name: Upload GitHub Pages artifact
+        if: steps.pages-status.outputs.enabled == 'true'
         uses: actions/upload-pages-artifact@v3
         with:
           path: docs/.vitepress/dist
 
   deploy:
     name: Deploy docs
+    if: needs.build.outputs.pages_enabled == 'true'
     runs-on: ubuntu-latest
     needs: build
     environment:
