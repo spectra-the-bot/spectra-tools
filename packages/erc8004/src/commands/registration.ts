@@ -1,6 +1,7 @@
 import { Cli, z } from 'incur';
 import { type Registration, registrationSchema } from '../schema.js';
 import { fetchRegistrationUri } from '../utils/fetch-uri.js';
+import { validateBigIntArg } from '../utils/validate-agent-id.js';
 
 const registration = Cli.create('registration', {
   description: 'Fetch, validate, and create ERC-8004 registration files.',
@@ -34,12 +35,13 @@ registration.command('fetch', {
 
     const client = getPublicClient(c.env.ABSTRACT_RPC_URL);
     const address = getIdentityRegistryAddress(c.env);
+    const tokenId = validateBigIntArg(c.args.agentId, 'agentId');
 
     const uri = await readContract(client, {
       address,
       abi: identityRegistryAbi,
       functionName: 'tokenURI',
-      args: [BigInt(c.args.agentId)],
+      args: [tokenId],
     });
 
     const raw = await fetchRegistrationUri(uri);
