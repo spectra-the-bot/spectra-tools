@@ -26,6 +26,20 @@ pnpm typecheck
 pnpm test
 ```
 
+## Release process (Changesets + npm)
+
+1. Add a changeset in every PR that should ship a package change:
+   ```bash
+   pnpm changeset
+   ```
+2. Merge the PR into `main`. The release workflow will create or update a **Version Packages** release PR when changesets are present.
+3. Merge the release PR. That merge triggers publish and pushes only unpublished, versioned `@spectratools/*` packages to npm (`registry.npmjs.org`).
+4. If `main` has no pending changesets and no unpublished versions, the workflow exits cleanly with an explicit skip message.
+
+### Required repository secret
+
+- `NPM_TOKEN`: npm automation token with publish access to `@spectratools` packages.
+
 ## License
 
 MIT
