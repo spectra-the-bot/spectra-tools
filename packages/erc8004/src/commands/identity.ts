@@ -22,6 +22,68 @@ function chunk<T>(items: readonly T[], size: number): T[][] {
   return batches;
 }
 
+const ENUMERATION_UNSUPPORTED_MESSAGE =
+  'This registry does not support enumeration. Use `identity get <agentId>` for direct lookups.';
+const VIEM_ERROR_NAMES = new Set([
+  'AbiFunctionNotFoundError',
+  'CallExecutionError',
+  'ContractFunctionExecutionError',
+  'ContractFunctionRevertedError',
+  'HttpRequestError',
+  'InvalidAddressError',
+  'TransactionExecutionError',
+]);
+
+type CliErrorContext = {
+  error: (options: { code: string; message: string; retryable?: boolean }) => never;
+};
+
+function isViemLikeError(error: unknown): error is Error & { shortMessage?: string } {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const shortMessage = (error as { shortMessage?: unknown }).shortMessage;
+  return (
+    VIEM_ERROR_NAMES.has(error.name) ||
+    (typeof shortMessage === 'string' && shortMessage.length > 0) ||
+    error.message.includes('Docs: https://viem.sh') ||
+    error.message.includes('Version: viem@')
+  );
+}
+
+function isEnumerableFailure(error: unknown): boolean {
+  if (!isViemLikeError(error)) {
+    return false;
+  }
+
+  const shortMessage =
+    typeof error.shortMessage === 'string' && error.shortMessage.trim().length > 0
+      ? error.shortMessage
+      : '';
+  const text = `${error.name} ${shortMessage} ${error.message}`.toLowerCase();
+
+  return (
+    text.includes('totalsupply') ||
+    text.includes('tokenbyindex') ||
+    text.includes('tokenofownerbyindex') ||
+    text.includes('enumerable') ||
+    text.includes('function does not exist')
+  );
+}
+
+function viemError(
+  c: CliErrorContext,
+  error: unknown,
+  fallback: { code: string; message: string; retryable?: boolean },
+): never {
+  if (isViemLikeError(error)) {
+    return c.error(fallback);
+  }
+
+  throw error;
+}
+
 identity.command('list', {
   description: 'List registered agents, optionally filtered by owner.',
   options: z.object({
@@ -54,123 +116,236 @@ identity.command('list', {
     const address = getIdentityRegistryAddress(c.env);
     const { owner, limit } = c.options;
 
-    const total = await readContract(client, {
-      address,
-      abi: identityRegistryAbi,
-      functionName: 'totalSupply',
-    });
-
     const agents: { agentId: string; owner: string; uri: string }[] = [];
-    const totalNum = Number(total);
+    let total = 0;
 
     if (owner) {
       const ownerAddress = owner as `0x${string}`;
-      const balance = await readContract(client, {
-        address,
-        abi: identityRegistryAbi,
-        functionName: 'balanceOf',
-        args: [ownerAddress],
-      });
-      const count = Math.min(Number(balance), limit);
 
-      const ownerIndexBatches = chunk(
-        Array.from({ length: count }, (_, i) => BigInt(i)),
-        MULTICALL_BATCH_SIZE,
-      );
-
-      for (const ownerIndexBatch of ownerIndexBatches) {
-        const tokenIdResults = await client.multicall({
-          allowFailure: true,
-          contracts: ownerIndexBatch.map((index) => ({
-            address,
-            abi: identityRegistryAbi,
-            functionName: 'tokenOfOwnerByIndex',
-            args: [ownerAddress, index] as const,
-          })),
+      let balance: bigint;
+      try {
+        balance = await readContract(client, {
+          address,
+          abi: identityRegistryAbi,
+          functionName: 'balanceOf',
+          args: [ownerAddress],
         });
+      } catch (error) {
+        return viemError(c, error, {
+          code: 'IDENTITY_LIST_FAILED',
+          message: 'Could not read owner balance from this registry.',
+          retryable: true,
+        });
+      }
 
-        const tokenIds: bigint[] = [];
-        for (const tokenIdResult of tokenIdResults) {
-          if (tokenIdResult.status === 'success') {
-            tokenIds.push(tokenIdResult.result as bigint);
-          }
+      total = Number(balance);
+      const count = Math.min(total, limit);
+
+      if (count > 0) {
+        type TransferToOwnerEvent = { args: { tokenId?: bigint } };
+
+        let transferToOwnerEvents: TransferToOwnerEvent[];
+        try {
+          transferToOwnerEvents = (await client.getContractEvents({
+            abi: identityRegistryAbi,
+            address,
+            eventName: 'Transfer',
+            args: { to: ownerAddress },
+            fromBlock: 0n,
+            strict: true,
+          })) as TransferToOwnerEvent[];
+        } catch (error) {
+          return viemError(c, error, {
+            code: 'IDENTITY_LIST_FAILED',
+            message: 'Could not scan owner transfer history for this registry.',
+            retryable: true,
+          });
         }
 
-        if (tokenIds.length === 0) {
-          continue;
-        }
+        const seen = new Set<string>();
+        const candidateTokenIds: bigint[] = [];
 
-        const uriResults = await client.multicall({
-          allowFailure: true,
-          contracts: tokenIds.map((tokenId) => ({
-            address,
-            abi: identityRegistryAbi,
-            functionName: 'tokenURI',
-            args: [tokenId] as const,
-          })),
-        });
-
-        for (let i = 0; i < tokenIds.length; i++) {
-          const uriResult = uriResults[i];
-          if (!uriResult || uriResult.status !== 'success') {
+        for (let i = transferToOwnerEvents.length - 1; i >= 0; i -= 1) {
+          const tokenId = transferToOwnerEvents[i]?.args?.tokenId;
+          if (typeof tokenId !== 'bigint') {
             continue;
           }
 
+          const tokenKey = tokenId.toString();
+          if (seen.has(tokenKey)) {
+            continue;
+          }
+
+          seen.add(tokenKey);
+          candidateTokenIds.push(tokenId);
+        }
+
+        const ownerLower = ownerAddress.toLowerCase();
+
+        for (const tokenId of candidateTokenIds) {
+          if (agents.length >= count) {
+            break;
+          }
+
+          let currentOwner: `0x${string}`;
+          try {
+            currentOwner = await readContract(client, {
+              address,
+              abi: identityRegistryAbi,
+              functionName: 'ownerOf',
+              args: [tokenId],
+            });
+          } catch (error) {
+            if (isViemLikeError(error)) {
+              continue;
+            }
+            throw error;
+          }
+
+          if (currentOwner.toLowerCase() !== ownerLower) {
+            continue;
+          }
+
+          let uri: string;
+          try {
+            uri = await readContract(client, {
+              address,
+              abi: identityRegistryAbi,
+              functionName: 'tokenURI',
+              args: [tokenId],
+            });
+          } catch (error) {
+            if (isViemLikeError(error)) {
+              continue;
+            }
+            throw error;
+          }
+
           agents.push({
-            agentId: tokenIds[i].toString(),
+            agentId: tokenId.toString(),
             owner: checksumAddress(ownerAddress),
-            uri: String(uriResult.result),
+            uri,
           });
         }
       }
     } else {
-      const count = Math.min(totalNum, limit);
+      let totalSupply: bigint;
+      try {
+        totalSupply = await readContract(client, {
+          address,
+          abi: identityRegistryAbi,
+          functionName: 'totalSupply',
+        });
+      } catch (error) {
+        if (isEnumerableFailure(error)) {
+          return c.error({
+            code: 'ENUMERATION_UNSUPPORTED',
+            message: ENUMERATION_UNSUPPORTED_MESSAGE,
+            retryable: false,
+          });
+        }
+
+        return viemError(c, error, {
+          code: 'IDENTITY_LIST_FAILED',
+          message: 'Could not read registry supply from this contract.',
+          retryable: true,
+        });
+      }
+
+      total = Number(totalSupply);
+      const count = Math.min(total, limit);
       const indexBatches = chunk(
         Array.from({ length: count }, (_, i) => BigInt(i)),
         MULTICALL_BATCH_SIZE,
       );
 
       for (const indexBatch of indexBatches) {
-        const tokenIdResults = await client.multicall({
-          allowFailure: true,
-          contracts: indexBatch.map((index) => ({
-            address,
-            abi: identityRegistryAbi,
-            functionName: 'tokenByIndex',
-            args: [index] as const,
-          })),
-        });
+        let tokenIdResults: Array<
+          { status: 'success'; result: unknown } | { status: 'failure'; error: unknown }
+        >;
+        try {
+          tokenIdResults = (await client.multicall({
+            allowFailure: true,
+            contracts: indexBatch.map((index) => ({
+              address,
+              abi: identityRegistryAbi,
+              functionName: 'tokenByIndex',
+              args: [index] as const,
+            })),
+          })) as Array<
+            { status: 'success'; result: unknown } | { status: 'failure'; error: unknown }
+          >;
+        } catch (error) {
+          if (isEnumerableFailure(error)) {
+            return c.error({
+              code: 'ENUMERATION_UNSUPPORTED',
+              message: ENUMERATION_UNSUPPORTED_MESSAGE,
+              retryable: false,
+            });
+          }
+
+          return viemError(c, error, {
+            code: 'IDENTITY_LIST_FAILED',
+            message: 'Could not enumerate agent IDs from this registry.',
+            retryable: true,
+          });
+        }
 
         const tokenIds: bigint[] = [];
+        let failedCalls = 0;
         for (const tokenIdResult of tokenIdResults) {
           if (tokenIdResult.status === 'success') {
             tokenIds.push(tokenIdResult.result as bigint);
+            continue;
           }
+
+          failedCalls += 1;
+        }
+
+        if (tokenIdResults.length > 0 && failedCalls === tokenIdResults.length) {
+          return c.error({
+            code: 'ENUMERATION_UNSUPPORTED',
+            message: ENUMERATION_UNSUPPORTED_MESSAGE,
+            retryable: false,
+          });
         }
 
         if (tokenIds.length === 0) {
           continue;
         }
 
-        const detailsResults = await client.multicall({
-          allowFailure: true,
-          contracts: tokenIds.flatMap((tokenId) => [
-            {
-              address,
-              abi: identityRegistryAbi,
-              functionName: 'ownerOf' as const,
-              args: [tokenId] as const,
-            },
-            {
-              address,
-              abi: identityRegistryAbi,
-              functionName: 'tokenURI' as const,
-              args: [tokenId] as const,
-            },
-          ]),
-        });
+        let detailsResults: Array<
+          { status: 'success'; result: unknown } | { status: 'failure'; error: unknown }
+        >;
+        try {
+          detailsResults = (await client.multicall({
+            allowFailure: true,
+            contracts: tokenIds.flatMap((tokenId) => [
+              {
+                address,
+                abi: identityRegistryAbi,
+                functionName: 'ownerOf' as const,
+                args: [tokenId] as const,
+              },
+              {
+                address,
+                abi: identityRegistryAbi,
+                functionName: 'tokenURI' as const,
+                args: [tokenId] as const,
+              },
+            ]),
+          })) as Array<
+            { status: 'success'; result: unknown } | { status: 'failure'; error: unknown }
+          >;
+        } catch (error) {
+          return viemError(c, error, {
+            code: 'IDENTITY_LIST_FAILED',
+            message: 'Could not read agent details from this registry.',
+            retryable: true,
+          });
+        }
 
-        for (let i = 0; i < tokenIds.length; i++) {
+        for (let i = 0; i < tokenIds.length; i += 1) {
           const ownerResult = detailsResults[i * 2];
           const uriResult = detailsResults[i * 2 + 1];
           if (
@@ -192,7 +367,7 @@ identity.command('list', {
     }
 
     return c.ok(
-      { agents, total: totalNum },
+      { agents, total },
       {
         cta: {
           description: 'Suggested commands:',

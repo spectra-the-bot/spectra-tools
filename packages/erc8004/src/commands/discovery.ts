@@ -33,6 +33,67 @@ function chunk<T>(items: readonly T[], size: number): T[][] {
   return batches;
 }
 
+const DISCOVERY_ENUMERATION_MESSAGE =
+  'Discovery search requires registry enumeration, but this registry does not support it. Use `identity get <agentId>` for direct lookups.';
+const VIEM_ERROR_NAMES = new Set([
+  'AbiFunctionNotFoundError',
+  'CallExecutionError',
+  'ContractFunctionExecutionError',
+  'ContractFunctionRevertedError',
+  'HttpRequestError',
+  'InvalidAddressError',
+  'TransactionExecutionError',
+]);
+
+type CliErrorContext = {
+  error: (options: { code: string; message: string; retryable?: boolean }) => never;
+};
+
+function isViemLikeError(error: unknown): error is Error & { shortMessage?: string } {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const shortMessage = (error as { shortMessage?: unknown }).shortMessage;
+  return (
+    VIEM_ERROR_NAMES.has(error.name) ||
+    (typeof shortMessage === 'string' && shortMessage.length > 0) ||
+    error.message.includes('Docs: https://viem.sh') ||
+    error.message.includes('Version: viem@')
+  );
+}
+
+function isEnumerableFailure(error: unknown): boolean {
+  if (!isViemLikeError(error)) {
+    return false;
+  }
+
+  const shortMessage =
+    typeof error.shortMessage === 'string' && error.shortMessage.trim().length > 0
+      ? error.shortMessage
+      : '';
+  const text = `${error.name} ${shortMessage} ${error.message}`.toLowerCase();
+
+  return (
+    text.includes('totalsupply') ||
+    text.includes('tokenbyindex') ||
+    text.includes('enumerable') ||
+    text.includes('function does not exist')
+  );
+}
+
+function viemError(
+  c: CliErrorContext,
+  error: unknown,
+  fallback: { code: string; message: string; retryable?: boolean },
+): never {
+  if (isViemLikeError(error)) {
+    return c.error(fallback);
+  }
+
+  throw error;
+}
+
 discovery.command('search', {
   description: 'Search for registered agents by name or service type.',
   options: z.object({
@@ -71,11 +132,28 @@ discovery.command('search', {
     const address = getIdentityRegistryAddress(c.env);
     const { name, service, limit } = c.options;
 
-    const total = await readContract(client, {
-      address,
-      abi: identityRegistryAbi,
-      functionName: 'totalSupply',
-    });
+    let totalSupply: bigint;
+    try {
+      totalSupply = await readContract(client, {
+        address,
+        abi: identityRegistryAbi,
+        functionName: 'totalSupply',
+      });
+    } catch (error) {
+      if (isEnumerableFailure(error)) {
+        return c.error({
+          code: 'ENUMERATION_UNSUPPORTED',
+          message: DISCOVERY_ENUMERATION_MESSAGE,
+          retryable: false,
+        });
+      }
+
+      return viemError(c, error, {
+        code: 'DISCOVERY_SEARCH_FAILED',
+        message: 'Could not read registry supply for discovery search.',
+        retryable: true,
+      });
+    }
 
     const results: {
       agentId: string;
@@ -86,7 +164,7 @@ discovery.command('search', {
       uri: string;
     }[] = [];
 
-    const totalNum = Number(total);
+    const totalNum = Number(totalSupply);
     const indexedBatches = chunk(
       Array.from({ length: totalNum }, (_, i) => BigInt(i)),
       MULTICALL_BATCH_SIZE,
@@ -97,47 +175,93 @@ discovery.command('search', {
         break;
       }
 
-      const tokenIdResults = await client.multicall({
-        allowFailure: true,
-        contracts: indexBatch.map((index) => ({
-          address,
-          abi: identityRegistryAbi,
-          functionName: 'tokenByIndex',
-          args: [index] as const,
-        })),
-      });
+      let tokenIdResults: Array<
+        { status: 'success'; result: unknown } | { status: 'failure'; error: unknown }
+      >;
+      try {
+        tokenIdResults = (await client.multicall({
+          allowFailure: true,
+          contracts: indexBatch.map((index) => ({
+            address,
+            abi: identityRegistryAbi,
+            functionName: 'tokenByIndex',
+            args: [index] as const,
+          })),
+        })) as Array<
+          { status: 'success'; result: unknown } | { status: 'failure'; error: unknown }
+        >;
+      } catch (error) {
+        if (isEnumerableFailure(error)) {
+          return c.error({
+            code: 'ENUMERATION_UNSUPPORTED',
+            message: DISCOVERY_ENUMERATION_MESSAGE,
+            retryable: false,
+          });
+        }
+
+        return viemError(c, error, {
+          code: 'DISCOVERY_SEARCH_FAILED',
+          message: 'Could not enumerate agents for discovery search.',
+          retryable: true,
+        });
+      }
 
       const tokenIds: bigint[] = [];
+      let failedCalls = 0;
       for (const tokenIdResult of tokenIdResults) {
         if (tokenIdResult.status === 'success') {
           tokenIds.push(tokenIdResult.result as bigint);
+          continue;
         }
+
+        failedCalls += 1;
+      }
+
+      if (tokenIdResults.length > 0 && failedCalls === tokenIdResults.length) {
+        return c.error({
+          code: 'ENUMERATION_UNSUPPORTED',
+          message: DISCOVERY_ENUMERATION_MESSAGE,
+          retryable: false,
+        });
       }
 
       if (tokenIds.length === 0) {
         continue;
       }
 
-      const detailsResults = await client.multicall({
-        allowFailure: true,
-        contracts: tokenIds.flatMap((tokenId) => [
-          {
-            address,
-            abi: identityRegistryAbi,
-            functionName: 'ownerOf' as const,
-            args: [tokenId] as const,
-          },
-          {
-            address,
-            abi: identityRegistryAbi,
-            functionName: 'tokenURI' as const,
-            args: [tokenId] as const,
-          },
-        ]),
-      });
+      let detailsResults: Array<
+        { status: 'success'; result: unknown } | { status: 'failure'; error: unknown }
+      >;
+      try {
+        detailsResults = (await client.multicall({
+          allowFailure: true,
+          contracts: tokenIds.flatMap((tokenId) => [
+            {
+              address,
+              abi: identityRegistryAbi,
+              functionName: 'ownerOf' as const,
+              args: [tokenId] as const,
+            },
+            {
+              address,
+              abi: identityRegistryAbi,
+              functionName: 'tokenURI' as const,
+              args: [tokenId] as const,
+            },
+          ]),
+        })) as Array<
+          { status: 'success'; result: unknown } | { status: 'failure'; error: unknown }
+        >;
+      } catch (error) {
+        return viemError(c, error, {
+          code: 'DISCOVERY_SEARCH_FAILED',
+          message: 'Could not read agent details for discovery search.',
+          retryable: true,
+        });
+      }
 
       const details: { tokenId: bigint; owner: `0x${string}`; uri: string }[] = [];
-      for (let i = 0; i < tokenIds.length; i++) {
+      for (let i = 0; i < tokenIds.length; i += 1) {
         const ownerResult = detailsResults[i * 2];
         const uriResult = detailsResults[i * 2 + 1];
 
@@ -160,7 +284,7 @@ discovery.command('search', {
         details.map((detail) => tryFetchRegistration(detail.uri)),
       );
 
-      for (let i = 0; i < details.length; i++) {
+      for (let i = 0; i < details.length; i += 1) {
         if (results.length >= limit) {
           break;
         }
@@ -168,7 +292,6 @@ discovery.command('search', {
         const detail = details[i];
         const reg = registrations[i];
 
-        // Apply filters
         if (name && reg && !reg.name.toLowerCase().includes(name.toLowerCase())) {
           continue;
         }
