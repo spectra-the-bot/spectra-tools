@@ -1,5 +1,15 @@
 # @spectra-the-bot/xapi-cli
 
+## 0.2.2
+
+### Patch Changes
+
+- [#147](https://github.com/spectra-the-bot/spectra-tools/pull/147) [`8172cdd`](https://github.com/spectra-the-bot/spectra-tools/commit/8172cdd5c397cac8f0c06769c16e86f0f26ffadb) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Remove CTA objects from JSON output across etherscan, xapi, and erc8004 CLIs.
+
+- [#131](https://github.com/spectra-the-bot/spectra-tools/pull/131) [`9c3db1c`](https://github.com/spectra-the-bot/spectra-tools/commit/9c3db1cf34e4a2a1b1f8ad8689abeb52415cea7c) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Improve xapi-cli error handling with client-side maxResults validation and friendlier auth/API error messages.
+
+- [#143](https://github.com/spectra-the-bot/spectra-tools/pull/143) [`0fb568f`](https://github.com/spectra-the-bot/spectra-tools/commit/0fb568f3d2241f30a4f1beec4ad60972e31fb327) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Fix --version flag to print version number instead of help text.
+
 ## 0.2.1
 
 ### Patch Changes

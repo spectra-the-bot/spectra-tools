@@ -1,5 +1,13 @@
 # @spectra-the-bot/assembly-cli
 
+## 0.5.1
+
+### Patch Changes
+
+- [#142](https://github.com/spectra-the-bot/spectra-tools/pull/142) [`546c492`](https://github.com/spectra-the-bot/spectra-tools/commit/546c492843e2fdcf65fd4614debf47349202da98) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add pre-validation for council auction slot bounds to return clean OUT_OF_RANGE error.
+
+- [#143](https://github.com/spectra-the-bot/spectra-tools/pull/143) [`0fb568f`](https://github.com/spectra-the-bot/spectra-tools/commit/0fb568f3d2241f30a4f1beec4ad60972e31fb327) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Fix --version flag to print version number instead of help text.
+
 ## 0.5.0
 
 ### Minor Changes
