@@ -10,6 +10,7 @@ import {
   getWalletClient,
 } from '../contracts/client.js';
 import { validateBigIntArg } from '../utils/validate-agent-id.js';
+import { mapContractRevertError } from '../utils/viem-errors.js';
 
 const validation = Cli.create('validation', {
   description:
@@ -157,12 +158,17 @@ validation.command('status', {
     const address = getValidationRegistryAddress(c.env, c.options.registry);
     const reqId = validateBigIntArg(c.args.requestId, 'requestId');
 
-    const result = await readContract(client, {
-      address,
-      abi: validationRegistryAbi,
-      functionName: 'getValidationStatus',
-      args: [reqId],
-    });
+    let result: readonly [bigint, `0x${string}`, string, number, string, bigint];
+    try {
+      result = await readContract(client, {
+        address,
+        abi: validationRegistryAbi,
+        functionName: 'getValidationStatus',
+        args: [reqId],
+      });
+    } catch (error) {
+      return mapContractRevertError(c, error, 'getValidationStatus');
+    }
 
     const statusCode = result[3] as keyof typeof ValidationStatus;
     const statusLabel = ValidationStatus[statusCode] ?? 'Unknown';
@@ -213,12 +219,17 @@ validation.command('history', {
     const address = getValidationRegistryAddress(c.env, c.options.registry);
     const tokenId = validateBigIntArg(c.args.agentId, 'agentId');
 
-    const count = await readContract(client, {
-      address,
-      abi: validationRegistryAbi,
-      functionName: 'getValidationCount',
-      args: [tokenId],
-    });
+    let count: bigint;
+    try {
+      count = await readContract(client, {
+        address,
+        abi: validationRegistryAbi,
+        functionName: 'getValidationCount',
+        args: [tokenId],
+      });
+    } catch (error) {
+      return mapContractRevertError(c, error, 'getValidationCount');
+    }
 
     const totalNum = Number(count);
     const requests: {

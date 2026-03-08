@@ -10,6 +10,7 @@ import {
   getWalletClient,
 } from '../contracts/client.js';
 import { validateBigIntArg } from '../utils/validate-agent-id.js';
+import { isEnumerableFailure, isViemLikeError, viemError } from '../utils/viem-errors.js';
 
 const identity = Cli.create('identity', {
   description: 'Manage ERC-8004 agent identities.',
@@ -25,65 +26,6 @@ function chunk<T>(items: readonly T[], size: number): T[][] {
 
 const ENUMERATION_UNSUPPORTED_MESSAGE =
   'This registry does not support enumeration. Use `identity get <agentId>` for direct lookups.';
-const VIEM_ERROR_NAMES = new Set([
-  'AbiFunctionNotFoundError',
-  'CallExecutionError',
-  'ContractFunctionExecutionError',
-  'ContractFunctionRevertedError',
-  'HttpRequestError',
-  'InvalidAddressError',
-  'TransactionExecutionError',
-]);
-
-type CliErrorContext = {
-  error: (options: { code: string; message: string; retryable?: boolean }) => never;
-};
-
-function isViemLikeError(error: unknown): error is Error & { shortMessage?: string } {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-
-  const shortMessage = (error as { shortMessage?: unknown }).shortMessage;
-  return (
-    VIEM_ERROR_NAMES.has(error.name) ||
-    (typeof shortMessage === 'string' && shortMessage.length > 0) ||
-    error.message.includes('Docs: https://viem.sh') ||
-    error.message.includes('Version: viem@')
-  );
-}
-
-function isEnumerableFailure(error: unknown): boolean {
-  if (!isViemLikeError(error)) {
-    return false;
-  }
-
-  const shortMessage =
-    typeof error.shortMessage === 'string' && error.shortMessage.trim().length > 0
-      ? error.shortMessage
-      : '';
-  const text = `${error.name} ${shortMessage} ${error.message}`.toLowerCase();
-
-  return (
-    text.includes('totalsupply') ||
-    text.includes('tokenbyindex') ||
-    text.includes('tokenofownerbyindex') ||
-    text.includes('enumerable') ||
-    text.includes('function does not exist')
-  );
-}
-
-function viemError(
-  c: CliErrorContext,
-  error: unknown,
-  fallback: { code: string; message: string; retryable?: boolean },
-): never {
-  if (isViemLikeError(error)) {
-    return c.error(fallback);
-  }
-
-  throw error;
-}
 
 identity.command('list', {
   description: 'List registered agents, optionally filtered by owner.',
