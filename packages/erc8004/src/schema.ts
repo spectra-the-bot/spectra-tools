@@ -7,7 +7,10 @@ export const serviceSchema = z
     type: z.string().optional().describe('Service type (e.g. "mcp", "openapi", "webhook")'),
     url: z.string().optional().describe('Service endpoint URL (legacy field)'),
     name: z.string().optional().describe('Service name from the ERC-8004 registration format'),
-    endpoint: z.string().optional().describe('Service endpoint from the ERC-8004 registration format'),
+    endpoint: z
+      .string()
+      .optional()
+      .describe('Service endpoint from the ERC-8004 registration format'),
     description: z.string().optional().describe('Human-readable description'),
     version: z.string().optional().describe('Service version'),
     x402: z.unknown().optional().describe('Optional x402 payment metadata for this service'),
