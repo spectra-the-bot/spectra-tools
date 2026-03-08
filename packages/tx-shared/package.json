@@ -1,0 +1,52 @@
+{
+  "name": "@spectratools/tx-shared",
+  "version": "0.1.0",
+  "description": "Shared transaction primitives, signer types, and chain config for spectra tools",
+  "type": "module",
+  "license": "MIT",
+  "author": "spectra-the-bot",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/spectra-the-bot/spectra-tools.git",
+    "directory": "packages/tx-shared"
+  },
+  "homepage": "https://github.com/spectra-the-bot/spectra-tools/tree/main/packages/tx-shared#readme",
+  "engines": {
+    "node": ">=20"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts",
+      "default": "./dist/types.js"
+    },
+    "./errors": {
+      "types": "./dist/errors.d.ts",
+      "default": "./dist/errors.js"
+    },
+    "./chain": {
+      "types": "./dist/chain.d.ts",
+      "default": "./dist/chain.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "prepublishOnly": "pnpm build"
+  },
+  "dependencies": {
+    "ox": "^0.14.0",
+    "viem": "^2.47.0"
+  },
+  "devDependencies": {
+    "typescript": "5.7.3",
+    "vitest": "2.1.8"
+  },
+  "files": ["dist", "README.md"],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts"
+}
