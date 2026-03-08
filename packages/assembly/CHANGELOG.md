@@ -1,5 +1,15 @@
 # @spectra-the-bot/assembly-cli
 
+## 0.5.0
+
+### Minor Changes
+
+- [#119](https://github.com/spectra-the-bot/spectra-tools/pull/119) [`94dd56a`](https://github.com/spectra-the-bot/spectra-tools/commit/94dd56a4267e1a66c1f5089f804d4a5a5d016e16) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add end-to-end invocation tests for symlink, npx, and pack+install workflows across all CLI packages.
+
+### Patch Changes
+
+- [#118](https://github.com/spectra-the-bot/spectra-tools/pull/118) [`3646038`](https://github.com/spectra-the-bot/spectra-tools/commit/36460383ad441c621a86ae0335a71594bc287c35) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Remove CTA metadata from JSON output for council auctions, forum threads, and governance proposals.
+
 ## 0.4.3
 
 ### Patch Changes
