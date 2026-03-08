@@ -1,0 +1,113 @@
+import { Cli, z } from 'incur';
+import { createAssemblyPublicClient } from '../contracts/client.js';
+import { governanceAbi } from '../contracts/abis.js';
+import { ABSTRACT_MAINNET_ADDRESSES } from '../contracts/addresses.js';
+import { asNum, relTime } from './_common.js';
+
+const env = z.object({ ABSTRACT_RPC_URL: z.string().optional() });
+export const governance = Cli.create('governance', {
+  description: 'Read governance proposals and params.',
+});
+
+governance.command('proposals', {
+  env,
+  async run(c) {
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL) as any;
+    const count = await client.readContract({
+      abi: governanceAbi,
+      address: ABSTRACT_MAINNET_ADDRESSES.governance,
+      functionName: 'proposalCount',
+    });
+    const ids = Array.from({ length: Number(count) }, (_, i) => BigInt(i + 1));
+    const proposals = ids.length
+      ? await client.multicall({
+          allowFailure: false,
+          contracts: ids.map((id) => ({
+            abi: governanceAbi,
+            address: ABSTRACT_MAINNET_ADDRESSES.governance,
+            functionName: 'proposals',
+            args: [id] as const,
+          })),
+        })
+      : [];
+    return c.ok(
+      proposals.map((p: any, i: number) => ({
+        id: i + 1,
+        kind: asNum(p.kind),
+        status: asNum(p.status),
+        title: p.title,
+        voteEndAt: asNum(p.voteEndAt),
+        voteEndRelative: relTime(p.voteEndAt),
+      })),
+      {
+        cta: {
+          description: 'Inspect or vote:',
+          commands: [
+            { command: 'governance proposal', args: { id: '<id>' } },
+            { command: 'governance vote', args: { id: '<id>' } },
+          ],
+        },
+      },
+    );
+  },
+});
+
+governance.command('proposal', {
+  args: z.object({ id: z.coerce.number().int().positive() }),
+  env,
+  async run(c) {
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL) as any;
+    const proposal = await client.readContract({
+      abi: governanceAbi,
+      address: ABSTRACT_MAINNET_ADDRESSES.governance,
+      functionName: 'proposals',
+      args: [BigInt(c.args.id)],
+    });
+    return c.ok(proposal);
+  },
+});
+
+governance.command('has-voted', {
+  args: z.object({ proposalId: z.coerce.number().int().positive(), address: z.string() }),
+  env,
+  async run(c) {
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL) as any;
+    const hasVoted = await client.readContract({
+      abi: governanceAbi,
+      address: ABSTRACT_MAINNET_ADDRESSES.governance,
+      functionName: 'hasVoted',
+      args: [BigInt(c.args.proposalId), c.args.address],
+    });
+    return c.ok({ proposalId: c.args.proposalId, address: c.args.address, hasVoted });
+  },
+});
+
+governance.command('params', {
+  env,
+  async run(c) {
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL) as any;
+    const getters = [
+      'deliberationPeriod',
+      'votePeriod',
+      'quorumBps',
+      'constitutionalDeliberationPeriod',
+      'constitutionalVotePeriod',
+      'constitutionalPassBps',
+      'majorPassBps',
+      'parameterPassBps',
+      'significantPassBps',
+      'significantThresholdBps',
+      'routineThresholdBps',
+      'timelockPeriod',
+    ] as const;
+    const values = await client.multicall({
+      allowFailure: false,
+      contracts: getters.map((name) => ({
+        abi: governanceAbi,
+        address: ABSTRACT_MAINNET_ADDRESSES.governance,
+        functionName: name,
+      })),
+    });
+    return c.ok(Object.fromEntries(getters.map((k, i) => [k, asNum(values[i] as bigint)])));
+  },
+});

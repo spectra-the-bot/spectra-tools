@@ -1,147 +1,300 @@
 import { Cli, z } from 'incur';
-import { ASSEMBLY_BASE_URL, createAssemblyClient } from '../api.js';
+import { createAssemblyPublicClient } from '../contracts/client.js';
+import { councilSeatsAbi } from '../contracts/abis.js';
+import { ABSTRACT_MAINNET_ADDRESSES } from '../contracts/addresses.js';
+import { asNum, eth, relTime, toChecksum } from './_common.js';
 
-const assemblyEnv = z.object({
-  ASSEMBLY_API_URL: z.string().optional().describe('Assembly API URL'),
-  ASSEMBLY_API_KEY: z.string().optional().describe('Assembly API key'),
-});
-
-type AssemblyEnv = z.infer<typeof assemblyEnv>;
-
-function getClient(env: AssemblyEnv) {
-  const apiUrl = env.ASSEMBLY_API_URL ?? ASSEMBLY_BASE_URL;
-  const apiKey = env.ASSEMBLY_API_KEY;
-  return createAssemblyClient(apiUrl, apiKey);
-}
+const env = z.object({ ABSTRACT_RPC_URL: z.string().optional() });
 
 export const council = Cli.create('council', {
-  description: 'Inspect Assembly council members and seats.',
-});
-
-council.command('members', {
-  description: 'List council members.',
-  options: z.object({
-    status: z
-      .enum(['active', 'inactive', 'all'])
-      .optional()
-      .default('active')
-      .describe('Filter members by status'),
-  }),
-  env: assemblyEnv,
-  examples: [
-    { description: 'List active council members' },
-    { options: { status: 'all' }, description: 'List all council members' },
-  ],
-  run(c) {
-    const client = getClient(c.env);
-    const status = c.options.status === 'all' ? undefined : c.options.status;
-    return client.council
-      .members(status)
-      .then((data) =>
-        c.ok(
-          data.map((m) => ({
-            address: m.address,
-            name: m.name,
-            status: m.status,
-            seatNumber: m.seatNumber,
-            joinedAt: new Date(m.joinedAt * 1000).toISOString(),
-          })),
-          {
-            cta: {
-              description: 'View member details:',
-              commands: [{ command: 'council info', args: { address: '<address>' } }],
-            },
-          },
-        ),
-      )
-      .catch((err: unknown) => {
-        const message = err instanceof Error ? err.message : String(err);
-        return c.error({
-          code: 'FETCH_ERROR',
-          message: `Failed to fetch council members: ${message}`,
-          retryable: true,
-        });
-      });
-  },
-});
-
-council.command('info', {
-  description: 'Get details for a council member.',
-  args: z.object({
-    address: z.string().describe('Council member wallet address'),
-  }),
-  env: assemblyEnv,
-  examples: [
-    {
-      args: { address: '0xabc123' },
-      description: 'Get info for a specific council member',
-    },
-  ],
-  run(c) {
-    const client = getClient(c.env);
-    return client.council
-      .info(c.args.address)
-      .then((data) =>
-        c.ok({
-          address: data.address,
-          name: data.name,
-          status: data.status,
-          seatNumber: data.seatNumber,
-          joinedAt: new Date(data.joinedAt * 1000).toISOString(),
-        }),
-      )
-      .catch((err: unknown) => {
-        const message = err instanceof Error ? err.message : String(err);
-        return c.error({
-          code: 'FETCH_ERROR',
-          message: `Failed to fetch council member ${c.args.address}: ${message}`,
-          retryable: true,
-        });
-      });
-  },
+  description: 'Read council seat and auction state.',
 });
 
 council.command('seats', {
-  description: 'List council seats and their status.',
-  options: z.object({
-    status: z
-      .enum(['open', 'filled', 'all'])
-      .optional()
-      .default('all')
-      .describe('Filter seats by status'),
-  }),
-  env: assemblyEnv,
-  examples: [
-    { description: 'List all seats' },
-    { options: { status: 'open' }, description: 'List open seats' },
-  ],
-  run(c) {
-    const client = getClient(c.env);
-    const status = c.options.status === 'all' ? undefined : c.options.status;
-    return client.council
-      .seats(status)
-      .then((data) =>
-        c.ok(
-          data.map((s) => ({
-            seatNumber: s.seatNumber,
-            status: s.status,
-            holder: s.holder,
+  env,
+  async run(c) {
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL) as any;
+    const count = await client.readContract({
+      abi: councilSeatsAbi,
+      address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+      functionName: 'seatCount',
+    });
+    const ids = Array.from({ length: Number(count) }, (_, i) => BigInt(i));
+    const seats = ids.length
+      ? await client.multicall({
+          allowFailure: false,
+          contracts: ids.map((id) => ({
+            abi: councilSeatsAbi,
+            address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+            functionName: 'seats',
+            args: [id] as const,
           })),
-          {
-            cta: {
-              description: 'View seat holder details:',
-              commands: [{ command: 'council info', args: { address: '<address>' } }],
-            },
-          },
-        ),
-      )
-      .catch((err: unknown) => {
-        const message = err instanceof Error ? err.message : String(err);
-        return c.error({
-          code: 'FETCH_ERROR',
-          message: `Failed to fetch council seats: ${message}`,
-          retryable: true,
-        });
-      });
+        })
+      : [];
+    return c.ok(
+      seats.map((seat: any, idx: number) => ({
+        id: idx,
+        owner: toChecksum(seat.owner),
+        startAt: Number(seat.startAt),
+        startAtRelative: relTime(seat.startAt),
+        endAt: Number(seat.endAt),
+        endAtRelative: relTime(seat.endAt),
+        forfeited: seat.forfeited,
+      })),
+    );
+  },
+});
+
+council.command('seat', {
+  args: z.object({ id: z.coerce.number().int().nonnegative() }),
+  env,
+  async run(c) {
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL) as any;
+    const seat = await client.readContract({
+      abi: councilSeatsAbi,
+      address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+      functionName: 'seats',
+      args: [BigInt(c.args.id)],
+    });
+    return c.ok({
+      id: c.args.id,
+      ...seat,
+      owner: toChecksum(seat.owner),
+      endAtRelative: relTime(seat.endAt),
+    });
+  },
+});
+
+council.command('members', {
+  env,
+  async run(c) {
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL) as any;
+    const count = await client.readContract({
+      abi: councilSeatsAbi,
+      address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+      functionName: 'seatCount',
+    });
+    const ids = Array.from({ length: Number(count) }, (_, i) => BigInt(i));
+    const seats = ids.length
+      ? await client.multicall({
+          allowFailure: false,
+          contracts: ids.map((id) => ({
+            abi: councilSeatsAbi,
+            address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+            functionName: 'seats',
+            args: [id] as const,
+          })),
+        })
+      : [];
+    const activeOwners = [
+      ...new Set(
+        seats
+          .filter((x: any) => !x.forfeited && Number(x.endAt) > Math.floor(Date.now() / 1000))
+          .map((x: any) => x.owner as string),
+      ),
+    ] as string[];
+    const powers = activeOwners.length
+      ? await client.multicall({
+          allowFailure: false,
+          contracts: activeOwners.map((owner) => ({
+            abi: councilSeatsAbi,
+            address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+            functionName: 'getVotingPower',
+            args: [owner] as const,
+          })),
+        })
+      : [];
+    return c.ok(
+      activeOwners.map((owner, i) => ({
+        address: toChecksum(owner),
+        votingPower: asNum(powers[i] as bigint),
+      })),
+    );
+  },
+});
+
+council.command('is-member', {
+  args: z.object({ address: z.string() }),
+  env,
+  async run(c) {
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL) as any;
+    const isMember = await client.readContract({
+      abi: councilSeatsAbi,
+      address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+      functionName: 'isCouncilMember',
+      args: [c.args.address],
+    });
+    return c.ok({ address: toChecksum(c.args.address), isMember });
+  },
+});
+
+council.command('voting-power', {
+  args: z.object({ address: z.string() }),
+  env,
+  async run(c) {
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL) as any;
+    const votingPower = await client.readContract({
+      abi: councilSeatsAbi,
+      address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+      functionName: 'getVotingPower',
+      args: [c.args.address],
+    });
+    return c.ok({ address: toChecksum(c.args.address), votingPower: asNum(votingPower) });
+  },
+});
+
+council.command('auctions', {
+  env,
+  async run(c) {
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL) as any;
+    const [day, slot, slotsPerDay] = await Promise.all([
+      client.readContract({
+        abi: councilSeatsAbi,
+        address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+        functionName: 'currentAuctionDay',
+      }),
+      client.readContract({
+        abi: councilSeatsAbi,
+        address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+        functionName: 'currentAuctionSlot',
+      }),
+      client.readContract({
+        abi: councilSeatsAbi,
+        address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+        functionName: 'AUCTION_SLOTS_PER_DAY',
+      }),
+    ]);
+    const recent: Array<{ day: bigint; slot: number }> = [];
+    for (let d = Number(day) - 1; d <= Number(day); d++) {
+      if (d < 0) continue;
+      for (let s = 0; s < Number(slotsPerDay); s++) recent.push({ day: BigInt(d), slot: s });
+    }
+    const auctions = recent.length
+      ? await client.multicall({
+          allowFailure: false,
+          contracts: recent.map((x) => ({
+            abi: councilSeatsAbi,
+            address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+            functionName: 'auctions',
+            args: [x.day, x.slot] as const,
+          })),
+        })
+      : [];
+    return c.ok(
+      {
+        currentDay: asNum(day),
+        currentSlot: asNum(slot),
+        auctions: recent.map((x, i) => ({
+          ...x,
+          highestBidder: toChecksum((auctions[i] as any).highestBidder),
+          highestBid: eth((auctions[i] as any).highestBid),
+          settled: (auctions[i] as any).settled,
+        })),
+      },
+      {
+        cta: {
+          description: 'Inspect and bid:',
+          commands: [
+            { command: 'council auction', args: { day: '<day>', slot: '<slot>' } },
+            { command: 'council bid', args: { day: '<day>', slot: '<slot>' } },
+          ],
+        },
+      },
+    );
+  },
+});
+
+council.command('auction', {
+  args: z.object({
+    day: z.coerce.number().int().nonnegative(),
+    slot: z.coerce.number().int().nonnegative(),
+  }),
+  env,
+  async run(c) {
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL) as any;
+    const auction = await client.readContract({
+      abi: councilSeatsAbi,
+      address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+      functionName: 'auctions',
+      args: [BigInt(c.args.day), c.args.slot],
+    });
+    return c.ok({
+      day: c.args.day,
+      slot: c.args.slot,
+      highestBidder: toChecksum(auction.highestBidder),
+      highestBid: eth(auction.highestBid),
+      settled: auction.settled,
+    });
+  },
+});
+
+council.command('pending-refund', {
+  args: z.object({ address: z.string() }),
+  env,
+  async run(c) {
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL) as any;
+    const amount = await client.readContract({
+      abi: councilSeatsAbi,
+      address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+      functionName: 'pendingReturns',
+      args: [c.args.address],
+    });
+    return c.ok({
+      address: toChecksum(c.args.address),
+      pendingRefund: eth(amount),
+      pendingRefundWei: amount.toString(),
+    });
+  },
+});
+
+council.command('params', {
+  env,
+  async run(c) {
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL) as any;
+    const [SEAT_TERM, AUCTION_SLOT_DURATION, AUCTION_SLOTS_PER_DAY, auctionEpochStart] =
+      await Promise.all([
+        client.readContract({
+          abi: councilSeatsAbi,
+          address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+          functionName: 'SEAT_TERM',
+        }),
+        client.readContract({
+          abi: councilSeatsAbi,
+          address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+          functionName: 'AUCTION_SLOT_DURATION',
+        }),
+        client.readContract({
+          abi: councilSeatsAbi,
+          address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+          functionName: 'AUCTION_SLOTS_PER_DAY',
+        }),
+        client.readContract({
+          abi: councilSeatsAbi,
+          address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+          functionName: 'auctionEpochStart',
+        }),
+      ]);
+    const [auctionWindowStart, auctionWindowEnd] = await Promise.all([
+      client.readContract({
+        abi: councilSeatsAbi,
+        address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+        functionName: 'auctionWindowStart',
+        args: [0n, 0],
+      }),
+      client.readContract({
+        abi: councilSeatsAbi,
+        address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+        functionName: 'auctionWindowEnd',
+        args: [0n, 0],
+      }),
+    ]);
+    return c.ok({
+      SEAT_TERM: asNum(SEAT_TERM),
+      AUCTION_SLOT_DURATION: asNum(AUCTION_SLOT_DURATION),
+      AUCTION_SLOTS_PER_DAY: asNum(AUCTION_SLOTS_PER_DAY),
+      auctionEpochStart: asNum(auctionEpochStart),
+      auctionWindowStart: asNum(auctionWindowStart),
+      auctionWindowEnd: asNum(auctionWindowEnd),
+    });
   },
 });
