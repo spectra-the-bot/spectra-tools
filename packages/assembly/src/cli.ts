@@ -1,3 +1,4 @@
+import { realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { Cli, z } from 'incur';
 import { eth, toChecksum } from './commands/_common.js';
@@ -154,7 +155,19 @@ applyFriendlyErrorHandling(cli);
 
 export { cli };
 
-const isMain = process.argv[1] === fileURLToPath(import.meta.url);
+const isMain = (() => {
+  const entrypoint = process.argv[1];
+  if (!entrypoint) {
+    return false;
+  }
+
+  try {
+    return realpathSync(entrypoint) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
+})();
+
 if (isMain) {
   cli.serve();
 }
