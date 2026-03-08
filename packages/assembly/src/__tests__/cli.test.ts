@@ -128,11 +128,37 @@ describe('assembly onchain commands', () => {
         toBlock: latestBlock,
       }),
     );
-    const data = out.data as Array<Record<string, unknown>>;
-    expect(data).toHaveLength(2);
+    const data = out.data as {
+      members: Array<Record<string, unknown>>;
+      count: number;
+    };
+    expect(data.count).toBe(2);
+    expect(data.members).toHaveLength(2);
     expect(stderrSpy).toHaveBeenCalledWith(
       expect.stringContaining('"code":"ASSEMBLY_INDEXER_UNAVAILABLE"'),
     );
+  });
+
+  it('members list --format json returns stable members envelope without CTA keys', async () => {
+    const mockFetch = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify([addrA]), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    vi.stubGlobal('fetch', mockFetch);
+
+    mockClient.multicall.mockResolvedValueOnce([
+      true,
+      { registered: true, activeUntil: 100n, lastHeartbeatAt: 90n },
+    ]);
+
+    const out = await runJson(['members', 'list']);
+
+    expect(Array.isArray(out.members)).toBe(true);
+    expect(out.count).toBe(1);
+    expect(out).not.toHaveProperty('0');
+    expect(out).not.toHaveProperty('cta');
   });
 
   it('members list errors when indexer and fallback are unavailable', async () => {
