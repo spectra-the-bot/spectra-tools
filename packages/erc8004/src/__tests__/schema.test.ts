@@ -41,6 +41,37 @@ describe('registrationSchema', () => {
     }
   });
 
+  it('parses ERC-8004 service shape with optional fields omitted', () => {
+    const result = registrationSchema.safeParse({
+      name: 'Spec Agent',
+      services: [{ name: 'A2A', endpoint: 'https://agent.example/.well-known/agent-card.json' }],
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.x402Support).toBeUndefined();
+      expect(result.data.supportedTrust).toBeUndefined();
+      expect(result.data.services?.[0]?.x402).toBeUndefined();
+    }
+  });
+
+  it('parses optional x402/trust fields when present', () => {
+    const result = registrationSchema.safeParse({
+      name: 'Spec Agent',
+      x402Support: true,
+      supportedTrust: ['reputation'],
+      services: [
+        {
+          name: 'MCP',
+          endpoint: 'https://mcp.example.com',
+          x402: { required: false },
+        },
+      ],
+    });
+
+    expect(result.success).toBe(true);
+  });
+
   it('fails when name is missing', () => {
     const result = registrationSchema.safeParse({ description: 'No name' });
     expect(result.success).toBe(false);
