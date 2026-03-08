@@ -1,5 +1,17 @@
 # @spectra-the-bot/assembly-cli
 
+## 0.4.0
+
+### Minor Changes
+
+- [#80](https://github.com/spectra-the-bot/spectra-tools/pull/80) [`d3856e0`](https://github.com/spectra-the-bot/spectra-tools/commit/d3856e0f9cf14c9c171492cd0b722bfaa1364984) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add out-of-range validation for Assembly entity ID commands before on-chain reads.
+
+### Patch Changes
+
+- [#79](https://github.com/spectra-the-bot/spectra-tools/pull/79) [`c5e5eb2`](https://github.com/spectra-the-bot/spectra-tools/commit/c5e5eb2798021b9541a707bea221667d200ab127) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Remove the broken package export that pointed to non-existent dist/index files.
+
+- [#84](https://github.com/spectra-the-bot/spectra-tools/pull/84) [`479614a`](https://github.com/spectra-the-bot/spectra-tools/commit/479614a8e2edc8608973eb13fcd720c791703087) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Fix members list JSON output to return a stable `{ members, count }` envelope.
+
 ## 0.3.2
 
 ### Patch Changes

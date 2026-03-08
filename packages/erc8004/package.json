@@ -1,6 +1,6 @@
 {
   "name": "@spectratools/erc8004-cli",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "ERC-8004 CLI for spectra-the-bot",
   "type": "module",
   "license": "MIT",
@@ -32,6 +32,9 @@
     "typescript": "5.7.3",
     "vitest": "2.1.8"
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "main": "./dist/cli.js"
 }

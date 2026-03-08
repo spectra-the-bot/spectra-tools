@@ -1,5 +1,11 @@
 # @spectra-the-bot/erc8004-cli
 
+## 0.0.6
+
+### Patch Changes
+
+- [#76](https://github.com/spectra-the-bot/spectra-tools/pull/76) [`15226db`](https://github.com/spectra-the-bot/spectra-tools/commit/15226db3836597e9a0b3c9c70b811fda28cbd593) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Batch ERC-8004 identity, discovery, reputation, and validation reads with multicall and graceful per-call failure handling.
+
 ## 0.0.5
 
 ### Patch Changes
