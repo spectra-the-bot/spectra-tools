@@ -1,5 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { cli } from '../cli.js';
+
+function makeJsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'content-type': 'application/json' },
+  });
+}
 
 describe('registration create', () => {
   it('generates a minimal registration file', async () => {
@@ -62,6 +69,39 @@ describe('registration validate', () => {
     const data = JSON.parse(output);
     expect(data.valid).toBe(true);
     expect(data.registration?.name).toBe('Data Agent');
+  });
+
+  it('uses IPFS_GATEWAY override for ipfs:// URIs', async () => {
+    const previousGateway = process.env.IPFS_GATEWAY;
+    const mockFetch = vi.fn<typeof fetch>();
+
+    try {
+      process.env.IPFS_GATEWAY = 'https://gateway.example/';
+      vi.stubGlobal('fetch', mockFetch);
+      mockFetch.mockResolvedValue(
+        makeJsonResponse({ name: 'IPFS Agent', erc8004: { version: '0.1.0' } }),
+      );
+
+      let output = '';
+      await cli.serve(
+        ['registration', 'validate', 'ipfs://bafybeihash/registration.json', '--json'],
+        {
+          stdout(s) {
+            output += s;
+          },
+          exit() {},
+        },
+      );
+
+      const data = JSON.parse(output);
+      expect(data.valid).toBe(true);
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://gateway.example/ipfs/bafybeihash/registration.json',
+      );
+    } finally {
+      vi.unstubAllGlobals();
+      process.env.IPFS_GATEWAY = previousGateway;
+    }
   });
 
   it('validates ERC-8004 registration when optional trust fields are omitted', async () => {

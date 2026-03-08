@@ -14,6 +14,10 @@ registration.command('fetch', {
   env: z.object({
     ABSTRACT_RPC_URL: z.string().optional().describe('Abstract RPC URL'),
     IDENTITY_REGISTRY_ADDRESS: z.string().optional().describe('Identity registry contract address'),
+    IPFS_GATEWAY: z
+      .string()
+      .optional()
+      .describe('IPFS gateway override (default: https://ipfs.io)'),
   }),
   output: z.object({
     agentId: z.string(),
@@ -86,6 +90,12 @@ registration.command('validate', {
   description: 'Validate a registration file at a given URI.',
   args: z.object({
     uri: z.string().describe('URI to the registration file (HTTPS, IPFS, or data:)'),
+  }),
+  env: z.object({
+    IPFS_GATEWAY: z
+      .string()
+      .optional()
+      .describe('IPFS gateway override (default: https://ipfs.io)'),
   }),
   output: z.object({
     uri: z.string(),
