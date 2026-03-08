@@ -1,6 +1,6 @@
 import { Cli, z } from 'incur';
 import { createXApiClient, relativeTime, truncateText } from '../api.js';
-import { readAuthToken, xApiEnv } from '../auth.js';
+import { readAuthToken, xApiReadEnv } from '../auth.js';
 import { collectPaged } from '../collect-paged.js';
 
 const lists = Cli.create('lists', {
@@ -12,7 +12,7 @@ lists.command('get', {
   args: z.object({
     id: z.string().describe('List ID'),
   }),
-  env: xApiEnv,
+  env: xApiReadEnv,
   output: z.object({
     id: z.string(),
     name: z.string(),
@@ -22,7 +22,7 @@ lists.command('get', {
   }),
   examples: [{ args: { id: '1234567890' }, description: 'Get list details' }],
   async run(c) {
-    const client = createXApiClient(readAuthToken());
+    const client = createXApiClient(readAuthToken(c.env));
     const res = await client.getList(c.args.id);
     const list = res.data;
     return c.ok(
@@ -55,7 +55,7 @@ lists.command('members', {
     maxResults: z.number().default(100).describe('Maximum members to return'),
   }),
   alias: { maxResults: 'n' },
-  env: xApiEnv,
+  env: xApiReadEnv,
   output: z.object({
     users: z.array(
       z.object({
@@ -69,7 +69,7 @@ lists.command('members', {
   }),
   examples: [{ args: { id: '1234567890' }, description: 'List all members' }],
   async run(c) {
-    const client = createXApiClient(readAuthToken());
+    const client = createXApiClient(readAuthToken(c.env));
     const allUsers = await collectPaged(
       (limit, cursor) => client.getListMembers(c.args.id, limit, cursor),
       (
@@ -102,7 +102,7 @@ lists.command('posts', {
     verbose: z.boolean().optional().describe('Show full text'),
   }),
   alias: { maxResults: 'n' },
-  env: xApiEnv,
+  env: xApiReadEnv,
   output: z.object({
     posts: z.array(
       z.object({
@@ -117,7 +117,7 @@ lists.command('posts', {
   }),
   examples: [{ args: { id: '1234567890' }, description: 'Get posts from a list' }],
   async run(c) {
-    const client = createXApiClient(readAuthToken());
+    const client = createXApiClient(readAuthToken(c.env));
     const allPosts = await collectPaged(
       (limit, cursor) => client.getListPosts(c.args.id, limit, cursor),
       (

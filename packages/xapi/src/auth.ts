@@ -1,27 +1,39 @@
-import { HttpError, MissingApiKeyError, apiKeyAuth } from '@spectratools/cli-shared';
+import { HttpError } from '@spectratools/cli-shared';
 import { z } from 'incur';
 
-export const xApiEnv = z.object({
-  X_BEARER_TOKEN: z.string().optional().describe('X app-only bearer token (read-only endpoints)'),
-  X_ACCESS_TOKEN: z
-    .string()
-    .optional()
-    .describe('X OAuth 2.0 user access token (required for write endpoints)'),
+const bearerTokenSchema = z.string().describe('X app-only bearer token (read-only endpoints)');
+
+const accessTokenSchema = z
+  .string()
+  .describe('X OAuth 2.0 user access token (required for write endpoints)');
+
+export const xApiReadEnv = z
+  .object({
+    X_BEARER_TOKEN: bearerTokenSchema.optional(),
+    X_ACCESS_TOKEN: accessTokenSchema.optional(),
+  })
+  .refine((env) => Boolean(env.X_ACCESS_TOKEN || env.X_BEARER_TOKEN), {
+    message: 'Set X_ACCESS_TOKEN or X_BEARER_TOKEN to authenticate X API requests.',
+  });
+
+export const xApiWriteEnv = z.object({
+  X_ACCESS_TOKEN: accessTokenSchema,
+  X_BEARER_TOKEN: bearerTokenSchema.optional(),
 });
 
-export function readAuthToken(): string {
-  const userToken = process.env.X_ACCESS_TOKEN;
-  if (userToken) {
-    return userToken;
+export type XApiReadEnv = z.infer<typeof xApiReadEnv>;
+export type XApiWriteEnv = z.infer<typeof xApiWriteEnv>;
+
+export function readAuthToken(env: XApiReadEnv): string {
+  if (env.X_ACCESS_TOKEN) {
+    return env.X_ACCESS_TOKEN;
   }
 
-  const { apiKey } = apiKeyAuth('X_BEARER_TOKEN');
-  return apiKey;
+  return env.X_BEARER_TOKEN as string;
 }
 
-export function writeAuthToken(): string {
-  const { apiKey } = apiKeyAuth('X_ACCESS_TOKEN');
-  return apiKey;
+export function writeAuthToken(env: XApiWriteEnv): string {
+  return env.X_ACCESS_TOKEN;
 }
 
 function parseXApiErrorDetail(body: string): string | undefined {
@@ -56,18 +68,6 @@ export function toWriteAuthError(
   operation: string,
   error: unknown,
 ): { code: string; message: string } | undefined {
-  if (error instanceof MissingApiKeyError) {
-    return {
-      code: 'WRITE_AUTH_REQUIRED',
-      message: [
-        'Write auth required:',
-        `- operation: ${operation}`,
-        '- set env var: X_ACCESS_TOKEN (OAuth 2.0 user token)',
-        '- note: X_BEARER_TOKEN is read-only and cannot perform write actions',
-      ].join('\n'),
-    };
-  }
-
   if (error instanceof HttpError && (error.status === 401 || error.status === 403)) {
     const detail = parseXApiErrorDetail(error.body);
 

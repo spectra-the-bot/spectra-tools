@@ -34,8 +34,20 @@ describe('etherscan CLI', () => {
   });
 
   afterEach(() => {
-    process.env.ETHERSCAN_API_KEY = undefined;
+    Reflect.deleteProperty(process.env, 'ETHERSCAN_API_KEY');
     vi.unstubAllGlobals();
+  });
+
+  it('fails with a structured env error when API key is missing', async () => {
+    Reflect.deleteProperty(process.env, 'ETHERSCAN_API_KEY');
+
+    const { output, exitCode } = await runCli(
+      ['account', 'balance', '0x742d35Cc6634C0532925a3b844Bc454e4438f44e', '--json'],
+      makeResponse({ status: '1', message: 'OK', result: '0' }),
+    );
+
+    expect(exitCode).toBe(1);
+    expect(output).toContain('ETHERSCAN_API_KEY');
   });
 
   describe('account balance', () => {

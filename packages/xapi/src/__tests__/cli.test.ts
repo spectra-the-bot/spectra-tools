@@ -40,16 +40,18 @@ describe('xapi cli command groups', () => {
 describe('xapi cli error and empty-result paths', () => {
   afterEach(() => {
     Reflect.deleteProperty(process.env, 'X_BEARER_TOKEN');
+    Reflect.deleteProperty(process.env, 'X_ACCESS_TOKEN');
     vi.unstubAllGlobals();
   });
 
-  it('fails when bearer token is missing', async () => {
+  it('fails with a structured env error when auth tokens are missing', async () => {
     Reflect.deleteProperty(process.env, 'X_BEARER_TOKEN');
+    Reflect.deleteProperty(process.env, 'X_ACCESS_TOKEN');
 
     const { output, exitCode } = await runCli(['posts', 'search', 'spectra', '--json']);
 
     expect(exitCode).toBe(1);
-    expect(output).toContain('X_BEARER_TOKEN');
+    expect(output).toContain('X_ACCESS_TOKEN or X_BEARER_TOKEN');
   });
 
   it('returns empty results cleanly for posts search', async () => {
