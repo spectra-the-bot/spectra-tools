@@ -2,11 +2,94 @@ import { Cli, z } from 'incur';
 import { forumAbi } from '../contracts/abis.js';
 import { ABSTRACT_MAINNET_ADDRESSES } from '../contracts/addresses.js';
 import { createAssemblyPublicClient } from '../contracts/client.js';
-import { asNum, relTime, toChecksum } from './_common.js';
+import { asNum, jsonSafe, relTime, toChecksum } from './_common.js';
 
 const env = z.object({
   ABSTRACT_RPC_URL: z.string().optional().describe('Abstract RPC URL override'),
 });
+
+type ThreadTuple = readonly [
+  bigint,
+  bigint,
+  string,
+  bigint,
+  string,
+  string,
+  string,
+  bigint,
+  bigint,
+];
+type CommentTuple = readonly [bigint, bigint, bigint, string, bigint, string];
+type PetitionTuple = readonly [
+  bigint,
+  string,
+  bigint,
+  string,
+  string,
+  string,
+  bigint,
+  boolean,
+  bigint,
+  unknown,
+];
+
+function decodeThread(value: unknown) {
+  const [id, kind, author, createdAt, category, title, body, proposalId, petitionId] =
+    value as ThreadTuple;
+
+  return {
+    id: asNum(id),
+    kind: asNum(kind),
+    author: toChecksum(author),
+    createdAt: asNum(createdAt),
+    category,
+    title,
+    body,
+    proposalId: asNum(proposalId),
+    petitionId: asNum(petitionId),
+  };
+}
+
+function decodeComment(value: unknown) {
+  const [id, threadId, parentId, author, createdAt, body] = value as CommentTuple;
+
+  return {
+    id: asNum(id),
+    threadId: asNum(threadId),
+    parentId: asNum(parentId),
+    author: toChecksum(author),
+    createdAt: asNum(createdAt),
+    body,
+  };
+}
+
+function decodePetition(value: unknown) {
+  const [
+    id,
+    proposer,
+    createdAt,
+    category,
+    title,
+    body,
+    signatures,
+    promoted,
+    threadId,
+    proposalInput,
+  ] = value as PetitionTuple;
+
+  return {
+    id: asNum(id),
+    proposer: toChecksum(proposer),
+    createdAt: asNum(createdAt),
+    category,
+    title,
+    body,
+    signatures: asNum(signatures),
+    promoted,
+    threadId: asNum(threadId),
+    proposalInput: jsonSafe(proposalInput),
+  };
+}
 
 export const forum = Cli.create('forum', {
   description: 'Browse Assembly forum threads, comments, and petitions.',
@@ -35,28 +118,28 @@ forum.command('threads', {
       functionName: 'threadCount',
     });
     const ids = Array.from({ length: Number(count) }, (_, i) => BigInt(i + 1));
-    const items = (
-      ids.length
-        ? await client.multicall({
-            allowFailure: false,
-            contracts: ids.map((id) => ({
-              abi: forumAbi,
-              address: ABSTRACT_MAINNET_ADDRESSES.forum,
-              functionName: 'threads',
-              args: [id] as const,
-            })),
-          })
-        : []
-    ) as Array<Record<string, unknown>>;
+    const threadTuples = ids.length
+      ? await client.multicall({
+          allowFailure: false,
+          contracts: ids.map((id) => ({
+            abi: forumAbi,
+            address: ABSTRACT_MAINNET_ADDRESSES.forum,
+            functionName: 'threads',
+            args: [id] as const,
+          })),
+        })
+      : [];
+    const items = (threadTuples as unknown[]).map(decodeThread);
+
     return c.ok(
-      items.map((x: Record<string, unknown>) => ({
-        id: asNum(x.id as bigint),
-        kind: asNum(x.kind as bigint),
-        author: toChecksum(x.author as string),
-        createdAt: asNum(x.createdAt as bigint),
-        createdAtRelative: relTime(x.createdAt as bigint),
-        category: (x.category as string | undefined) ?? null,
-        title: (x.title as string | undefined) ?? null,
+      items.map((x) => ({
+        id: x.id,
+        kind: x.kind,
+        author: x.author,
+        createdAt: x.createdAt,
+        createdAtRelative: relTime(x.createdAt),
+        category: x.category ?? null,
+        title: x.title ?? null,
       })),
       {
         cta: {
@@ -84,7 +167,7 @@ forum.command('thread', {
   examples: [{ args: { id: 1 }, description: 'Fetch thread #1 and its comments' }],
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
-    const [thread, commentCount] = (await Promise.all([
+    const [threadTuple, commentCount] = (await Promise.all([
       client.readContract({
         abi: forumAbi,
         address: ABSTRACT_MAINNET_ADDRESSES.forum,
@@ -96,24 +179,28 @@ forum.command('thread', {
         address: ABSTRACT_MAINNET_ADDRESSES.forum,
         functionName: 'commentCount',
       }),
-    ])) as [Record<string, unknown>, bigint];
+    ])) as [unknown, bigint];
+    const thread = decodeThread(threadTuple);
+
     const ids = Array.from({ length: Number(commentCount) }, (_, i) => BigInt(i + 1));
-    const comments = (
-      ids.length
-        ? await client.multicall({
-            allowFailure: false,
-            contracts: ids.map((id) => ({
-              abi: forumAbi,
-              address: ABSTRACT_MAINNET_ADDRESSES.forum,
-              functionName: 'comments',
-              args: [id] as const,
-            })),
-          })
-        : []
-    ) as Array<Record<string, unknown>>;
+    const commentTuples = ids.length
+      ? await client.multicall({
+          allowFailure: false,
+          contracts: ids.map((id) => ({
+            abi: forumAbi,
+            address: ABSTRACT_MAINNET_ADDRESSES.forum,
+            functionName: 'comments',
+            args: [id] as const,
+          })),
+        })
+      : [];
+    const comments = (commentTuples as unknown[]).map(decodeComment);
+
     return c.ok({
-      thread,
-      comments: comments.filter((x) => Number(x.threadId) === c.args.id),
+      thread: jsonSafe(thread) as Record<string, unknown>,
+      comments: comments
+        .filter((x) => x.threadId === c.args.id)
+        .map((comment) => jsonSafe(comment) as Record<string, unknown>),
     });
   },
 });
@@ -134,20 +221,24 @@ forum.command('comments', {
       functionName: 'commentCount',
     })) as bigint;
     const ids = Array.from({ length: Number(count) }, (_, i) => BigInt(i + 1));
-    const comments = (
-      ids.length
-        ? await client.multicall({
-            allowFailure: false,
-            contracts: ids.map((id) => ({
-              abi: forumAbi,
-              address: ABSTRACT_MAINNET_ADDRESSES.forum,
-              functionName: 'comments',
-              args: [id] as const,
-            })),
-          })
-        : []
-    ) as Array<Record<string, unknown>>;
-    return c.ok(comments.filter((x) => Number(x.threadId) === c.args.threadId));
+    const commentTuples = ids.length
+      ? await client.multicall({
+          allowFailure: false,
+          contracts: ids.map((id) => ({
+            abi: forumAbi,
+            address: ABSTRACT_MAINNET_ADDRESSES.forum,
+            functionName: 'comments',
+            args: [id] as const,
+          })),
+        })
+      : [];
+    const comments = (commentTuples as unknown[]).map(decodeComment);
+
+    return c.ok(
+      comments
+        .filter((x) => x.threadId === c.args.threadId)
+        .map((comment) => jsonSafe(comment) as Record<string, unknown>),
+    );
   },
 });
 
@@ -161,13 +252,13 @@ forum.command('comment', {
   examples: [{ args: { id: 1 }, description: 'Fetch comment #1' }],
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
-    const comment = (await client.readContract({
+    const commentTuple = await client.readContract({
       abi: forumAbi,
       address: ABSTRACT_MAINNET_ADDRESSES.forum,
       functionName: 'comments',
       args: [BigInt(c.args.id)],
-    })) as Record<string, unknown>;
-    return c.ok(comment);
+    });
+    return c.ok(jsonSafe(decodeComment(commentTuple)) as Record<string, unknown>);
   },
 });
 
@@ -184,20 +275,20 @@ forum.command('petitions', {
       functionName: 'petitionCount',
     });
     const ids = Array.from({ length: Number(count) }, (_, i) => BigInt(i + 1));
-    const petitions = (
-      ids.length
-        ? await client.multicall({
-            allowFailure: false,
-            contracts: ids.map((id) => ({
-              abi: forumAbi,
-              address: ABSTRACT_MAINNET_ADDRESSES.forum,
-              functionName: 'petitions',
-              args: [id] as const,
-            })),
-          })
-        : []
-    ) as Array<Record<string, unknown>>;
-    return c.ok(petitions);
+    const petitionTuples = ids.length
+      ? await client.multicall({
+          allowFailure: false,
+          contracts: ids.map((id) => ({
+            abi: forumAbi,
+            address: ABSTRACT_MAINNET_ADDRESSES.forum,
+            functionName: 'petitions',
+            args: [id] as const,
+          })),
+        })
+      : [];
+    const petitions = (petitionTuples as unknown[]).map(decodePetition);
+
+    return c.ok(petitions.map((petition) => jsonSafe(petition) as Record<string, unknown>));
   },
 });
 
@@ -211,19 +302,21 @@ forum.command('petition', {
   examples: [{ args: { id: 1 }, description: 'Fetch petition #1' }],
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
-    const petition = (await client.readContract({
-      abi: forumAbi,
-      address: ABSTRACT_MAINNET_ADDRESSES.forum,
-      functionName: 'petitions',
-      args: [BigInt(c.args.id)],
-    })) as { proposer: string };
+    const petition = decodePetition(
+      await client.readContract({
+        abi: forumAbi,
+        address: ABSTRACT_MAINNET_ADDRESSES.forum,
+        functionName: 'petitions',
+        args: [BigInt(c.args.id)],
+      }),
+    );
     const proposerSigned = (await client.readContract({
       abi: forumAbi,
       address: ABSTRACT_MAINNET_ADDRESSES.forum,
       functionName: 'hasSignedPetition',
       args: [BigInt(c.args.id), petition.proposer],
     })) as boolean;
-    return c.ok({ ...petition, proposerSigned });
+    return c.ok({ ...(jsonSafe(petition) as Record<string, unknown>), proposerSigned });
   },
 });
 

@@ -8,6 +8,28 @@ const env = z.object({
   ABSTRACT_RPC_URL: z.string().optional().describe('Abstract RPC URL override'),
 });
 
+type SeatTuple = readonly [string, bigint, bigint, boolean];
+type AuctionTuple = readonly [string, bigint, boolean];
+
+function decodeSeat(value: unknown): {
+  owner: string;
+  startAt: bigint;
+  endAt: bigint;
+  forfeited: boolean;
+} {
+  const [owner, startAt, endAt, forfeited] = value as SeatTuple;
+  return { owner, startAt, endAt, forfeited };
+}
+
+function decodeAuction(value: unknown): {
+  highestBidder: string;
+  highestBid: bigint;
+  settled: boolean;
+} {
+  const [highestBidder, highestBid, settled] = value as AuctionTuple;
+  return { highestBidder, highestBid, settled };
+}
+
 export const council = Cli.create('council', {
   description: 'Inspect council seats, members, auctions, and seat parameters.',
 });
@@ -35,27 +57,27 @@ council.command('seats', {
       functionName: 'seatCount',
     })) as bigint;
     const ids = Array.from({ length: Number(count) }, (_, i) => BigInt(i));
-    const seats = (
-      ids.length
-        ? await client.multicall({
-            allowFailure: false,
-            contracts: ids.map((id) => ({
-              abi: councilSeatsAbi,
-              address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
-              functionName: 'seats',
-              args: [id] as const,
-            })),
-          })
-        : []
-    ) as Array<{ owner: string; startAt: bigint; endAt: bigint; forfeited: boolean }>;
+    const seatTuples = ids.length
+      ? await client.multicall({
+          allowFailure: false,
+          contracts: ids.map((id) => ({
+            abi: councilSeatsAbi,
+            address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+            functionName: 'seats',
+            args: [id] as const,
+          })),
+        })
+      : [];
+    const seats = (seatTuples as unknown[]).map(decodeSeat);
+
     return c.ok(
       seats.map((seat, idx: number) => ({
         id: idx,
-        owner: toChecksum(seat.owner as string),
-        startAt: Number(seat.startAt as bigint),
-        startAtRelative: relTime(seat.startAt as bigint),
-        endAt: Number(seat.endAt as bigint),
-        endAtRelative: relTime(seat.endAt as bigint),
+        owner: toChecksum(seat.owner),
+        startAt: asNum(seat.startAt),
+        startAtRelative: relTime(seat.startAt),
+        endAt: asNum(seat.endAt),
+        endAtRelative: relTime(seat.endAt),
         forfeited: seat.forfeited,
       })),
     );
@@ -79,12 +101,14 @@ council.command('seat', {
   examples: [{ args: { id: 0 }, description: 'Inspect seat #0' }],
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
-    const seat = (await client.readContract({
+    const seatTuple = await client.readContract({
       abi: councilSeatsAbi,
       address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
       functionName: 'seats',
       args: [BigInt(c.args.id)],
-    })) as { owner: string; startAt: bigint; endAt: bigint; forfeited: boolean };
+    });
+    const seat = decodeSeat(seatTuple);
+
     return c.ok({
       id: c.args.id,
       owner: toChecksum(seat.owner),
@@ -114,26 +138,26 @@ council.command('members', {
       functionName: 'seatCount',
     })) as bigint;
     const ids = Array.from({ length: Number(count) }, (_, i) => BigInt(i));
-    const seats = (
-      ids.length
-        ? await client.multicall({
-            allowFailure: false,
-            contracts: ids.map((id) => ({
-              abi: councilSeatsAbi,
-              address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
-              functionName: 'seats',
-              args: [id] as const,
-            })),
-          })
-        : []
-    ) as Array<{ owner: string; endAt: bigint; forfeited: boolean }>;
+    const seatTuples = ids.length
+      ? await client.multicall({
+          allowFailure: false,
+          contracts: ids.map((id) => ({
+            abi: councilSeatsAbi,
+            address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+            functionName: 'seats',
+            args: [id] as const,
+          })),
+        })
+      : [];
+    const seats = (seatTuples as unknown[]).map(decodeSeat);
+
     const activeOwners = [
       ...new Set(
         seats
-          .filter((x) => !x.forfeited && Number(x.endAt) > Math.floor(Date.now() / 1000))
+          .filter((x) => !x.forfeited && asNum(x.endAt) > Math.floor(Date.now() / 1000))
           .map((x) => x.owner),
       ),
-    ] as string[];
+    ];
     const powers = activeOwners.length
       ? await client.multicall({
           allowFailure: false,
@@ -251,19 +275,20 @@ council.command('auctions', {
       if (d < 0) continue;
       for (let s = 0; s < Number(slotsPerDay); s++) recent.push({ day: BigInt(d), slot: s });
     }
-    const auctions = (
-      recent.length
-        ? await client.multicall({
-            allowFailure: false,
-            contracts: recent.map((x) => ({
-              abi: councilSeatsAbi,
-              address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
-              functionName: 'auctions',
-              args: [x.day, x.slot] as const,
-            })),
-          })
-        : []
-    ) as Array<{ highestBidder: string; highestBid: bigint; settled: boolean }>;
+
+    const auctionTuples = recent.length
+      ? await client.multicall({
+          allowFailure: false,
+          contracts: recent.map((x) => ({
+            abi: councilSeatsAbi,
+            address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+            functionName: 'auctions',
+            args: [x.day, x.slot] as const,
+          })),
+        })
+      : [];
+    const auctions = (auctionTuples as unknown[]).map(decodeAuction);
+
     return c.ok(
       {
         currentDay: asNum(day),
@@ -306,12 +331,14 @@ council.command('auction', {
   examples: [{ args: { day: 0, slot: 0 }, description: 'Inspect day 0, slot 0 auction' }],
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
-    const auction = (await client.readContract({
+    const auctionTuple = await client.readContract({
       abi: councilSeatsAbi,
       address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
       functionName: 'auctions',
       args: [BigInt(c.args.day), c.args.slot],
-    })) as { highestBidder: string; highestBid: bigint; settled: boolean };
+    });
+    const auction = decodeAuction(auctionTuple);
+
     return c.ok({
       day: c.args.day,
       slot: c.args.slot,
