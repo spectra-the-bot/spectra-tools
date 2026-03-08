@@ -14,6 +14,7 @@ const mockClient = {
   readContract: vi.fn(),
   multicall: vi.fn(),
   getBalance: vi.fn(),
+  getBlock: vi.fn(),
   getBlockNumber: vi.fn(),
   getContractEvents: vi.fn(),
 };
@@ -185,16 +186,45 @@ describe('assembly onchain commands', () => {
     expect(data[1]).toMatchObject({ id: 1, startAt: 300, endAt: 400, forfeited: true });
   });
 
-  it('council auction decodes tuple readContract response', async () => {
-    mockClient.readContract.mockResolvedValueOnce([addrA, 123n, false]);
+  it('council auctions includes window metadata and derives bidding/closed status', async () => {
+    mockClient.readContract
+      .mockResolvedValueOnce(0n)
+      .mockResolvedValueOnce(0n)
+      .mockResolvedValueOnce(2n);
+    mockClient.multicall
+      .mockResolvedValueOnce([
+        [addrA, 123n, false],
+        [addrB, 456n, false],
+      ])
+      .mockResolvedValueOnce([200n, 100n]);
+    mockClient.getBlock.mockResolvedValueOnce({ timestamp: 150n });
+
+    const out = await run(['council', 'auctions']);
+    expect(out.ok).toBe(true);
+
+    const data = out.data as { auctions: Array<Record<string, unknown>> };
+    expect(data.auctions).toHaveLength(2);
+    expect(data.auctions[0]).toMatchObject({ windowEnd: 200, status: 'bidding', settled: false });
+    expect(data.auctions[1]).toMatchObject({ windowEnd: 100, status: 'closed', settled: false });
+    expect(typeof data.auctions[0]?.windowEndRelative).toBe('string');
+  });
+
+  it('council auction includes window metadata and settled status', async () => {
+    mockClient.readContract.mockResolvedValueOnce([addrA, 123n, true]).mockResolvedValueOnce(999n);
+    mockClient.getBlock.mockResolvedValueOnce({ timestamp: 150n });
 
     const out = await run(['council', 'auction', '0', '0']);
     expect(out.ok).toBe(true);
 
     const data = out.data as Record<string, unknown>;
-    expect(data.settled).toBe(false);
+    expect(data).toMatchObject({
+      settled: true,
+      windowEnd: 999,
+      status: 'settled',
+    });
     expect(typeof data.highestBidder).toBe('string');
     expect(typeof data.highestBid).toBe('string');
+    expect(typeof data.windowEndRelative).toBe('string');
   });
 
   it('forum thread decodes tuples and filters comments by thread id', async () => {
