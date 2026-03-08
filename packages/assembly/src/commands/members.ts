@@ -77,7 +77,7 @@ members.command('info', {
   env,
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
-    const [member, active] = await Promise.all([
+    const [member, active] = (await Promise.all([
       client.readContract({
         abi: registryAbi,
         address: ABSTRACT_MAINNET_ADDRESSES.registry,
@@ -90,7 +90,7 @@ members.command('info', {
         functionName: 'isActive',
         args: [c.args.address],
       }),
-    ]);
+    ])) as [{ activeUntil: bigint; lastHeartbeatAt: bigint }, boolean];
     return c.ok({
       address: toChecksum(c.args.address),
       active,
@@ -106,7 +106,7 @@ members.command('count', {
   env,
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
-    const [active, total] = await Promise.all([
+    const [active, total] = (await Promise.all([
       client.readContract({
         abi: registryAbi,
         address: ABSTRACT_MAINNET_ADDRESSES.registry,
@@ -117,7 +117,7 @@ members.command('count', {
         address: ABSTRACT_MAINNET_ADDRESSES.registry,
         functionName: 'totalKnownMembers',
       }),
-    ]);
+    ])) as [bigint, bigint];
     return c.ok({ active: asNum(active), total: asNum(total) });
   },
 });
@@ -127,7 +127,7 @@ members.command('fees', {
   env,
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
-    const [registrationFee, heartbeatFee, heartbeatGracePeriod] = await Promise.all([
+    const [registrationFee, heartbeatFee, heartbeatGracePeriod] = (await Promise.all([
       client.readContract({
         abi: registryAbi,
         address: ABSTRACT_MAINNET_ADDRESSES.registry,
@@ -143,7 +143,7 @@ members.command('fees', {
         address: ABSTRACT_MAINNET_ADDRESSES.registry,
         functionName: 'heartbeatGracePeriod',
       }),
-    ]);
+    ])) as [bigint, bigint, bigint];
     return c.ok({
       registrationFeeWei: registrationFee.toString(),
       registrationFee: eth(registrationFee),

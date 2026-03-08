@@ -19,25 +19,27 @@ governance.command('proposals', {
       functionName: 'proposalCount',
     });
     const ids = Array.from({ length: Number(count) }, (_, i) => BigInt(i + 1));
-    const proposals = ids.length
-      ? await client.multicall({
-          allowFailure: false,
-          contracts: ids.map((id) => ({
-            abi: governanceAbi,
-            address: ABSTRACT_MAINNET_ADDRESSES.governance,
-            functionName: 'proposals',
-            args: [id] as const,
-          })),
-        })
-      : [];
+    const proposals = (
+      ids.length
+        ? await client.multicall({
+            allowFailure: false,
+            contracts: ids.map((id) => ({
+              abi: governanceAbi,
+              address: ABSTRACT_MAINNET_ADDRESSES.governance,
+              functionName: 'proposals',
+              args: [id] as const,
+            })),
+          })
+        : []
+    ) as Array<Record<string, unknown>>;
     return c.ok(
-      proposals.map((p: Record<string, unknown>, i: number) => ({
+      proposals.map((p, i: number) => ({
         id: i + 1,
-        kind: asNum(p.kind),
-        status: asNum(p.status),
+        kind: asNum(p.kind as bigint),
+        status: asNum(p.status as bigint),
         title: p.title,
-        voteEndAt: asNum(p.voteEndAt),
-        voteEndRelative: relTime(p.voteEndAt),
+        voteEndAt: asNum(p.voteEndAt as bigint),
+        voteEndRelative: relTime(p.voteEndAt as bigint),
       })),
       {
         cta: {

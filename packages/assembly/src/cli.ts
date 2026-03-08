@@ -79,7 +79,7 @@ cli.command('health', {
   env: rootEnv,
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
-    const [isActive, member, isCouncilMember, pendingReturns, votingPower] = await Promise.all([
+    const [isActive, member, isCouncilMember, pendingReturns, votingPower] = (await Promise.all([
       client.readContract({
         abi: registryAbi,
         address: ABSTRACT_MAINNET_ADDRESSES.registry,
@@ -110,7 +110,7 @@ cli.command('health', {
         functionName: 'getVotingPower',
         args: [c.args.address],
       }),
-    ]);
+    ])) as [boolean, { activeUntil: bigint }, boolean, bigint, bigint];
     return c.ok({
       address: c.args.address,
       isActive,

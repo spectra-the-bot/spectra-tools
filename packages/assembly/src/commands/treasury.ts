@@ -39,7 +39,7 @@ treasury.command('major-spend-status', {
   env,
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
-    const [cooldown, lastMajorSpendAt, allowed] = await Promise.all([
+    const [cooldown, lastMajorSpendAt, allowed] = (await Promise.all([
       client.readContract({
         abi: treasuryAbi,
         address: ABSTRACT_MAINNET_ADDRESSES.treasury,
@@ -57,7 +57,7 @@ treasury.command('major-spend-status', {
         functionName: 'isMajorSpendAllowed',
         args: [ABSTRACT_MAINNET_ADDRESSES.treasury, 0n],
       }),
-    ]);
+    ])) as [bigint, bigint, boolean];
     return c.ok({
       majorSpendCooldownSeconds: asNum(cooldown),
       lastMajorSpendAt: asNum(lastMajorSpendAt),
