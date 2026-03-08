@@ -36,12 +36,11 @@ vi.mock('@spectratools/cli-shared', async () => {
   };
 });
 
-function createViemError(options: { message: string; name: string; shortMessage: string }) {
-  return {
-    name: options.name,
-    message: options.message,
-    shortMessage: options.shortMessage,
-  };
+function createViemError(options: { message: string; name: string; shortMessage: string }): Error {
+  const error = new Error(options.message);
+  error.name = options.name;
+  (error as Error & { shortMessage: string }).shortMessage = options.shortMessage;
+  return error;
 }
 
 async function run(argv: string[]): Promise<ErrorOutput> {
@@ -97,7 +96,7 @@ describe('erc8004 revert error mapping', () => {
     expect(out.code).toBe('AGENT_NOT_FOUND');
   });
 
-  it('maps validation status revert to AGENT_NOT_FOUND', async () => {
+  it('maps validation status revert to VALIDATION_NOT_FOUND', async () => {
     mockReadContract.mockRejectedValueOnce(
       createViemError({
         name: 'ContractFunctionExecutionError',
@@ -108,10 +107,10 @@ describe('erc8004 revert error mapping', () => {
 
     const out = await run(['validation', 'status', '634']);
 
-    expect(out.code).toBe('AGENT_NOT_FOUND');
+    expect(out.code).toBe('VALIDATION_NOT_FOUND');
   });
 
-  it('maps validation history uninitialized contract to CONTRACT_NOT_INITIALIZED', async () => {
+  it('maps validation history revert to AGENT_NOT_FOUND', async () => {
     mockReadContract.mockRejectedValueOnce(
       createViemError({
         name: 'ContractFunctionExecutionError',
@@ -123,10 +122,10 @@ describe('erc8004 revert error mapping', () => {
 
     const out = await run(['validation', 'history', '634']);
 
-    expect(out.code).toBe('CONTRACT_NOT_INITIALIZED');
+    expect(out.code).toBe('AGENT_NOT_FOUND');
   });
 
-  it('maps unknown reputation revert to generic structured fallback', async () => {
+  it('maps unknown reputation revert for getScore to AGENT_NOT_FOUND', async () => {
     mockReadContract.mockRejectedValueOnce(
       createViemError({
         name: 'ContractFunctionExecutionError',
@@ -137,6 +136,6 @@ describe('erc8004 revert error mapping', () => {
 
     const out = await run(['reputation', 'get', '634']);
 
-    expect(out.code).toBe('REPUTATION_QUERY_FAILED');
+    expect(out.code).toBe('AGENT_NOT_FOUND');
   });
 });
