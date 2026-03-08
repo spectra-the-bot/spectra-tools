@@ -10,6 +10,7 @@ const env = z.object({
 
 type SeatTuple = readonly [string, bigint, bigint, boolean];
 type AuctionTuple = readonly [string, bigint, boolean];
+type AuctionStatus = 'bidding' | 'closed' | 'settled';
 
 function decodeSeat(value: unknown): {
   owner: string;
@@ -28,6 +29,16 @@ function decodeAuction(value: unknown): {
 } {
   const [highestBidder, highestBid, settled] = value as AuctionTuple;
   return { highestBidder, highestBid, settled };
+}
+
+function deriveAuctionStatus(params: {
+  settled: boolean;
+  windowEnd: bigint;
+  currentTimestamp: bigint;
+}): AuctionStatus {
+  if (params.settled) return 'settled';
+  if (params.currentTimestamp < params.windowEnd) return 'bidding';
+  return 'closed';
 }
 
 export const council = Cli.create('council', {
@@ -247,6 +258,9 @@ council.command('auctions', {
         highestBidder: z.string(),
         highestBid: z.string(),
         settled: z.boolean(),
+        windowEnd: z.number(),
+        windowEndRelative: z.string(),
+        status: z.enum(['bidding', 'closed', 'settled']),
       }),
     ),
   }),
@@ -276,30 +290,55 @@ council.command('auctions', {
       for (let s = 0; s < Number(slotsPerDay); s++) recent.push({ day: BigInt(d), slot: s });
     }
 
-    const auctionTuples = recent.length
-      ? await client.multicall({
-          allowFailure: false,
-          contracts: recent.map((x) => ({
-            abi: councilSeatsAbi,
-            address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
-            functionName: 'auctions',
-            args: [x.day, x.slot] as const,
-          })),
-        })
-      : [];
+    const [auctionTuples, windowEnds, latestBlock] = await Promise.all([
+      recent.length
+        ? client.multicall({
+            allowFailure: false,
+            contracts: recent.map((x) => ({
+              abi: councilSeatsAbi,
+              address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+              functionName: 'auctions',
+              args: [x.day, x.slot] as const,
+            })),
+          })
+        : Promise.resolve([]),
+      recent.length
+        ? client.multicall({
+            allowFailure: false,
+            contracts: recent.map((x) => ({
+              abi: councilSeatsAbi,
+              address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+              functionName: 'auctionWindowEnd',
+              args: [x.day, x.slot] as const,
+            })),
+          })
+        : Promise.resolve([]),
+      client.getBlock({ blockTag: 'latest' }),
+    ]);
     const auctions = (auctionTuples as unknown[]).map(decodeAuction);
+    const currentTimestamp = (latestBlock as { timestamp: bigint }).timestamp;
 
     return c.ok(
       {
         currentDay: asNum(day),
         currentSlot: asNum(slot),
-        auctions: recent.map((x, i) => ({
-          day: Number(x.day),
-          slot: x.slot,
-          highestBidder: toChecksum(auctions[i].highestBidder),
-          highestBid: eth(auctions[i].highestBid),
-          settled: auctions[i].settled,
-        })),
+        auctions: recent.map((x, i) => {
+          const windowEnd = windowEnds[i] as bigint;
+          return {
+            day: Number(x.day),
+            slot: x.slot,
+            highestBidder: toChecksum(auctions[i].highestBidder),
+            highestBid: eth(auctions[i].highestBid),
+            settled: auctions[i].settled,
+            windowEnd: asNum(windowEnd),
+            windowEndRelative: relTime(windowEnd),
+            status: deriveAuctionStatus({
+              settled: auctions[i].settled,
+              windowEnd,
+              currentTimestamp,
+            }),
+          };
+        }),
       },
       {
         cta: {
@@ -327,17 +366,31 @@ council.command('auction', {
     highestBidder: z.string(),
     highestBid: z.string(),
     settled: z.boolean(),
+    windowEnd: z.number(),
+    windowEndRelative: z.string(),
+    status: z.enum(['bidding', 'closed', 'settled']),
   }),
   examples: [{ args: { day: 0, slot: 0 }, description: 'Inspect day 0, slot 0 auction' }],
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
-    const auctionTuple = await client.readContract({
-      abi: councilSeatsAbi,
-      address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
-      functionName: 'auctions',
-      args: [BigInt(c.args.day), c.args.slot],
-    });
+    const [auctionTuple, windowEnd, latestBlock] = await Promise.all([
+      client.readContract({
+        abi: councilSeatsAbi,
+        address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+        functionName: 'auctions',
+        args: [BigInt(c.args.day), c.args.slot],
+      }),
+      client.readContract({
+        abi: councilSeatsAbi,
+        address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+        functionName: 'auctionWindowEnd',
+        args: [BigInt(c.args.day), c.args.slot],
+      }),
+      client.getBlock({ blockTag: 'latest' }),
+    ]);
     const auction = decodeAuction(auctionTuple);
+    const windowEndTimestamp = windowEnd as bigint;
+    const currentTimestamp = (latestBlock as { timestamp: bigint }).timestamp;
 
     return c.ok({
       day: c.args.day,
@@ -345,6 +398,13 @@ council.command('auction', {
       highestBidder: toChecksum(auction.highestBidder),
       highestBid: eth(auction.highestBid),
       settled: auction.settled,
+      windowEnd: asNum(windowEndTimestamp),
+      windowEndRelative: relTime(windowEndTimestamp),
+      status: deriveAuctionStatus({
+        settled: auction.settled,
+        windowEnd: windowEndTimestamp,
+        currentTimestamp,
+      }),
     });
   },
 });
