@@ -1,3 +1,4 @@
+import type { Chain } from 'viem';
 import {
   http,
   type Address,
@@ -5,7 +6,6 @@ import {
   createPublicClient,
   createWalletClient,
 } from 'viem';
-import type { Chain } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 
 /** Abstract mainnet chain config */
