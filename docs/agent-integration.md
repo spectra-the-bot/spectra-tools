@@ -1,10 +1,21 @@
 # Agent Integration
 
-All `@spectratools/*-cli` packages are designed for machine-first usage while staying ergonomic for humans.
+spectra-tools CLIs are designed from the ground up for AI agent consumption. Every CLI includes built-in discovery, schema introspection, structured output, and one-command registration — making them first-class tools in any agent workflow.
 
-## `--llms` manifest
+## Why this matters
 
-Use `--llms` to export command metadata as markdown (commands, arguments, env vars, output fields, and examples):
+Most CLIs are built for humans and retrofitted for machines. spectra-tools takes the opposite approach: **every command is agent-ready by default**, with human-friendly output as the default view.
+
+- **Structured output** — `--format json` on any command, every time
+- **Self-describing** — agents can discover capabilities without documentation
+- **Schema-first** — JSON Schema for every command's inputs and outputs
+- **Zero-config registration** — `skills add` and `mcp add` just work
+
+## Discover capabilities
+
+### CLI manifest (`--llms`)
+
+Every CLI can export its full command tree, arguments, environment variables, output fields, and examples as a markdown manifest:
 
 ```bash
 assembly-cli --llms
@@ -13,11 +24,23 @@ xapi-cli --llms
 erc8004-cli --llms
 ```
 
-This is the source used by this docs site for command references.
+This is the single source of truth for what a CLI can do. Agents can parse this to understand available commands before executing them.
 
-## Register as a local skill
+### Command schema (`--schema`)
 
-Each CLI can install/update local agent skill metadata:
+Get the JSON Schema for any specific command:
+
+```bash
+assembly-cli governance proposals --schema
+etherscan-cli account balance --schema
+xapi-cli posts search --schema
+```
+
+Use schemas to validate inputs before execution or to generate type-safe wrappers.
+
+## Register with your agent
+
+### As a local skill
 
 ```bash
 assembly-cli skills add
@@ -26,9 +49,9 @@ xapi-cli skills add
 erc8004-cli skills add
 ```
 
-## Register as an MCP server
+This writes skill metadata to your local agent's skill discovery path. Agents that support skill directories (like [OpenClaw](https://github.com/coffeexcoin/openclaw)) will automatically discover the CLI.
 
-Each CLI can also scaffold MCP entries:
+### As an MCP server
 
 ```bash
 assembly-cli mcp add
@@ -37,36 +60,98 @@ xapi-cli mcp add
 erc8004-cli mcp add
 ```
 
-## Machine consumption patterns
+This registers the CLI as a [Model Context Protocol](https://modelcontextprotocol.io/) server, making it available to any MCP-compatible agent or IDE.
 
-### Schema-first integration
+## Structured output
 
-```bash
-# get JSON Schema for a specific command
-assembly-cli governance proposal --schema
-xapi-cli posts search --schema
-```
+### Data profile (default for scripts)
 
-Use the schema to validate command inputs/outputs in agents and pipelines.
-
-### Structured output
+Use `--format json` (or `--json`) for clean, parseable output:
 
 ```bash
-# JSON output for deterministic parsing
-erc8004-cli discovery search --service mcp --limit 5 --format json
-etherscan-cli gas oracle --chain abstract --format json
+assembly-cli governance proposals --limit 3 --json
 ```
 
-Common machine-safe flags:
+```json
+[
+  { "id": "1", "title": "Proposal Alpha", "status": "active" },
+  { "id": "2", "title": "Proposal Beta", "status": "passed" }
+]
+```
 
-- `--format json` for parsable output
-- `--schema` for JSON Schema contracts
-- `--filter-output` for reducing payload size
-- `--token-limit` / `--token-offset` for bounded LLM context
+On success, you get the data directly. On error, you get an error object. No wrapper, no envelope — just the payload.
 
-## Suggested pipeline
+### Envelope profile (for orchestration)
 
-1. Discover tool capabilities from `--llms`.
-2. Pull per-command schema with `--schema`.
-3. Execute with `--format json`.
-4. Validate and route results into your orchestrator memory/prompt.
+Add `--verbose` for a full metadata envelope:
+
+```bash
+assembly-cli governance proposals --limit 3 --json --verbose
+```
+
+```json
+{
+  "ok": true,
+  "data": [...],
+  "meta": {
+    "command": "governance proposals",
+    "duration": "142ms"
+  }
+}
+```
+
+The envelope includes execution metadata useful for logging, telemetry, and orchestration pipelines.
+
+### Other formats
+
+```bash
+--format yaml    # readable key-value output
+--format md      # markdown tables and headings
+--format jsonl   # newline-delimited JSON for streaming
+```
+
+## Control output size
+
+For LLM context management, use token-aware pagination:
+
+```bash
+assembly-cli governance proposals --json --token-limit 2000
+assembly-cli governance proposals --json --token-limit 2000 --token-offset 2000
+```
+
+Or filter to specific fields:
+
+```bash
+etherscan-cli account balance 0x... --json --filter-output "balance,symbol"
+```
+
+## Recommended agent pipeline
+
+```
+1. Discover    →  assembly-cli --llms
+2. Introspect  →  assembly-cli governance proposals --schema
+3. Execute     →  assembly-cli governance proposals --limit 5 --json
+4. Validate    →  check exit code + parse JSON
+5. Route       →  feed results into agent memory/prompt
+```
+
+This pattern works with any orchestrator — LangChain, OpenClaw, custom agents, or simple shell scripts.
+
+## Example: agent skill file
+
+After running `assembly-cli skills add`, your agent gets a skill definition like:
+
+```yaml
+name: assembly-cli
+description: Assembly governance CLI for Abstract
+commands:
+  - governance proposals
+  - governance proposal
+  - members list
+  - council seats
+  - treasury balances
+  - forum threads
+  # ... full command list
+```
+
+The agent can then reason about which command to call based on user intent, execute it with `--json`, and parse the structured response.
