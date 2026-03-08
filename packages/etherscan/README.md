@@ -21,6 +21,20 @@ etherscan-cli skills add
 etherscan-cli mcp add
 ```
 
+## ⚠️ Default Chain: Abstract
+
+All commands default to the **Abstract** chain (`--chain abstract`) when no `--chain` flag is provided. If you are querying Ethereum mainnet, you must explicitly pass `--chain ethereum`:
+
+```bash
+# Queries Abstract (default)
+etherscan-cli account balance 0x...
+
+# Queries Ethereum mainnet (explicit)
+etherscan-cli account balance 0x... --chain ethereum
+```
+
+Supported chains: `abstract`, `ethereum`, `base`, `arbitrum`, `optimism`, `polygon`, `avalanche`, `bsc`, `linea`, `scroll`, `zksync`, `mantle`, `blast`, `mode`, `sepolia`, `goerli`.
+
 ## Configuration
 
 ```bash
