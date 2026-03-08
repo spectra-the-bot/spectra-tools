@@ -98,17 +98,20 @@ export const forum = Cli.create('forum', {
 forum.command('threads', {
   description: 'List forum threads with author and creation metadata.',
   env,
-  output: z.array(
-    z.object({
-      id: z.number(),
-      kind: z.number(),
-      author: z.string(),
-      createdAt: z.number(),
-      createdAtRelative: z.string(),
-      category: z.string().nullable().optional(),
-      title: z.string().nullable().optional(),
-    }),
-  ),
+  output: z.object({
+    threads: z.array(
+      z.object({
+        id: z.number(),
+        kind: z.number(),
+        author: z.string(),
+        createdAt: z.number(),
+        createdAtRelative: z.string(),
+        category: z.string().nullable().optional(),
+        title: z.string().nullable().optional(),
+      }),
+    ),
+    count: z.number(),
+  }),
   examples: [{ description: 'List all forum threads' }],
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
@@ -130,17 +133,21 @@ forum.command('threads', {
         })
       : [];
     const items = (threadTuples as unknown[]).map(decodeThread);
+    const threads = items.map((x) => ({
+      id: x.id,
+      kind: x.kind,
+      author: x.author,
+      createdAt: x.createdAt,
+      createdAtRelative: relTime(x.createdAt),
+      category: x.category ?? null,
+      title: x.title ?? null,
+    }));
 
     return c.ok(
-      items.map((x) => ({
-        id: x.id,
-        kind: x.kind,
-        author: x.author,
-        createdAt: x.createdAt,
-        createdAtRelative: relTime(x.createdAt),
-        category: x.category ?? null,
-        title: x.title ?? null,
-      })),
+      {
+        threads,
+        count: threads.length,
+      },
       {
         cta: {
           description: 'Inspect or comment:',

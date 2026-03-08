@@ -149,16 +149,19 @@ export const governance = Cli.create('governance', {
 governance.command('proposals', {
   description: 'List governance proposals with status and vote end time.',
   env,
-  output: z.array(
-    z.object({
-      id: z.number(),
-      kind: z.number(),
-      status: z.number(),
-      title: z.string().nullable().optional(),
-      voteEndAt: z.number(),
-      voteEndRelative: z.string(),
-    }),
-  ),
+  output: z.object({
+    proposals: z.array(
+      z.object({
+        id: z.number(),
+        kind: z.number(),
+        status: z.number(),
+        title: z.string().nullable().optional(),
+        voteEndAt: z.number(),
+        voteEndRelative: z.string(),
+      }),
+    ),
+    count: z.number(),
+  }),
   examples: [{ description: 'List all proposals' }],
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
@@ -180,16 +183,20 @@ governance.command('proposals', {
         })
       : [];
     const proposals = (proposalTuples as unknown[]).map(decodeProposal);
+    const items = proposals.map((p, i: number) => ({
+      id: i + 1,
+      kind: asNum(p.kind),
+      status: asNum(p.status),
+      title: p.title ?? null,
+      voteEndAt: asNum(p.voteEndAt),
+      voteEndRelative: relTime(p.voteEndAt),
+    }));
 
     return c.ok(
-      proposals.map((p, i: number) => ({
-        id: i + 1,
-        kind: asNum(p.kind),
-        status: asNum(p.status),
-        title: p.title ?? null,
-        voteEndAt: asNum(p.voteEndAt),
-        voteEndRelative: relTime(p.voteEndAt),
-      })),
+      {
+        proposals: items,
+        count: items.length,
+      },
       {
         cta: {
           description: 'Inspect or vote:',

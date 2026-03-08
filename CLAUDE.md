@@ -135,12 +135,29 @@ GitHub labels are the source of truth for issue state:
 
 | Category | Labels |
 |---|---|
-| Type | `type:bug`, `type:small-improvement`, `type:feature`, `type:design` |
+| Type | `type:bug`, `type:small-improvement`, `type:feature`, `type:design`, `type:epic` |
 | Priority | `priority:high`, `priority:medium`, `priority:low` |
-| Status | `status:ready`, `status:in-progress`, `status:triaged`, `status:blocked`, `status:done` |
+| Status | `status:ready`, `status:in-progress`, `status:triaged`, `status:blocked`, `status:done`, `status:epic-active` |
+| Epic | `epic:<N>` (links subtask to parent issue #N) |
 
 - `status:ready` = actionable now, coder can implement immediately.
 - `status:triaged` = needs design work or decision before implementation.
+- `type:feature` + `status:triaged` = will be decomposed into an epic by Design Unlocker.
+- `type:epic` + `status:epic-active` = parent feature, managed automatically. Do not modify.
+- `epic:<N>` = subtask of parent issue #N. Triage normally but preserve the label.
+
+### Epic / Feature Flow
+
+Multi-PR features use automated epic decomposition:
+
+1. Create a `type:feature` issue describing the desired feature → triage labels it `status:triaged`
+2. Design Unlocker (Opus) decomposes it:
+   - Writes architecture comment on parent
+   - Relabels parent: `type:epic` + `status:epic-active`
+   - Creates up to 5 subtask issues with `epic:<parent>` + `status:ready`
+   - Uses priority for sequencing (high = foundational, medium = dependent)
+3. Executor picks up subtasks as normal `status:ready` issues
+4. PR Reviewer merges subtask PRs and detects when all `epic:<N>` subtasks are closed → auto-closes parent epic
 
 ## Output Contract (v1)
 
