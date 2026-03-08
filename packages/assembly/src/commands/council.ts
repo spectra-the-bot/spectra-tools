@@ -391,6 +391,20 @@ council.command('auction', {
   examples: [{ args: { day: 0, slot: 0 }, description: 'Inspect day 0, slot 0 auction' }],
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
+    const slotsPerDay = (await client.readContract({
+      abi: councilSeatsAbi,
+      address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+      functionName: 'AUCTION_SLOTS_PER_DAY',
+    })) as bigint;
+
+    if (c.args.slot >= Number(slotsPerDay)) {
+      return c.error({
+        code: 'OUT_OF_RANGE',
+        message: `Slot ${c.args.slot} does not exist (max: ${Number(slotsPerDay) - 1})`,
+        retryable: false,
+      });
+    }
+
     const [auctionTuple, windowEnd, latestBlock] = await Promise.all([
       client.readContract({
         abi: councilSeatsAbi,
