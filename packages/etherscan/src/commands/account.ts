@@ -2,6 +2,7 @@ import {
   checksumAddress,
   createRateLimiter,
   formatTimestamp,
+  isAddress,
   weiToEth,
   withRateLimit,
 } from '@spectratools/cli-shared';
@@ -75,6 +76,12 @@ accountCli.command('balance', {
     },
   ],
   async run(c) {
+    if (!isAddress(c.args.address)) {
+      return c.error({
+        code: 'INVALID_ADDRESS',
+        message: `Invalid address: "${c.args.address}". Use a valid 0x-prefixed 20-byte hex address.`,
+      });
+    }
     const apiKey = c.env.ETHERSCAN_API_KEY;
     const chainId = resolveChainId(c.options.chain);
     const address = normalizeAddress(c.args.address);
@@ -151,6 +158,12 @@ accountCli.command('txlist', {
     },
   ],
   async run(c) {
+    if (!isAddress(c.args.address)) {
+      return c.error({
+        code: 'INVALID_ADDRESS',
+        message: `Invalid address: "${c.args.address}". Use a valid 0x-prefixed 20-byte hex address.`,
+      });
+    }
     const apiKey = c.env.ETHERSCAN_API_KEY;
     const chainId = resolveChainId(c.options.chain);
     const address = normalizeAddress(c.args.address);
@@ -242,6 +255,12 @@ accountCli.command('tokentx', {
     },
   ],
   async run(c) {
+    if (!isAddress(c.args.address)) {
+      return c.error({
+        code: 'INVALID_ADDRESS',
+        message: `Invalid address: "${c.args.address}". Use a valid 0x-prefixed 20-byte hex address.`,
+      });
+    }
     const apiKey = c.env.ETHERSCAN_API_KEY;
     const chainId = resolveChainId(c.options.chain);
     const address = normalizeAddress(c.args.address);
@@ -314,6 +333,18 @@ accountCli.command('tokenbalance', {
     },
   ],
   async run(c) {
+    if (!isAddress(c.args.address)) {
+      return c.error({
+        code: 'INVALID_ADDRESS',
+        message: `Invalid address: "${c.args.address}". Use a valid 0x-prefixed 20-byte hex address.`,
+      });
+    }
+    if (!isAddress(c.options.contractaddress)) {
+      return c.error({
+        code: 'INVALID_ADDRESS',
+        message: `Invalid contract address: "${c.options.contractaddress}". Use a valid 0x-prefixed 20-byte hex address.`,
+      });
+    }
     const apiKey = c.env.ETHERSCAN_API_KEY;
     const chainId = resolveChainId(c.options.chain);
     const address = normalizeAddress(c.args.address);

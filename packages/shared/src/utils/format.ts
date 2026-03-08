@@ -15,6 +15,13 @@ export function weiToEth(wei: bigint | string, decimals = 6): string {
 }
 
 /**
+ * Returns true if the value is a valid 0x-prefixed 20-byte hex address.
+ */
+export function isAddress(address: string): boolean {
+  return Address.validate(address);
+}
+
+/**
  * Checksums an Ethereum address using EIP-55.
  * Accepts lowercase or mixed-case hex addresses.
  */

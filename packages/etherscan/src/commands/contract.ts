@@ -1,4 +1,9 @@
-import { checksumAddress, createRateLimiter, withRateLimit } from '@spectratools/cli-shared';
+import {
+  checksumAddress,
+  createRateLimiter,
+  isAddress,
+  withRateLimit,
+} from '@spectratools/cli-shared';
 import { Cli, z } from 'incur';
 import { createEtherscanClient } from '../api.js';
 import { etherscanEnv } from '../auth.js';
@@ -56,6 +61,12 @@ contractCli.command('abi', {
     },
   ],
   async run(c) {
+    if (!isAddress(c.args.address)) {
+      return c.error({
+        code: 'INVALID_ADDRESS',
+        message: `Invalid address: "${c.args.address}". Use a valid 0x-prefixed 20-byte hex address.`,
+      });
+    }
     const apiKey = c.env.ETHERSCAN_API_KEY;
     const chainId = resolveChainId(c.options.chain);
     const address = checksumAddress(c.args.address);
@@ -120,6 +131,12 @@ contractCli.command('source', {
     },
   ],
   async run(c) {
+    if (!isAddress(c.args.address)) {
+      return c.error({
+        code: 'INVALID_ADDRESS',
+        message: `Invalid address: "${c.args.address}". Use a valid 0x-prefixed 20-byte hex address.`,
+      });
+    }
     const apiKey = c.env.ETHERSCAN_API_KEY;
     const chainId = resolveChainId(c.options.chain);
     const address = checksumAddress(c.args.address);
@@ -193,6 +210,12 @@ contractCli.command('creation', {
     },
   ],
   async run(c) {
+    if (!isAddress(c.args.address)) {
+      return c.error({
+        code: 'INVALID_ADDRESS',
+        message: `Invalid address: "${c.args.address}". Use a valid 0x-prefixed 20-byte hex address.`,
+      });
+    }
     const apiKey = c.env.ETHERSCAN_API_KEY;
     const chainId = resolveChainId(c.options.chain);
     const address = checksumAddress(c.args.address);
