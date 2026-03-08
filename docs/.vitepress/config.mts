@@ -98,7 +98,10 @@ export default defineConfig({
             collapsed: false,
             items: [
               { text: 'Overview', link: '/erc8004/' },
+              { text: 'Configuration', link: '/erc8004/configuration' },
               { text: 'Commands', link: '/erc8004/commands' },
+              { text: 'Guide: Agent Discovery', link: '/erc8004/guides/agent-discovery' },
+              { text: 'Guide: Agent Integration', link: '/erc8004/guides/agent-integration' },
             ],
           },
         ],

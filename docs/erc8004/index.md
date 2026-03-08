@@ -1,9 +1,16 @@
 # 🤖 ERC-8004 CLI <Badge type="warning" text="preview" />
 
-**Explore trustless agent identity, reputation, and validation on Abstract** — built on the [ERC-8004](https://eips.ethereum.org/EIPS/eip-8004) standard for onchain agent operations.
+`@spectratools/erc8004-cli` is a command-line interface for working with **ERC-8004 agent identity** on the **Abstract** chain.
+
+It supports:
+
+- **Identity** lookups (owner, URI, metadata, wallet)
+- **Discovery** and identifier resolution (`<registry>:<agentId>`)
+- **Reputation** reads/writes
+- **Validation** request/status/history flows
 
 ::: warning Experimental preview
-ERC-8004 CLI is in early development. Some commands may not work as expected, and the API surface may change. Use it to explore the protocol, but don't rely on it for production workflows yet.
+ERC-8004 support is still experimental. Commands and behavior may evolve as registry implementations and tooling mature.
 :::
 
 ## Install
@@ -11,7 +18,7 @@ ERC-8004 CLI is in early development. Some commands may not work as expected, an
 ::: code-group
 
 ```bash [npx (no install)]
-npx @spectratools/erc8004-cli discovery search --service mcp --limit 5
+npx @spectratools/erc8004-cli identity get 634
 ```
 
 ```bash [npm]
@@ -24,70 +31,41 @@ pnpm add -g @spectratools/erc8004-cli
 
 :::
 
-## What you can do
-
-### Discovery
-
-Search for registered agents and services:
+## Quick examples
 
 ```bash
-erc8004-cli discovery search --service mcp --limit 10
+# Get a specific identity
+erc8004-cli identity get 634
+
+# List identities by owner
+erc8004-cli identity list --owner 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --limit 20
+
+# Resolve canonical agent identifier
+erc8004-cli discovery resolve 0x8004a169fb4a3325136eb29fa0ceb6d2e539a432:634
 ```
 
-### Identity
+## Important notes
 
-Query and manage agent identity registrations:
+- Some registries do not implement ERC-721 enumeration; unfiltered listing can return `ENUMERATION_UNSUPPORTED`.
+- ⚠️ `reputation` and `validation` commands may return errors/reverts for agents without initialized reputation/validation data.
 
-```bash
-erc8004-cli identity get 0x1234...
-erc8004-cli registration create --name "my-agent"
-erc8004-cli registration file validate ./registration.json
-```
-
-### Reputation
-
-Check agent reputation scores and feedback:
+## Use with AI agents
 
 ```bash
-erc8004-cli reputation score 0x1234...
-erc8004-cli reputation history 0x1234...
-```
-
-### Validation
-
-Submit and check validation requests:
-
-```bash
-erc8004-cli validation status 0x1234...
-```
-
-## Configuration
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `ABSTRACT_RPC_URL` | No | Override the default Abstract RPC endpoint |
-| `PRIVATE_KEY` | For write commands | `0x`-prefixed signing key for transactions |
-| `IDENTITY_REGISTRY_ADDRESS` | No | Override identity registry contract |
-| `REPUTATION_REGISTRY_ADDRESS` | No | Override reputation registry contract |
-| `VALIDATION_REGISTRY_ADDRESS` | No | Override validation registry contract |
-| `IPFS_GATEWAY` | No | Gateway for `ipfs://` metadata (default: `https://ipfs.io`) |
-
-## Use with agents
-
-```bash
-# Structured JSON output
+# Structured output for automation
 erc8004-cli discovery search --service mcp --limit 5 --json
 
-# Full CLI manifest for agent discovery
+# Emit machine-readable command manifest
 erc8004-cli --llms
 
-# Register as an agent skill or MCP server
+# Register as local skills / MCP entry
 erc8004-cli skills add
 erc8004-cli mcp add
 ```
 
 ## Reference
 
-- [Command reference](/erc8004/commands) — full list of commands with arguments and examples
-- [Configuration](/configuration) — environment variables
-- [Agent integration](/agent-integration) — discovery, schemas, and structured output
+- [Configuration](/erc8004/configuration)
+- [Agent discovery guide](/erc8004/guides/agent-discovery)
+- [Agent integration guide](/erc8004/guides/agent-integration)
+- [Command reference](/erc8004/commands)
