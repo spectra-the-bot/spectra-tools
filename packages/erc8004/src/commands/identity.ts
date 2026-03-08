@@ -284,6 +284,13 @@ identity.command('update', {
     uri: z.string(),
     txHash: z.string(),
   }),
+  examples: [
+    {
+      args: { agentId: '1' },
+      options: { uri: 'ipfs://bafybeihash/new-agent-registration.json' },
+      description: "Update agent #1's registration URI",
+    },
+  ],
   async run(c) {
     const privateKey = c.env.PRIVATE_KEY;
     if (!privateKey) {
@@ -367,6 +374,7 @@ identity.command('wallet', {
     agentId: z.string(),
     wallet: z.string(),
   }),
+  examples: [{ args: { agentId: '1' }, description: 'Get wallet bound to agent #1' }],
   async run(c) {
     const client = getPublicClient(c.env.ABSTRACT_RPC_URL);
     const address = getIdentityRegistryAddress(c.env);
@@ -402,6 +410,16 @@ identity.command('set-wallet', {
     wallet: z.string(),
     txHash: z.string(),
   }),
+  examples: [
+    {
+      args: { agentId: '1' },
+      options: {
+        wallet: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+        signature: '0x1234...abcd',
+      },
+      description: 'Associate a new wallet with agent #1',
+    },
+  ],
   async run(c) {
     const privateKey = c.env.PRIVATE_KEY;
     if (!privateKey) {

@@ -4,14 +4,29 @@ import { ABSTRACT_MAINNET_ADDRESSES } from '../contracts/addresses.js';
 import { createAssemblyPublicClient } from '../contracts/client.js';
 import { asNum, eth, relTime, toChecksum } from './_common.js';
 
-const env = z.object({ ABSTRACT_RPC_URL: z.string().optional() });
+const env = z.object({
+  ABSTRACT_RPC_URL: z.string().optional().describe('Abstract RPC URL override'),
+});
 
 export const council = Cli.create('council', {
-  description: 'Read council seat and auction state.',
+  description: 'Inspect council seats, members, auctions, and seat parameters.',
 });
 
 council.command('seats', {
+  description: 'List all council seats and their occupancy windows.',
   env,
+  output: z.array(
+    z.object({
+      id: z.number(),
+      owner: z.string(),
+      startAt: z.number(),
+      startAtRelative: z.string(),
+      endAt: z.number(),
+      endAtRelative: z.string(),
+      forfeited: z.boolean(),
+    }),
+  ),
+  examples: [{ description: 'List all council seats' }],
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const count = (await client.readContract({
@@ -48,8 +63,20 @@ council.command('seats', {
 });
 
 council.command('seat', {
-  args: z.object({ id: z.coerce.number().int().nonnegative() }),
+  description: 'Get detailed seat information for a specific seat id.',
+  args: z.object({
+    id: z.coerce.number().int().nonnegative().describe('Seat id (0-indexed)'),
+  }),
   env,
+  output: z.object({
+    id: z.number(),
+    owner: z.string(),
+    startAt: z.number(),
+    endAt: z.number(),
+    forfeited: z.boolean(),
+    endAtRelative: z.string(),
+  }),
+  examples: [{ args: { id: 0 }, description: 'Inspect seat #0' }],
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const seat = (await client.readContract({
@@ -57,18 +84,28 @@ council.command('seat', {
       address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
       functionName: 'seats',
       args: [BigInt(c.args.id)],
-    })) as { owner: string; endAt: bigint };
+    })) as { owner: string; startAt: bigint; endAt: bigint; forfeited: boolean };
     return c.ok({
       id: c.args.id,
-      ...seat,
       owner: toChecksum(seat.owner),
+      startAt: asNum(seat.startAt),
+      endAt: asNum(seat.endAt),
+      forfeited: seat.forfeited,
       endAtRelative: relTime(seat.endAt),
     });
   },
 });
 
 council.command('members', {
+  description: 'List currently active council members and voting power.',
   env,
+  output: z.array(
+    z.object({
+      address: z.string(),
+      votingPower: z.number(),
+    }),
+  ),
+  examples: [{ description: 'List active council members' }],
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const count = (await client.readContract({
@@ -118,8 +155,21 @@ council.command('members', {
 });
 
 council.command('is-member', {
-  args: z.object({ address: z.string() }),
+  description: 'Check whether an address is currently a council member.',
+  args: z.object({
+    address: z.string().describe('Address to check'),
+  }),
   env,
+  output: z.object({
+    address: z.string(),
+    isMember: z.boolean(),
+  }),
+  examples: [
+    {
+      args: { address: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' },
+      description: 'Check council status for one address',
+    },
+  ],
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const isMember = (await client.readContract({
@@ -133,8 +183,21 @@ council.command('is-member', {
 });
 
 council.command('voting-power', {
-  args: z.object({ address: z.string() }),
+  description: 'Get the current voting power for an address.',
+  args: z.object({
+    address: z.string().describe('Address to inspect'),
+  }),
   env,
+  output: z.object({
+    address: z.string(),
+    votingPower: z.number(),
+  }),
+  examples: [
+    {
+      args: { address: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' },
+      description: 'Get voting power for one address',
+    },
+  ],
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const votingPower = (await client.readContract({
@@ -148,7 +211,22 @@ council.command('voting-power', {
 });
 
 council.command('auctions', {
+  description: 'List recent and current council auction slots and leading bids.',
   env,
+  output: z.object({
+    currentDay: z.number(),
+    currentSlot: z.number(),
+    auctions: z.array(
+      z.object({
+        day: z.number(),
+        slot: z.number(),
+        highestBidder: z.string(),
+        highestBid: z.string(),
+        settled: z.boolean(),
+      }),
+    ),
+  }),
+  examples: [{ description: 'Inspect current and recent auction slots' }],
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const [day, slot, slotsPerDay] = (await Promise.all([
@@ -191,7 +269,8 @@ council.command('auctions', {
         currentDay: asNum(day),
         currentSlot: asNum(slot),
         auctions: recent.map((x, i) => ({
-          ...x,
+          day: Number(x.day),
+          slot: x.slot,
           highestBidder: toChecksum(auctions[i].highestBidder),
           highestBid: eth(auctions[i].highestBid),
           settled: auctions[i].settled,
@@ -211,11 +290,20 @@ council.command('auctions', {
 });
 
 council.command('auction', {
+  description: 'Get one auction slot by day + slot.',
   args: z.object({
-    day: z.coerce.number().int().nonnegative(),
-    slot: z.coerce.number().int().nonnegative(),
+    day: z.coerce.number().int().nonnegative().describe('Auction day index'),
+    slot: z.coerce.number().int().nonnegative().describe('Slot index within day'),
   }),
   env,
+  output: z.object({
+    day: z.number(),
+    slot: z.number(),
+    highestBidder: z.string(),
+    highestBid: z.string(),
+    settled: z.boolean(),
+  }),
+  examples: [{ args: { day: 0, slot: 0 }, description: 'Inspect day 0, slot 0 auction' }],
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const auction = (await client.readContract({
@@ -235,8 +323,22 @@ council.command('auction', {
 });
 
 council.command('pending-refund', {
-  args: z.object({ address: z.string() }),
+  description: 'Get pending refundable bid amount for an address.',
+  args: z.object({
+    address: z.string().describe('Bidder address'),
+  }),
   env,
+  output: z.object({
+    address: z.string(),
+    pendingRefund: z.string(),
+    pendingRefundWei: z.string(),
+  }),
+  examples: [
+    {
+      args: { address: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' },
+      description: 'Check pending refund for an address',
+    },
+  ],
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const amount = (await client.readContract({
@@ -254,7 +356,17 @@ council.command('pending-refund', {
 });
 
 council.command('params', {
+  description: 'Read council seat term and auction scheduling parameters.',
   env,
+  output: z.object({
+    SEAT_TERM: z.number(),
+    AUCTION_SLOT_DURATION: z.number(),
+    AUCTION_SLOTS_PER_DAY: z.number(),
+    auctionEpochStart: z.number(),
+    auctionWindowStart: z.number(),
+    auctionWindowEnd: z.number(),
+  }),
+  examples: [{ description: 'Inspect council seat + auction timing constants' }],
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const [SEAT_TERM, AUCTION_SLOT_DURATION, AUCTION_SLOTS_PER_DAY, auctionEpochStart] =

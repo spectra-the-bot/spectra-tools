@@ -10,8 +10,12 @@ const chainOption = z
   .default(DEFAULT_CHAIN)
   .describe('Chain name (abstract, ethereum, base, arbitrum, ...)');
 
+const etherscanEnv = z.object({
+  ETHERSCAN_API_KEY: z.string().optional().describe('Etherscan V2 API key'),
+});
+
 export const txCli = Cli.create('tx', {
-  description: 'Query transaction details, receipts, and status',
+  description: 'Query transaction details, receipts, and execution status.',
 });
 
 interface TransactionInfo {
@@ -28,13 +32,32 @@ interface TransactionInfo {
 }
 
 txCli.command('info', {
-  description: 'Get transaction details by hash',
+  description: 'Get transaction details by hash.',
   args: z.object({
     txhash: z.string().describe('Transaction hash'),
   }),
   options: z.object({
     chain: chainOption,
   }),
+  env: etherscanEnv,
+  output: z.object({
+    hash: z.string(),
+    from: z.string(),
+    to: z.string().nullable(),
+    value: z.string(),
+    gas: z.string(),
+    gasPrice: z.string(),
+    nonce: z.string(),
+    block: z.string(),
+    chain: z.string(),
+  }),
+  examples: [
+    {
+      args: { txhash: '0x1234...abcd' },
+      options: { chain: 'abstract' },
+      description: 'Inspect one transaction on Abstract',
+    },
+  ],
   async run(c) {
     const { apiKey } = apiKeyAuth('ETHERSCAN_API_KEY');
     const chainId = resolveChainId(c.options.chain);
@@ -95,13 +118,32 @@ interface TransactionReceipt {
 }
 
 txCli.command('receipt', {
-  description: 'Get the receipt for a transaction',
+  description: 'Get the receipt for a transaction.',
   args: z.object({
     txhash: z.string().describe('Transaction hash'),
   }),
   options: z.object({
     chain: chainOption,
   }),
+  env: etherscanEnv,
+  output: z.object({
+    hash: z.string(),
+    block: z.string(),
+    from: z.string(),
+    to: z.string().nullable(),
+    status: z.string(),
+    gasUsed: z.string(),
+    contractAddress: z.string().nullable(),
+    logCount: z.number(),
+    chain: z.string(),
+  }),
+  examples: [
+    {
+      args: { txhash: '0x1234...abcd' },
+      options: { chain: 'ethereum' },
+      description: 'Get receipt details including status and logs',
+    },
+  ],
   async run(c) {
     const { apiKey } = apiKeyAuth('ETHERSCAN_API_KEY');
     const chainId = resolveChainId(c.options.chain);
@@ -149,13 +191,27 @@ interface TxStatus {
 }
 
 txCli.command('status', {
-  description: 'Check whether a transaction succeeded or failed',
+  description: 'Check whether a transaction succeeded or failed.',
   args: z.object({
     txhash: z.string().describe('Transaction hash'),
   }),
   options: z.object({
     chain: chainOption,
   }),
+  env: etherscanEnv,
+  output: z.object({
+    hash: z.string(),
+    status: z.string(),
+    error: z.string().optional(),
+    chain: z.string(),
+  }),
+  examples: [
+    {
+      args: { txhash: '0x1234...abcd' },
+      options: { chain: 'base' },
+      description: 'Get pass/fail status for a transaction',
+    },
+  ],
   async run(c) {
     const { apiKey } = apiKeyAuth('ETHERSCAN_API_KEY');
     const chainId = resolveChainId(c.options.chain);

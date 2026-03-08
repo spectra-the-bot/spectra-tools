@@ -6,8 +6,13 @@ const trends = Cli.create('trends', {
   description: 'Explore trending topics on X.',
 });
 
+const xApiEnv = z.object({
+  X_BEARER_TOKEN: z.string().optional().describe('X API bearer token'),
+});
+
 trends.command('places', {
   description: 'List places where trending topics are available.',
+  env: xApiEnv,
   output: z.object({
     places: z.array(
       z.object({
@@ -50,6 +55,7 @@ trends.command('location', {
   args: z.object({
     woeid: z.string().describe('Where On Earth ID (from trends places)'),
   }),
+  env: xApiEnv,
   output: z.object({
     trends: z.array(
       z.object({

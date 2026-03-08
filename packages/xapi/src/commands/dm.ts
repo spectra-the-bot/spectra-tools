@@ -7,12 +7,17 @@ const dm = Cli.create('dm', {
   description: 'Manage X direct messages.',
 });
 
+const xApiEnv = z.object({
+  X_BEARER_TOKEN: z.string().optional().describe('X API bearer token'),
+});
+
 dm.command('conversations', {
   description: 'List your DM conversations.',
   options: z.object({
     maxResults: z.number().default(20).describe('Maximum conversations to return'),
   }),
   alias: { maxResults: 'n' },
+  env: xApiEnv,
   output: z.object({
     conversations: z.array(
       z.object({
@@ -67,6 +72,7 @@ dm.command('send', {
   options: z.object({
     text: z.string().describe('Message text'),
   }),
+  env: xApiEnv,
   output: z.object({
     dm_conversation_id: z.string(),
     dm_event_id: z.string(),

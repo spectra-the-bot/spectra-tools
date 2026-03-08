@@ -5,8 +5,11 @@ import { createAssemblyPublicClient } from '../contracts/client.js';
 import { asNum, eth, relTime, toChecksum } from './_common.js';
 
 const env = z.object({
-  ABSTRACT_RPC_URL: z.string().optional(),
-  ASSEMBLY_INDEXER_URL: z.string().optional(),
+  ABSTRACT_RPC_URL: z.string().optional().describe('Abstract RPC URL override'),
+  ASSEMBLY_INDEXER_URL: z
+    .string()
+    .optional()
+    .describe('Optional members snapshot endpoint (default: theaiassembly.org indexer)'),
 });
 
 async function memberSnapshot(url: string): Promise<string[]> {
@@ -18,12 +21,27 @@ async function memberSnapshot(url: string): Promise<string[]> {
 }
 
 export const members = Cli.create('members', {
-  description: 'Read Assembly membership state from Registry.',
+  description: 'Inspect Assembly membership and registry fee state.',
 });
 
 members.command('list', {
-  description: 'List members from indexer snapshot + onchain status.',
+  description: 'List members from an indexer snapshot plus on-chain active state.',
   env,
+  output: z.array(
+    z.object({
+      address: z.string(),
+      active: z.boolean(),
+      registered: z.boolean(),
+      activeUntil: z.number(),
+      activeUntilRelative: z.string(),
+      lastHeartbeatAt: z.number(),
+      lastHeartbeatRelative: z.string(),
+    }),
+  ),
+  examples: [
+    { description: 'List members using default indexer snapshot' },
+    { description: 'Override ASSEMBLY_INDEXER_URL to use a custom snapshot source' },
+  ],
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const snapshotUrl =
@@ -72,9 +90,25 @@ members.command('list', {
 });
 
 members.command('info', {
-  description: 'Read member info for an address.',
-  args: z.object({ address: z.string() }),
+  description: 'Get registry record and active status for a member address.',
+  args: z.object({
+    address: z.string().describe('Member wallet address'),
+  }),
   env,
+  output: z.object({
+    address: z.string(),
+    active: z.boolean(),
+    activeUntil: z.number(),
+    lastHeartbeatAt: z.number(),
+    activeUntilRelative: z.string(),
+    lastHeartbeatRelative: z.string(),
+  }),
+  examples: [
+    {
+      args: { address: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' },
+      description: 'Inspect one member address',
+    },
+  ],
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const [member, active] = (await Promise.all([
@@ -94,7 +128,8 @@ members.command('info', {
     return c.ok({
       address: toChecksum(c.args.address),
       active,
-      ...member,
+      activeUntil: Number(member.activeUntil),
+      lastHeartbeatAt: Number(member.lastHeartbeatAt),
       activeUntilRelative: relTime(member.activeUntil),
       lastHeartbeatRelative: relTime(member.lastHeartbeatAt),
     });
@@ -102,8 +137,13 @@ members.command('info', {
 });
 
 members.command('count', {
-  description: 'Read active + known member counts.',
+  description: 'Get active and total-known member counts from Registry.',
   env,
+  output: z.object({
+    active: z.number(),
+    total: z.number(),
+  }),
+  examples: [{ description: 'Count active and known members' }],
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const [active, total] = (await Promise.all([
@@ -123,8 +163,16 @@ members.command('count', {
 });
 
 members.command('fees', {
-  description: 'Read registry fee config.',
+  description: 'Get registration and heartbeat fee settings.',
   env,
+  output: z.object({
+    registrationFeeWei: z.string(),
+    registrationFee: z.string(),
+    heartbeatFeeWei: z.string(),
+    heartbeatFee: z.string(),
+    heartbeatGracePeriodSeconds: z.number(),
+  }),
+  examples: [{ description: 'Inspect current registry fee configuration' }],
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const [registrationFee, heartbeatFee, heartbeatGracePeriod] = (await Promise.all([

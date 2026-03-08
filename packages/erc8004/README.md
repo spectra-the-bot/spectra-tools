@@ -1,156 +1,78 @@
-# @spectra-the-bot/erc8004-cli
+# @spectratools/erc8004-cli
 
-CLI for ERC-8004 (Trustless Agents) registry interactions on Abstract mainnet. Built on [incur](https://github.com/wevm/incur).
+CLI for ERC-8004 (Trustless Agents) identity, registration, reputation, validation, and discovery on Abstract.
 
-## Overview
+## Install
 
-ERC-8004 defines three on-chain registries for AI agents:
+```bash
+pnpm add -g @spectratools/erc8004-cli
+```
 
-- **Identity Registry** - Agent registration (ERC-721), each token points to a registration file
-- **Reputation Registry** - Feedback signals between agents (scores, tags)
-- **Validation Registry** - Independent validator checks and results
+## LLM / Agent Discovery
 
-## Installation
+```bash
+# Emit machine-readable command metadata
+erc8004-cli --llms
 
-```sh
-pnpm add -g @spectra-the-bot/erc8004-cli
+# Register as a reusable local skill for agent runtimes
+erc8004-cli skills add
+
+# Register as an MCP server entry
+erc8004-cli mcp add
 ```
 
 ## Configuration
 
-Set environment variables before running commands:
-
 | Variable | Required | Description |
 |---|---|---|
-| `IDENTITY_REGISTRY_ADDRESS` | Read/write ops | Identity registry contract address |
-| `REPUTATION_REGISTRY_ADDRESS` | Reputation ops | Reputation registry contract address |
-| `VALIDATION_REGISTRY_ADDRESS` | Validation ops | Validation registry contract address |
-| `ABSTRACT_RPC_URL` | No | RPC URL (defaults to `https://api.mainnet.abs.xyz`) |
-| `PRIVATE_KEY` | Write ops | `0x`-prefixed private key for signing transactions |
+| `ABSTRACT_RPC_URL` | No | RPC URL override (defaults to package client default) |
+| `IDENTITY_REGISTRY_ADDRESS` | Optional override | Identity registry contract |
+| `REPUTATION_REGISTRY_ADDRESS` | Optional override | Reputation registry contract |
+| `VALIDATION_REGISTRY_ADDRESS` | Optional override | Validation registry contract |
+| `PRIVATE_KEY` | Write commands only | `0x`-prefixed signing key |
 
-## Commands
+## Command Group Intent Summary
 
-### Identity
+- `identity` — Register agents, inspect owner/URI/wallet, update metadata pointers
+- `registration` — Fetch, validate, or generate ERC-8004 registration files
+- `reputation` — Read score, submit feedback, inspect feedback history
+- `validation` — Request/track validator workflows and outcomes
+- `discovery` — Search for agents by metadata/services and resolve `<registry>:<agentId>`
 
-```sh
-# List all registered agents
-erc8004 identity list [--owner <address>] [--limit 50]
+## Agent-Oriented Examples
 
-# Get a specific agent
-erc8004 identity get <agentId>
+```bash
+# 1) Discover MCP-capable agents for tool routing
+erc8004-cli discovery search --service mcp --limit 10 --format json
 
-# Register a new agent (requires PRIVATE_KEY)
-erc8004 identity register --uri <uri>
+# 2) Resolve a canonical agent identifier from memory
+erc8004-cli discovery resolve 0xRegistryAddress:42 --format json
 
-# Update an agent's registration URI (requires PRIVATE_KEY)
-erc8004 identity update <agentId> --uri <newUri>
+# 3) Pull identity + registration for trust checks
+erc8004-cli identity get 42 --format json
+erc8004-cli registration fetch 42 --format json
 
-# Read agent metadata
-erc8004 identity metadata <agentId> --key <key>
+# 4) Compute quality heuristics from reputation history
+erc8004-cli reputation get 42 --format json
+erc8004-cli reputation history 42 --limit 20 --format json
 
-# Get agent wallet
-erc8004 identity wallet <agentId>
-
-# Set agent wallet (requires PRIVATE_KEY)
-erc8004 identity set-wallet <agentId> --wallet <address> --signature <sig>
+# 5) Watch validation pipeline state
+erc8004-cli validation status 9 --format json
 ```
 
-### Registration Files
+## Common Workflows
 
-Registration files are JSON documents pointed to by an agent's `tokenURI`.
+```bash
+# Register a new agent (write)
+erc8004-cli identity register --uri ipfs://bafy... --format json
 
-```sh
-# Fetch and parse an agent's registration file
-erc8004 registration fetch <agentId>
+# Update URI (write)
+erc8004-cli identity update 42 --uri ipfs://bafy... --format json
 
-# Validate a registration file at any URI (HTTPS, IPFS, data:)
-erc8004 registration validate <uri>
-
-# Generate a new registration file
-erc8004 registration create --name "My Agent" [--description "..."] [--version "1.0.0"]
+# Submit feedback (write)
+erc8004-cli reputation feedback 42 --value 10 --tag1 accuracy --format json
 ```
 
-**Registration file format:**
+## Network
 
-```json
-{
-  "name": "My Agent",
-  "description": "An AI agent for ...",
-  "version": "1.0.0",
-  "services": [
-    {
-      "id": "mcp-server",
-      "type": "mcp",
-      "url": "https://mcp.example.com",
-      "auth": { "type": "bearer" }
-    }
-  ],
-  "capabilities": ["code-review", "data-analysis"],
-  "erc8004": { "version": "0.1.0" }
-}
-```
-
-### Reputation
-
-```sh
-# Get reputation score for an agent
-erc8004 reputation get <agentId>
-
-# Submit feedback (requires PRIVATE_KEY)
-erc8004 reputation feedback <agentId> --value <int128> [--tag1 <str>] [--tag2 <str>] [--file-uri <uri>]
-
-# View feedback history
-erc8004 reputation history <agentId> [--limit 50]
-```
-
-Feedback values are `int128`: positive values indicate good experiences, negative indicate problems.
-
-### Validation
-
-```sh
-# Request a validation (requires PRIVATE_KEY)
-erc8004 validation request <agentId> --validator <address> --job-hash <bytes32>
-
-# Check validation status
-erc8004 validation status <requestId>
-
-# View validation history for an agent
-erc8004 validation history <agentId>
-```
-
-Validation statuses: `Pending`, `Passed`, `Failed`, `Cancelled`.
-
-### Discovery
-
-```sh
-# Search agents by name or service type
-erc8004 discovery search [--name <query>] [--service <type>] [--limit 20]
-
-# Resolve a full agent identifier
-erc8004 discovery resolve <registryAddress>:<agentId>
-```
-
-## Agent Mode
-
-All commands support structured JSON output for AI agent consumption:
-
-```sh
-erc8004 identity list --json
-erc8004 identity get 1 --format json
-```
-
-## MCP Server
-
-Run as an MCP server for direct agent integration:
-
-```sh
-erc8004 --mcp
-# or register with Claude Code:
-erc8004 mcp add
-```
-
-## Chain Info
-
-- **Network**: Abstract mainnet (`chainId: 2741`)
-- **RPC**: `https://api.mainnet.abs.xyz`
-- **Explorer**: `https://abscan.org`
+- Chain: Abstract mainnet (`2741`)

@@ -17,6 +17,10 @@ const chainOption = z
   .default(DEFAULT_CHAIN)
   .describe('Chain name (abstract, ethereum, base, arbitrum, ...)');
 
+const etherscanEnv = z.object({
+  ETHERSCAN_API_KEY: z.string().optional().describe('Etherscan V2 API key'),
+});
+
 function normalizeAddress(address: string): string {
   try {
     return checksumAddress(address);
@@ -26,17 +30,31 @@ function normalizeAddress(address: string): string {
 }
 
 export const accountCli = Cli.create('account', {
-  description: 'Query account balances, transactions, and token transfers',
+  description: 'Query account balances, transactions, and token transfers.',
 });
 
 accountCli.command('balance', {
-  description: 'Get the ETH balance of an address',
+  description: 'Get the native-token balance of an address.',
   args: z.object({
-    address: z.string().describe('Ethereum address'),
+    address: z.string().describe('Wallet address'),
   }),
   options: z.object({
     chain: chainOption,
   }),
+  env: etherscanEnv,
+  output: z.object({
+    address: z.string(),
+    wei: z.string(),
+    eth: z.string(),
+    chain: z.string(),
+  }),
+  examples: [
+    {
+      args: { address: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' },
+      options: { chain: 'abstract' },
+      description: 'Get ETH balance on Abstract',
+    },
+  ],
   async run(c) {
     const { apiKey } = apiKeyAuth('ETHERSCAN_API_KEY');
     const chainId = resolveChainId(c.options.chain);
@@ -83,9 +101,9 @@ interface TxListItem {
 }
 
 accountCli.command('txlist', {
-  description: 'List normal transactions for an address',
+  description: 'List normal transactions for an address.',
   args: z.object({
-    address: z.string().describe('Ethereum address'),
+    address: z.string().describe('Wallet address'),
   }),
   options: z.object({
     startblock: z.number().optional().default(0).describe('Start block number'),
@@ -95,6 +113,32 @@ accountCli.command('txlist', {
     sort: z.string().optional().default('asc').describe('Sort order (asc or desc)'),
     chain: chainOption,
   }),
+  env: etherscanEnv,
+  output: z.object({
+    address: z.string(),
+    chain: z.string(),
+    count: z.number(),
+    transactions: z.array(
+      z.object({
+        hash: z.string(),
+        from: z.string(),
+        to: z.string(),
+        value: z.string(),
+        eth: z.string(),
+        timestamp: z.string(),
+        block: z.string(),
+        status: z.string(),
+        gasUsed: z.string(),
+      }),
+    ),
+  }),
+  examples: [
+    {
+      args: { address: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' },
+      options: { chain: 'ethereum', sort: 'desc', offset: 5 },
+      description: 'List most recent transactions for an address',
+    },
+  ],
   async run(c) {
     const { apiKey } = apiKeyAuth('ETHERSCAN_API_KEY');
     const chainId = resolveChainId(c.options.chain);
@@ -159,9 +203,9 @@ interface TokenTxItem {
 }
 
 accountCli.command('tokentx', {
-  description: 'List ERC-20 token transfers for an address',
+  description: 'List ERC-20 token transfers for an address.',
   args: z.object({
-    address: z.string().describe('Ethereum address'),
+    address: z.string().describe('Wallet address'),
   }),
   options: z.object({
     contractaddress: z.string().optional().describe('Filter by token contract address'),
@@ -169,6 +213,32 @@ accountCli.command('tokentx', {
     offset: z.number().optional().default(20).describe('Results per page'),
     chain: chainOption,
   }),
+  env: etherscanEnv,
+  output: z.object({
+    address: z.string(),
+    chain: z.string(),
+    count: z.number(),
+    transfers: z.array(
+      z.object({
+        hash: z.string(),
+        from: z.string(),
+        to: z.string(),
+        value: z.string(),
+        token: z.string(),
+        tokenName: z.string(),
+        decimals: z.string(),
+        timestamp: z.string(),
+        contract: z.string(),
+      }),
+    ),
+  }),
+  examples: [
+    {
+      args: { address: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' },
+      options: { chain: 'base', offset: 10 },
+      description: 'List recent ERC-20 transfers for an address',
+    },
+  ],
   async run(c) {
     const { apiKey } = apiKeyAuth('ETHERSCAN_API_KEY');
     const chainId = resolveChainId(c.options.chain);
@@ -216,14 +286,28 @@ accountCli.command('tokentx', {
 });
 
 accountCli.command('tokenbalance', {
-  description: 'Get ERC-20 token balance for an address',
+  description: 'Get ERC-20 token balance for an address.',
   args: z.object({
-    address: z.string().describe('Ethereum address'),
+    address: z.string().describe('Wallet address'),
   }),
   options: z.object({
     contractaddress: z.string().describe('Token contract address'),
     chain: chainOption,
   }),
+  env: etherscanEnv,
+  output: z.object({
+    address: z.string(),
+    contract: z.string(),
+    balance: z.string(),
+    chain: z.string(),
+  }),
+  examples: [
+    {
+      args: { address: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' },
+      options: { contractaddress: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', chain: 'ethereum' },
+      description: 'Get token balance for a wallet + token pair',
+    },
+  ],
   async run(c) {
     const { apiKey } = apiKeyAuth('ETHERSCAN_API_KEY');
     const chainId = resolveChainId(c.options.chain);

@@ -15,8 +15,12 @@ const chainOption = z
   .default(DEFAULT_CHAIN)
   .describe('Chain name (abstract, ethereum, base, arbitrum, ...)');
 
+const etherscanEnv = z.object({
+  ETHERSCAN_API_KEY: z.string().optional().describe('Etherscan V2 API key'),
+});
+
 export const tokenCli = Cli.create('token', {
-  description: 'Query token info, holders, and supply',
+  description: 'Query token metadata, holders, and supply.',
 });
 
 interface TokenInfo {
@@ -46,13 +50,33 @@ interface TokenInfo {
 }
 
 tokenCli.command('info', {
-  description: 'Get information about a token contract',
+  description: 'Get metadata for a token contract.',
   args: z.object({
     contractaddress: z.string().describe('Token contract address'),
   }),
   options: z.object({
     chain: chainOption,
   }),
+  env: etherscanEnv,
+  output: z.object({
+    address: z.string(),
+    chain: z.string(),
+    name: z.string(),
+    symbol: z.string(),
+    type: z.string(),
+    totalSupply: z.string(),
+    decimals: z.string(),
+    priceUsd: z.string().optional(),
+    website: z.string().optional(),
+    description: z.string().optional(),
+  }),
+  examples: [
+    {
+      args: { contractaddress: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' },
+      options: { chain: 'ethereum' },
+      description: 'Get token metadata for USDC',
+    },
+  ],
   async run(c) {
     const { apiKey } = apiKeyAuth('ETHERSCAN_API_KEY');
     const chainId = resolveChainId(c.options.chain);
@@ -111,7 +135,7 @@ interface HolderEntry {
 }
 
 tokenCli.command('holders', {
-  description: 'List top token holders',
+  description: 'List top token holders.',
   args: z.object({
     contractaddress: z.string().describe('Token contract address'),
   }),
@@ -120,6 +144,26 @@ tokenCli.command('holders', {
     offset: z.number().optional().default(10).describe('Results per page'),
     chain: chainOption,
   }),
+  env: etherscanEnv,
+  output: z.object({
+    contractAddress: z.string(),
+    chain: z.string(),
+    count: z.number(),
+    holders: z.array(
+      z.object({
+        rank: z.number(),
+        address: z.string(),
+        quantity: z.string(),
+      }),
+    ),
+  }),
+  examples: [
+    {
+      args: { contractaddress: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' },
+      options: { page: 1, offset: 20, chain: 'ethereum' },
+      description: 'List top 20 holders for a token',
+    },
+  ],
   async run(c) {
     const { apiKey } = apiKeyAuth('ETHERSCAN_API_KEY');
     const chainId = resolveChainId(c.options.chain);
@@ -165,13 +209,26 @@ tokenCli.command('holders', {
 });
 
 tokenCli.command('supply', {
-  description: 'Get the total supply of a token',
+  description: 'Get total token supply.',
   args: z.object({
     contractaddress: z.string().describe('Token contract address'),
   }),
   options: z.object({
     chain: chainOption,
   }),
+  env: etherscanEnv,
+  output: z.object({
+    contractAddress: z.string(),
+    chain: z.string(),
+    totalSupply: z.string(),
+  }),
+  examples: [
+    {
+      args: { contractaddress: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' },
+      options: { chain: 'ethereum' },
+      description: 'Get total supply for a token',
+    },
+  ],
   async run(c) {
     const { apiKey } = apiKeyAuth('ETHERSCAN_API_KEY');
     const chainId = resolveChainId(c.options.chain);

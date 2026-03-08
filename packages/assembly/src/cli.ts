@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'node:url';
 import { Cli, z } from 'incur';
-import { eth } from './commands/_common.js';
+import { eth, toChecksum } from './commands/_common.js';
 import { council } from './commands/council.js';
 import { forum } from './commands/forum.js';
 import { governance } from './commands/governance.js';
@@ -20,11 +20,22 @@ cli.command(forum);
 cli.command(governance);
 cli.command(treasury);
 
-const rootEnv = z.object({ ABSTRACT_RPC_URL: z.string().optional() });
+const rootEnv = z.object({
+  ABSTRACT_RPC_URL: z.string().optional().describe('Abstract RPC URL override'),
+});
 
 cli.command('status', {
-  description: 'Cross-contract status snapshot.',
+  description: 'Get a cross-contract Assembly snapshot (members, council, governance, treasury).',
   env: rootEnv,
+  output: z.object({
+    activeMemberCount: z.number(),
+    seatCount: z.number(),
+    proposalCount: z.number(),
+    currentAuctionDay: z.number(),
+    currentAuctionSlot: z.number(),
+    treasuryBalance: z.string(),
+  }),
+  examples: [{ description: 'Fetch the current Assembly system status' }],
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const [
@@ -74,9 +85,25 @@ cli.command('status', {
 });
 
 cli.command('health', {
-  description: 'Cross-contract health for one address.',
-  args: z.object({ address: z.string() }),
+  description: 'Check cross-contract health for one address (membership, council, refunds, power).',
+  args: z.object({
+    address: z.string().describe('Member or wallet address to inspect'),
+  }),
   env: rootEnv,
+  output: z.object({
+    address: z.string(),
+    isActive: z.boolean(),
+    activeUntil: z.number(),
+    isCouncilMember: z.boolean(),
+    pendingReturnsWei: z.string(),
+    votingPower: z.number(),
+  }),
+  examples: [
+    {
+      args: { address: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' },
+      description: 'Inspect one address across Assembly contracts',
+    },
+  ],
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const [isActive, member, isCouncilMember, pendingReturns, votingPower] = (await Promise.all([
@@ -112,7 +139,7 @@ cli.command('health', {
       }),
     ])) as [boolean, { activeUntil: bigint }, boolean, bigint, bigint];
     return c.ok({
-      address: c.args.address,
+      address: toChecksum(c.args.address),
       isActive,
       activeUntil: Number(member.activeUntil),
       isCouncilMember,

@@ -1,74 +1,69 @@
-# @spectra-the-bot/xapi-cli
+# @spectratools/xapi-cli
 
-X (Twitter) API v2 CLI for spectra-the-bot, built with [incur](https://github.com/wevm/incur).
+X (Twitter) API v2 CLI for post, user, list, trend, timeline, and DM workflows.
 
-## Setup
+## Install
+
+```bash
+pnpm add -g @spectratools/xapi-cli
+```
+
+## LLM / Agent Discovery
+
+```bash
+# Emit machine-readable command metadata
+xapi-cli --llms
+
+# Register as a reusable local skill for agent runtimes
+xapi-cli skills add
+
+# Register as an MCP server entry
+xapi-cli mcp add
+```
+
+## Configuration
 
 ```bash
 export X_BEARER_TOKEN=your_bearer_token_here
-npx @spectra-the-bot/xapi-cli --help
 ```
 
-## Commands
+## Command Group Intent Summary
 
-### Posts
+- `posts` — Read/search/create/delete posts and inspect social engagement
+- `users` — Profile lookup, social graph traversal, and user timelines
+- `timeline` — Home timeline and mention stream monitoring
+- `lists` — List discovery, member inspection, and list feed reads
+- `trends` — Trend place discovery and per-location trend fetch
+- `dm` — Conversation listing and outbound direct messages
+
+## Agent-Oriented Examples
 
 ```bash
-xapi posts get <id>
-xapi posts search <query> [-n 10] [--sort recency|relevancy]
-xapi posts create --text "Hello world!" [--reply-to <id>] [--quote <id>]
-xapi posts delete <id>
-xapi posts likes <id>
-xapi posts retweets <id>
+# 1) Trend-to-content pipeline
+xapi-cli trends places --format json
+xapi-cli trends location 1 --format json
+xapi-cli posts search "AI agents" --sort relevancy --max-results 20 --format json
+
+# 2) User intelligence pass
+xapi-cli users get jack --format json
+xapi-cli users posts jack --max-results 20 --format json
+xapi-cli users followers jack --max-results 100 --format json
+
+# 3) Moderation helper flow
+xapi-cli posts get 1234567890 --format json
+xapi-cli posts likes 1234567890 --max-results 100 --format json
+xapi-cli posts retweets 1234567890 --max-results 100 --format json
+
+# 4) Timeline monitor
+xapi-cli timeline home --max-results 50 --format json
+xapi-cli timeline mentions --max-results 50 --format json
+
+# 5) DM assistant loop
+xapi-cli dm conversations --max-results 20 --format json
+xapi-cli dm send 12345 --text "hello from agent" --format json
 ```
 
-### Users
+## Notes
 
-```bash
-xapi users get <username|id>
-xapi users followers <username> [-n 100]
-xapi users following <username>
-xapi users posts <username> [-n 10]
-xapi users mentions <username>
-xapi users search <query>
-```
-
-### Timeline
-
-```bash
-xapi timeline home [-n 25]
-xapi timeline mentions [-n 25]
-```
-
-### Lists
-
-```bash
-xapi lists get <id>
-xapi lists members <id>
-xapi lists posts <id> [-n 25]
-```
-
-### Trends
-
-```bash
-xapi trends places
-xapi trends location <woeid>
-```
-
-### DMs
-
-```bash
-xapi dm conversations [-n 20]
-xapi dm send <participant-id> --text "Hello!"
-```
-
-## Common Options
-
-- `--verbose` — Show full text without truncation
-- `-n, --max-results` — Control result count
-- `--format json` — JSON output
-- `--help` — Show help
-
-## Auth
-
-All read endpoints use `X_BEARER_TOKEN`. Write endpoints (create post, delete, DMs) require OAuth 2.0 user context. Requests are automatically retried on 429 rate limit responses.
+- All commands support JSON output with `--format json`.
+- Write actions (post create/delete, DM send) require token scope compatible with user-context endpoints.
