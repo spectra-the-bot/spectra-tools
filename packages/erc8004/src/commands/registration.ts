@@ -1,31 +1,10 @@
-import { createHttpClient } from '@spectratools/cli-shared';
 import { Cli, z } from 'incur';
 import { type Registration, registrationSchema } from '../schema.js';
+import { fetchRegistrationUri } from '../utils/fetch-uri.js';
 
 const registration = Cli.create('registration', {
   description: 'Fetch, validate, and create ERC-8004 registration files.',
 });
-
-/** Fetches registration JSON from a URI (HTTPS, IPFS, or data:). */
-async function fetchRegistrationFromUri(uri: string): Promise<unknown> {
-  if (uri.startsWith('data:')) {
-    const commaIdx = uri.indexOf(',');
-    if (commaIdx === -1) throw new Error('Invalid data URI');
-    const payload = uri.slice(commaIdx + 1);
-    const isBase64 = uri.slice(0, commaIdx).includes('base64');
-    const text = isBase64 ? atob(payload) : decodeURIComponent(payload);
-    return JSON.parse(text);
-  }
-
-  let httpUrl = uri;
-  if (uri.startsWith('ipfs://')) {
-    httpUrl = `https://ipfs.io/ipfs/${uri.slice(7)}`;
-  }
-
-  const client = createHttpClient({ baseUrl: httpUrl.replace(/\/[^/]*$/, '') });
-  const path = `/${httpUrl.split('/').slice(3).join('/')}`;
-  return client.request<unknown>(path || '/');
-}
 
 registration.command('fetch', {
   description: 'Fetch and parse the registration file for an agent.',
@@ -59,7 +38,7 @@ registration.command('fetch', {
       args: [BigInt(c.args.agentId)],
     });
 
-    const raw = await fetchRegistrationFromUri(uri);
+    const raw = await fetchRegistrationUri(uri);
     const parsed = registrationSchema.safeParse(raw);
 
     if (!parsed.success) {
@@ -125,7 +104,7 @@ registration.command('validate', {
     },
   ],
   async run(c) {
-    const raw = await fetchRegistrationFromUri(c.args.uri);
+    const raw = await fetchRegistrationUri(c.args.uri);
     const parsed = registrationSchema.safeParse(raw);
 
     if (!parsed.success) {
