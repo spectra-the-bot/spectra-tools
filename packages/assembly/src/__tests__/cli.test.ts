@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ABSTRACT_MAINNET_DEPLOYMENT_BLOCKS } from '../contracts/addresses.js';
 
 type Envelope = {
   ok: boolean;
@@ -87,7 +88,8 @@ describe('assembly onchain commands', () => {
 
     const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
 
-    mockClient.getBlockNumber.mockResolvedValueOnce(10n);
+    const latestBlock = ABSTRACT_MAINNET_DEPLOYMENT_BLOCKS.registry + 10n;
+    mockClient.getBlockNumber.mockResolvedValueOnce(latestBlock);
     mockClient.getContractEvents.mockResolvedValueOnce([
       { args: { member: addrA } },
       { args: { member: addrB } },
@@ -104,6 +106,12 @@ describe('assembly onchain commands', () => {
 
     expect(out.ok).toBe(true);
     expect(mockClient.getContractEvents).toHaveBeenCalledTimes(1);
+    expect(mockClient.getContractEvents).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fromBlock: ABSTRACT_MAINNET_DEPLOYMENT_BLOCKS.registry,
+        toBlock: latestBlock,
+      }),
+    );
     const data = out.data as Array<Record<string, unknown>>;
     expect(data).toHaveLength(2);
     expect(stderrSpy).toHaveBeenCalledWith(
@@ -126,6 +134,33 @@ describe('assembly onchain commands', () => {
 
     expect(out.ok).toBe(false);
     expect(out.error).toMatchObject({ code: 'MEMBER_LIST_SOURCE_UNAVAILABLE' });
+  });
+
+  it('members list errors when fallback scan times out', async () => {
+    const mockFetch = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response('', {
+        status: 404,
+        statusText: 'Not Found',
+      }),
+    );
+    vi.stubGlobal('fetch', mockFetch);
+
+    const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout').mockImplementation((callback) => {
+      if (typeof callback === 'function') {
+        callback();
+      }
+      return 0 as ReturnType<typeof setTimeout>;
+    });
+
+    mockClient.getBlockNumber.mockResolvedValueOnce(ABSTRACT_MAINNET_DEPLOYMENT_BLOCKS.registry);
+    mockClient.getContractEvents.mockImplementationOnce(() => new Promise(() => undefined));
+
+    const out = await run(['members', 'list']);
+
+    expect(out.ok).toBe(false);
+    expect(out.error).toMatchObject({ code: 'MEMBER_LIST_SOURCE_UNAVAILABLE' });
+    expect(out.error?.message).toContain('timed out');
+    expect(setTimeoutSpy).toHaveBeenCalledTimes(1);
   });
 
   it('council is-member', async () => {

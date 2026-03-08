@@ -1,11 +1,15 @@
 import { Cli, z } from 'incur';
 import { registryAbi } from '../contracts/abis.js';
-import { ABSTRACT_MAINNET_ADDRESSES } from '../contracts/addresses.js';
+import {
+  ABSTRACT_MAINNET_ADDRESSES,
+  ABSTRACT_MAINNET_DEPLOYMENT_BLOCKS,
+} from '../contracts/addresses.js';
 import { createAssemblyPublicClient } from '../contracts/client.js';
 import { asNum, eth, relTime, toChecksum } from './_common.js';
 
 const DEFAULT_MEMBER_SNAPSHOT_URL = 'https://www.theaiassembly.org/api/indexer/members';
 const REGISTERED_EVENT_SCAN_STEP = 100_000n;
+const REGISTERED_EVENT_SCAN_TIMEOUT_MS = 20_000;
 
 type AssemblyClient = ReturnType<typeof createAssemblyPublicClient>;
 
@@ -83,11 +87,35 @@ async function memberSnapshot(url: string): Promise<string[]> {
   });
 }
 
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  timeoutMessage: string,
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => {
+          reject(new Error(timeoutMessage));
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 async function membersFromRegisteredEvents(client: AssemblyClient): Promise<string[]> {
   const latestBlock = await client.getBlockNumber();
   const addresses = new Set<string>();
 
-  for (let fromBlock = 0n; fromBlock <= latestBlock; fromBlock += REGISTERED_EVENT_SCAN_STEP) {
+  for (
+    let fromBlock = ABSTRACT_MAINNET_DEPLOYMENT_BLOCKS.registry;
+    fromBlock <= latestBlock;
+    fromBlock += REGISTERED_EVENT_SCAN_STEP
+  ) {
     const toBlock =
       fromBlock + REGISTERED_EVENT_SCAN_STEP - 1n > latestBlock
         ? latestBlock
@@ -178,7 +206,11 @@ members.command('list', {
 
       fallbackReason = error.details;
       try {
-        addresses = await membersFromRegisteredEvents(client);
+        addresses = await withTimeout(
+          membersFromRegisteredEvents(client),
+          REGISTERED_EVENT_SCAN_TIMEOUT_MS,
+          `Registered event fallback scan timed out after ${REGISTERED_EVENT_SCAN_TIMEOUT_MS}ms`,
+        );
       } catch (fallbackError) {
         return c.error({
           code: 'MEMBER_LIST_SOURCE_UNAVAILABLE',

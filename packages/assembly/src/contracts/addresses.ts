@@ -5,3 +5,8 @@ export const ABSTRACT_MAINNET_ADDRESSES = {
   governance: '0xe82a25937e07a3855d8B8352b85fF4B4Aa3fb0C0',
   treasury: '0xC2e6DDbdc1A8e4DcCc60A78B6Faa197967a8FEb9',
 } as const;
+
+export const ABSTRACT_MAINNET_DEPLOYMENT_BLOCKS = {
+  // https://abscan.org/tx/0xe1dd27a739944c9847a7f366ea2363e7bf0fc2067377020fd749a8301e09b1ec
+  registry: 43_782_651n,
+} as const;
