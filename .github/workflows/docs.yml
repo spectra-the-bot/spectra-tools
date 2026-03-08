@@ -65,7 +65,14 @@ jobs:
         run: pnpm docs:generate
 
       - name: Build VitePress site
+        env:
+          DOCS_DEPLOY_TARGET: custom-domain
         run: pnpm docs:build
+
+      - name: Sanity-check custom-domain asset paths
+        env:
+          DOCS_DEPLOY_TARGET: custom-domain
+        run: pnpm docs:check:custom-domain-assets
 
       - name: Upload GitHub Pages artifact
         if: steps.pages-status.outputs.enabled == 'true'

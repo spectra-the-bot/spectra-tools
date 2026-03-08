@@ -1,10 +1,28 @@
 import { defineConfig } from 'vitepress';
 
+function normalizeBase(base: string): string {
+  if (base === '/') {
+    return '/';
+  }
+
+  const withLeadingSlash = base.startsWith('/') ? base : `/${base}`;
+  return withLeadingSlash.endsWith('/') ? withLeadingSlash : `${withLeadingSlash}/`;
+}
+
+function resolveDocsBase(): string {
+  if (process.env.DOCS_BASE) {
+    return normalizeBase(process.env.DOCS_BASE.trim());
+  }
+
+  const deployTarget = process.env.DOCS_DEPLOY_TARGET ?? 'custom-domain';
+  return deployTarget === 'github-pages' ? '/spectra-tools/' : '/';
+}
+
 export default defineConfig({
   title: 'spectra-tools',
   description:
     'CLI tools for the Abstract ecosystem — query governance, explore chains, monitor social feeds, and discover onchain agents.',
-  base: '/spectra-tools/',
+  base: resolveDocsBase(),
   cleanUrls: true,
   head: [
     [

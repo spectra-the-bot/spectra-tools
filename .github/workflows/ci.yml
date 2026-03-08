@@ -48,6 +48,16 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Build docs (custom domain)
+        env:
+          DOCS_DEPLOY_TARGET: custom-domain
+        run: pnpm docs:build
+
+      - name: Verify docs asset paths (custom domain)
+        env:
+          DOCS_DEPLOY_TARGET: custom-domain
+        run: pnpm docs:check:custom-domain-assets
+
       - name: Run tests
         run: pnpm test
 
