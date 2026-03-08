@@ -2,7 +2,42 @@ import { describe, expect, it } from 'vitest';
 import { collectPaged } from '../collect-paged.js';
 
 describe('collectPaged', () => {
-  it('collects pages, maps items, and respects maxResults', async () => {
+  it('returns an empty list for empty responses', async () => {
+    const calls: Array<{ limit: number; cursor?: string }> = [];
+
+    const results = await collectPaged(
+      async (limit, cursor) => {
+        calls.push({ limit, cursor });
+        return {};
+      },
+      (item: string) => item,
+      10,
+    );
+
+    expect(results).toEqual([]);
+    expect(calls).toEqual([{ limit: 10, cursor: undefined }]);
+  });
+
+  it('collects a single page when no next token is present', async () => {
+    const calls: Array<{ limit: number; cursor?: string }> = [];
+
+    const results = await collectPaged(
+      async (limit, cursor) => {
+        calls.push({ limit, cursor });
+        return {
+          data: [{ id: '1' }, { id: '2' }],
+          meta: {},
+        };
+      },
+      (item) => item.id,
+      5,
+    );
+
+    expect(results).toEqual(['1', '2']);
+    expect(calls).toEqual([{ limit: 5, cursor: undefined }]);
+  });
+
+  it('collects across multiple pages and respects maxResults', async () => {
     const calls: Array<{ limit: number; cursor?: string }> = [];
 
     const results = await collectPaged(
@@ -12,44 +47,31 @@ describe('collectPaged', () => {
         if (!cursor) {
           return {
             data: [{ id: '1' }, { id: '2' }],
-            meta: { next_token: 'next-1' },
+            meta: { next_token: 'p2' },
           };
         }
 
-        if (cursor === 'next-1') {
+        if (cursor === 'p2') {
           return {
             data: [{ id: '3' }, { id: '4' }],
-            meta: { next_token: 'next-2' },
+            meta: { next_token: 'p3' },
           };
         }
 
-        return { data: [{ id: '5' }], meta: {} };
+        return {
+          data: [{ id: '5' }],
+          meta: {},
+        };
       },
       (item) => Number(item.id),
-      3,
+      4,
       2,
     );
 
-    expect(results).toEqual([1, 2, 3]);
+    expect(results).toEqual([1, 2, 3, 4]);
     expect(calls).toEqual([
       { limit: 2, cursor: undefined },
-      { limit: 1, cursor: 'next-1' },
+      { limit: 2, cursor: 'p2' },
     ]);
-  });
-
-  it('handles empty pages when data/meta are missing', async () => {
-    const calls: Array<{ limit: number; cursor?: string }> = [];
-
-    const results = await collectPaged(
-      async (limit, cursor) => {
-        calls.push({ limit, cursor });
-        return {};
-      },
-      (item: string) => item.toUpperCase(),
-      10,
-    );
-
-    expect(results).toEqual([]);
-    expect(calls).toEqual([{ limit: 10, cursor: undefined }]);
   });
 });
