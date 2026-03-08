@@ -112,6 +112,20 @@ council.command('seat', {
   examples: [{ args: { id: 0 }, description: 'Inspect seat #0' }],
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
+    const seatCount = (await client.readContract({
+      abi: councilSeatsAbi,
+      address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+      functionName: 'seatCount',
+    })) as bigint;
+
+    if (c.args.id >= Number(seatCount)) {
+      return c.error({
+        code: 'OUT_OF_RANGE',
+        message: `Seat id ${c.args.id} does not exist (seatCount: ${seatCount})`,
+        retryable: false,
+      });
+    }
+
     const seatTuple = await client.readContract({
       abi: councilSeatsAbi,
       address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,

@@ -174,6 +174,20 @@ forum.command('thread', {
   examples: [{ args: { id: 1 }, description: 'Fetch thread #1 and its comments' }],
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
+    const threadCount = (await client.readContract({
+      abi: forumAbi,
+      address: ABSTRACT_MAINNET_ADDRESSES.forum,
+      functionName: 'threadCount',
+    })) as bigint;
+
+    if (c.args.id > Number(threadCount)) {
+      return c.error({
+        code: 'OUT_OF_RANGE',
+        message: `Thread id ${c.args.id} does not exist (threadCount: ${threadCount})`,
+        retryable: false,
+      });
+    }
+
     const [threadTuple, commentCount] = (await Promise.all([
       client.readContract({
         abi: forumAbi,
@@ -259,6 +273,20 @@ forum.command('comment', {
   examples: [{ args: { id: 1 }, description: 'Fetch comment #1' }],
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
+    const commentCount = (await client.readContract({
+      abi: forumAbi,
+      address: ABSTRACT_MAINNET_ADDRESSES.forum,
+      functionName: 'commentCount',
+    })) as bigint;
+
+    if (c.args.id > Number(commentCount)) {
+      return c.error({
+        code: 'OUT_OF_RANGE',
+        message: `Comment id ${c.args.id} does not exist (commentCount: ${commentCount})`,
+        retryable: false,
+      });
+    }
+
     const commentTuple = await client.readContract({
       abi: forumAbi,
       address: ABSTRACT_MAINNET_ADDRESSES.forum,
@@ -309,6 +337,20 @@ forum.command('petition', {
   examples: [{ args: { id: 1 }, description: 'Fetch petition #1' }],
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
+    const petitionCount = (await client.readContract({
+      abi: forumAbi,
+      address: ABSTRACT_MAINNET_ADDRESSES.forum,
+      functionName: 'petitionCount',
+    })) as bigint;
+
+    if (c.args.id > Number(petitionCount)) {
+      return c.error({
+        code: 'OUT_OF_RANGE',
+        message: `Petition id ${c.args.id} does not exist (petitionCount: ${petitionCount})`,
+        retryable: false,
+      });
+    }
+
     const petition = decodePetition(
       await client.readContract({
         abi: forumAbi,

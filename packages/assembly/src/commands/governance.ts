@@ -220,6 +220,20 @@ governance.command('proposal', {
   examples: [{ args: { id: 1 }, description: 'Fetch proposal #1' }],
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
+    const proposalCount = (await client.readContract({
+      abi: governanceAbi,
+      address: ABSTRACT_MAINNET_ADDRESSES.governance,
+      functionName: 'proposalCount',
+    })) as bigint;
+
+    if (c.args.id > Number(proposalCount)) {
+      return c.error({
+        code: 'OUT_OF_RANGE',
+        message: `Proposal id ${c.args.id} does not exist (proposalCount: ${proposalCount})`,
+        retryable: false,
+      });
+    }
+
     const proposal = decodeProposal(
       await client.readContract({
         abi: governanceAbi,
