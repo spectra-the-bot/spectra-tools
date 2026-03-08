@@ -1,5 +1,7 @@
 # @spectratools/erc8004-cli
 
+> ⚠️ **Pre-release** — This package is under active development. Some commands may not work as expected. See [open issues](https://github.com/spectra-the-bot/spectra-tools/issues?q=is%3Aissue+is%3Aopen+erc8004) for known limitations.
+
 CLI for ERC-8004 (Trustless Agents) identity, registration, reputation, validation, and discovery on Abstract.
 
 ## Install
