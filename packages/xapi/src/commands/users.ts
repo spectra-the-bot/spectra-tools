@@ -1,14 +1,10 @@
-import { apiKeyAuth } from '@spectratools/cli-shared';
 import { Cli, z } from 'incur';
 import { createXApiClient, relativeTime, truncateText } from '../api.js';
+import { readAuthToken, xApiEnv } from '../auth.js';
 import { collectPaged } from '../collect-paged.js';
 
 const users = Cli.create('users', {
   description: 'Look up X users.',
-});
-
-const xApiEnv = z.object({
-  X_BEARER_TOKEN: z.string().optional().describe('X API bearer token'),
 });
 
 async function resolveUser(client: ReturnType<typeof createXApiClient>, usernameOrId: string) {
@@ -42,8 +38,7 @@ users.command('get', {
     { args: { username: '12345' }, description: 'Get a user by ID' },
   ],
   async run(c) {
-    const { apiKey } = apiKeyAuth('X_BEARER_TOKEN');
-    const client = createXApiClient(apiKey);
+    const client = createXApiClient(readAuthToken());
     const res = await resolveUser(client, c.args.username);
     const user = res.data;
     return c.ok(
@@ -105,8 +100,7 @@ users.command('followers', {
   }),
   examples: [{ args: { username: 'jack' }, description: 'List followers of jack' }],
   async run(c) {
-    const { apiKey } = apiKeyAuth('X_BEARER_TOKEN');
-    const client = createXApiClient(apiKey);
+    const client = createXApiClient(readAuthToken());
     const userRes = await resolveUser(client, c.args.username);
     const userId = userRes.data.id;
     const allUsers = await collectPaged(
@@ -155,8 +149,7 @@ users.command('following', {
   }),
   examples: [{ args: { username: 'jack' }, description: 'List accounts jack follows' }],
   async run(c) {
-    const { apiKey } = apiKeyAuth('X_BEARER_TOKEN');
-    const client = createXApiClient(apiKey);
+    const client = createXApiClient(readAuthToken());
     const userRes = await resolveUser(client, c.args.username);
     const userId = userRes.data.id;
     const allUsers = await collectPaged(
@@ -207,8 +200,7 @@ users.command('posts', {
   }),
   examples: [{ args: { username: 'jack' }, description: "Get jack's recent posts" }],
   async run(c) {
-    const { apiKey } = apiKeyAuth('X_BEARER_TOKEN');
-    const client = createXApiClient(apiKey);
+    const client = createXApiClient(readAuthToken());
     const userRes = await resolveUser(client, c.args.username);
     const userId = userRes.data.id;
     const allPosts = await collectPaged(
@@ -275,8 +267,7 @@ users.command('mentions', {
   }),
   examples: [{ args: { username: 'jack' }, description: 'Get mentions of jack' }],
   async run(c) {
-    const { apiKey } = apiKeyAuth('X_BEARER_TOKEN');
-    const client = createXApiClient(apiKey);
+    const client = createXApiClient(readAuthToken());
     const userRes = await resolveUser(client, c.args.username);
     const userId = userRes.data.id;
     const allPosts = await collectPaged(
@@ -312,8 +303,7 @@ users.command('search', {
   }),
   examples: [{ args: { query: 'TypeScript' }, description: 'Search for users about TypeScript' }],
   async run(c) {
-    const { apiKey } = apiKeyAuth('X_BEARER_TOKEN');
-    const client = createXApiClient(apiKey);
+    const client = createXApiClient(readAuthToken());
     const res = await client.searchUsers(c.args.query);
     const items = (res.data ?? []).map((u) => ({
       id: u.id,

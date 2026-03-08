@@ -1,14 +1,10 @@
-import { apiKeyAuth } from '@spectratools/cli-shared';
 import { Cli, z } from 'incur';
 import { createXApiClient } from '../api.js';
+import { readAuthToken, toWriteAuthError, writeAuthToken, xApiEnv } from '../auth.js';
 import { collectPaged } from '../collect-paged.js';
 
 const dm = Cli.create('dm', {
   description: 'Manage X direct messages.',
-});
-
-const xApiEnv = z.object({
-  X_BEARER_TOKEN: z.string().optional().describe('X API bearer token'),
 });
 
 dm.command('conversations', {
@@ -29,8 +25,7 @@ dm.command('conversations', {
   }),
   examples: [{ description: 'List your DM conversations' }],
   async run(c) {
-    const { apiKey } = apiKeyAuth('X_BEARER_TOKEN');
-    const client = createXApiClient(apiKey);
+    const client = createXApiClient(readAuthToken());
     const meRes = await client.getMe();
     const userId = meRes.data.id;
     const allConvos = await collectPaged(
@@ -85,10 +80,15 @@ dm.command('send', {
     },
   ],
   async run(c) {
-    const { apiKey } = apiKeyAuth('X_BEARER_TOKEN');
-    const client = createXApiClient(apiKey);
-    const res = await client.sendDm(c.args.participantId, c.options.text);
-    return c.ok(res.data);
+    try {
+      const client = createXApiClient(writeAuthToken());
+      const res = await client.sendDm(c.args.participantId, c.options.text);
+      return c.ok(res.data);
+    } catch (error) {
+      const authError = toWriteAuthError('dm send', error);
+      if (authError) return c.error(authError);
+      throw error;
+    }
   },
 });
 
