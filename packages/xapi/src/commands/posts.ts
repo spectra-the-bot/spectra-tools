@@ -199,7 +199,9 @@ posts.command('likes', {
     const client = createXApiClient(apiKey);
     const allUsers = await collectPaged(
       (limit, cursor) => client.getPostLikes(c.args.id, limit, cursor),
-      (user): {
+      (
+        user,
+      ): {
         id: string;
         name: string;
         username: string;
@@ -255,7 +257,9 @@ posts.command('retweets', {
     const client = createXApiClient(apiKey);
     const allUsers = await collectPaged(
       (limit, cursor) => client.getPostRetweets(c.args.id, limit, cursor),
-      (user): {
+      (
+        user,
+      ): {
         id: string;
         name: string;
         username: string;

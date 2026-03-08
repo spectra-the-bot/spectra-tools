@@ -72,7 +72,9 @@ lists.command('members', {
     const client = createXApiClient(apiKey);
     const allUsers = await collectPaged(
       (limit, cursor) => client.getListMembers(c.args.id, limit, cursor),
-      (user): {
+      (
+        user,
+      ): {
         id: string;
         name: string;
         username: string;
@@ -118,7 +120,9 @@ lists.command('posts', {
     const client = createXApiClient(apiKey);
     const allPosts = await collectPaged(
       (limit, cursor) => client.getListPosts(c.args.id, limit, cursor),
-      (post): {
+      (
+        post,
+      ): {
         id: string;
         text: string;
         author_id: string | undefined;

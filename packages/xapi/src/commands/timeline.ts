@@ -38,7 +38,9 @@ timeline.command('home', {
     const userId = meRes.data.id;
     const allPosts = await collectPaged(
       (limit, cursor) => client.getHomeTimeline(userId, limit, cursor),
-      (post): {
+      (
+        post,
+      ): {
         id: string;
         text: string;
         author_id: string | undefined;
@@ -103,7 +105,9 @@ timeline.command('mentions', {
     const userId = meRes.data.id;
     const allPosts = await collectPaged(
       (limit, cursor) => client.getMentionsTimeline(userId, limit, cursor),
-      (post): {
+      (
+        post,
+      ): {
         id: string;
         text: string;
         author_id: string | undefined;

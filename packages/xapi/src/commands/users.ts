@@ -106,7 +106,9 @@ users.command('followers', {
     const userId = userRes.data.id;
     const allUsers = await collectPaged(
       (limit, cursor) => client.getUserFollowers(userId, limit, cursor),
-      (user): {
+      (
+        user,
+      ): {
         id: string;
         name: string;
         username: string;
@@ -153,7 +155,9 @@ users.command('following', {
     const userId = userRes.data.id;
     const allUsers = await collectPaged(
       (limit, cursor) => client.getUserFollowing(userId, limit, cursor),
-      (user): {
+      (
+        user,
+      ): {
         id: string;
         name: string;
         username: string;
@@ -202,7 +206,9 @@ users.command('posts', {
     const userId = userRes.data.id;
     const allPosts = await collectPaged(
       (limit, cursor) => client.getUserPosts(userId, limit, cursor),
-      (post): {
+      (
+        post,
+      ): {
         id: string;
         text: string;
         created_at: string | undefined;

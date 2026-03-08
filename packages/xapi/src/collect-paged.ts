@@ -15,7 +15,10 @@ export async function collectPaged<T, R>(
 
   for await (const item of paginateCursor({
     fetchPage: async (cursor: string | null) => {
-      const res = await fetchFn(Math.min(maxResults - results.length, pageSize), cursor ?? undefined);
+      const res = await fetchFn(
+        Math.min(maxResults - results.length, pageSize),
+        cursor ?? undefined,
+      );
       return {
         items: res.data ?? [],
         nextCursor: res.meta?.next_token ?? null,
