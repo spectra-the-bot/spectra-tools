@@ -1,5 +1,11 @@
 # @spectra-the-bot/assembly-cli
 
+## 0.3.1
+
+### Patch Changes
+
+- [#74](https://github.com/spectra-the-bot/spectra-tools/pull/74) [`67d1215`](https://github.com/spectra-the-bot/spectra-tools/commit/67d12154bae7e745e6a7ac2b1376e04ecb762651) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Wrap forum thread and governance proposal list outputs in named objects when CTAs are present to keep JSON shapes stable.
+
 ## 0.3.0
 
 ### Minor Changes

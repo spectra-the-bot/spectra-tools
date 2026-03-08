@@ -1,6 +1,6 @@
 {
   "name": "@spectratools/assembly-cli",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "CLI for Assembly governance on Abstract (members, council, forum, proposals, and treasury).",
   "type": "module",
   "license": "MIT",
