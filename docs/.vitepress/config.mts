@@ -82,7 +82,22 @@ export default defineConfig({
             collapsed: false,
             items: [
               { text: 'Overview', link: '/etherscan/' },
+              { text: 'Configuration', link: '/etherscan/configuration' },
               { text: 'Commands', link: '/etherscan/commands' },
+              {
+                text: 'Guides',
+                collapsed: false,
+                items: [
+                  {
+                    text: 'Contract Investigation',
+                    link: '/etherscan/guides/contract-investigation',
+                  },
+                  {
+                    text: 'Agent Integration',
+                    link: '/etherscan/guides/agent-integration',
+                  },
+                ],
+              },
             ],
           },
           {
