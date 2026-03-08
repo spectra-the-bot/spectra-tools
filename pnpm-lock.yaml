@@ -60,6 +60,9 @@ importers:
       '@spectratools/cli-shared':
         specifier: workspace:*
         version: link:../shared
+      '@spectratools/tx-shared':
+        specifier: workspace:*
+        version: link:../tx-shared
       incur:
         specifier: ^0.2.2
         version: 0.2.2(openapi-types@12.1.3)
