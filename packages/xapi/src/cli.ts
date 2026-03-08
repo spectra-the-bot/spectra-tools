@@ -1,6 +1,7 @@
 import { realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { Cli } from 'incur';
+import { type XApiAuthScope, toXApiCommandError } from './auth.js';
 import { dm } from './commands/dm.js';
 import { lists } from './commands/lists.js';
 import { posts } from './commands/posts.js';
@@ -10,6 +11,23 @@ import { users } from './commands/users.js';
 
 const cli = Cli.create('xapi', {
   description: 'X (Twitter) API CLI for spectra-the-bot.',
+});
+
+const WRITE_OPERATIONS = new Set(['posts create', 'posts delete', 'dm send']);
+
+cli.use(async ({ command, error }, next) => {
+  try {
+    return await next();
+  } catch (cause) {
+    const authScope: XApiAuthScope = WRITE_OPERATIONS.has(command) ? 'write' : 'read';
+    const mapped = toXApiCommandError(command, cause, authScope);
+
+    if (mapped) {
+      return error(mapped);
+    }
+
+    throw cause;
+  }
 });
 
 cli.command(posts);
