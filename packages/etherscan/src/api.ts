@@ -1,6 +1,12 @@
-import { createHttpClient } from '@spectra-the-bot/cli-shared';
+import {
+  createHttpClient,
+  createRateLimiter,
+  withRateLimit,
+  withRetry,
+} from '@spectra-the-bot/cli-shared';
 
 const DEFAULT_BASE_URL = 'https://api.etherscan.io/v2/api';
+const RETRY_OPTIONS = { maxRetries: 3, baseMs: 500, maxMs: 10000 };
 
 export type EtherscanParams = Record<string, string | number | boolean | undefined | null>;
 
@@ -25,11 +31,24 @@ export class EtherscanError extends Error {
 
 export function createEtherscanClient(apiKey: string, baseUrl = DEFAULT_BASE_URL) {
   const http = createHttpClient({ baseUrl });
+  const acquire = createRateLimiter({ requestsPerSecond: 5 });
+
+  function request<T>(params: EtherscanParams): Promise<T> {
+    return withRetry(
+      () =>
+        withRateLimit(
+          () =>
+            http.request<T>('', {
+              query: { ...params, apikey: apiKey },
+            }),
+          acquire,
+        ),
+      RETRY_OPTIONS,
+    );
+  }
 
   async function call<T>(params: EtherscanParams): Promise<T> {
-    const response = await http.request<EtherscanResponse<T>>('', {
-      query: { ...params, apikey: apiKey },
-    });
+    const response = await request<EtherscanResponse<T>>(params);
     if (response.status === '0') {
       const msg = typeof response.result === 'string' ? response.result : response.message;
       throw new EtherscanError(msg);
@@ -38,9 +57,7 @@ export function createEtherscanClient(apiKey: string, baseUrl = DEFAULT_BASE_URL
   }
 
   async function callProxy<T>(params: EtherscanParams): Promise<T> {
-    const response = await http.request<ProxyResponse<T>>('', {
-      query: { ...params, apikey: apiKey },
-    });
+    const response = await request<ProxyResponse<T>>(params);
     return response.result;
   }
 
