@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { checksumAddress, formatTimestamp, truncate, weiToEth } from '../utils/format.js';
+import {
+  checksumAddress,
+  formatTimestamp,
+  isAddress,
+  truncate,
+  weiToEth,
+} from '../utils/format.js';
 
 describe('weiToEth', () => {
   it('converts 1 ETH in wei to "1"', () => {
@@ -21,6 +27,32 @@ describe('weiToEth', () => {
   it('respects decimals parameter', () => {
     const result = weiToEth(1_234_567_000_000_000_000n, 3);
     expect(result).toBe('1.234');
+  });
+});
+
+describe('isAddress', () => {
+  it('returns true for valid lowercase address', () => {
+    expect(isAddress('0x52908400098527886e0f7030069857d2e4169ee7')).toBe(true);
+  });
+
+  it('returns true for valid checksummed address', () => {
+    expect(isAddress('0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed')).toBe(true);
+  });
+
+  it('returns true for zero address', () => {
+    expect(isAddress('0x0000000000000000000000000000000000000000')).toBe(true);
+  });
+
+  it('returns false for 0xinvalid', () => {
+    expect(isAddress('0xinvalid')).toBe(false);
+  });
+
+  it('returns false for non-hex string', () => {
+    expect(isAddress('not-an-address')).toBe(false);
+  });
+
+  it('returns false for too-short hex', () => {
+    expect(isAddress('0x1234')).toBe(false);
   });
 });
 

@@ -74,7 +74,14 @@ describe('etherscan CLI', () => {
 
     it('sends request with correct chain ID for abstract', async () => {
       const { calledUrl } = await runCli(
-        ['account', 'balance', '0xabc', '--chain', 'abstract', '--json'],
+        [
+          'account',
+          'balance',
+          '0x742d35Cc6634C0532925a3b844Bc454e4438f44e',
+          '--chain',
+          'abstract',
+          '--json',
+        ],
         makeResponse({ status: '1', message: 'OK', result: '0' }),
       );
       expect(calledUrl).toContain('chainid=2741');
@@ -82,17 +89,47 @@ describe('etherscan CLI', () => {
 
     it('sends request with correct chain ID for ethereum', async () => {
       const { calledUrl } = await runCli(
-        ['account', 'balance', '0xabc', '--chain', 'ethereum', '--json'],
+        [
+          'account',
+          'balance',
+          '0x742d35Cc6634C0532925a3b844Bc454e4438f44e',
+          '--chain',
+          'ethereum',
+          '--json',
+        ],
         makeResponse({ status: '1', message: 'OK', result: '0' }),
       );
       expect(calledUrl).toContain('chainid=1');
     });
   });
 
+  describe('account balance (invalid address)', () => {
+    it('returns INVALID_ADDRESS error for malformed address', async () => {
+      const { output, exitCode } = await runCli(
+        ['account', 'balance', '0xinvalid', '--json'],
+        makeResponse({ status: '1', message: 'OK', result: '0' }),
+      );
+      expect(exitCode).toBe(1);
+      const parsed = JSON.parse(output) as { code: string; message: string };
+      expect(parsed.code).toBe('INVALID_ADDRESS');
+      expect(parsed.message).toContain('0xinvalid');
+    });
+
+    it('returns INVALID_ADDRESS error for non-hex string', async () => {
+      const { output, exitCode } = await runCli(
+        ['account', 'balance', 'not-an-address', '--json'],
+        makeResponse({ status: '1', message: 'OK', result: '0' }),
+      );
+      expect(exitCode).toBe(1);
+      const parsed = JSON.parse(output) as { code: string };
+      expect(parsed.code).toBe('INVALID_ADDRESS');
+    });
+  });
+
   describe('account txlist', () => {
     it('returns transactions with formatted fields', async () => {
       const { output } = await runCli(
-        ['account', 'txlist', '0xabc', '--json'],
+        ['account', 'txlist', '0x742d35Cc6634C0532925a3b844Bc454e4438f44e', '--json'],
         makeResponse({
           status: '1',
           message: 'OK',
@@ -117,6 +154,44 @@ describe('etherscan CLI', () => {
       expect(parsed.transactions[0]?.hash).toBe('0xdeadbeef');
       expect(parsed.transactions[0]?.status).toBe('success');
       expect(parsed.transactions[0]?.eth).toBe('1');
+    });
+  });
+
+  describe('account txlist (invalid address)', () => {
+    it('returns INVALID_ADDRESS error for malformed address', async () => {
+      const { output, exitCode } = await runCli(
+        ['account', 'txlist', '0xinvalid', '--json'],
+        makeResponse({ status: '1', message: 'OK', result: [] }),
+      );
+      expect(exitCode).toBe(1);
+      const parsed = JSON.parse(output) as { code: string };
+      expect(parsed.code).toBe('INVALID_ADDRESS');
+    });
+  });
+
+  describe('contract abi (invalid address)', () => {
+    it('returns INVALID_ADDRESS error for malformed address', async () => {
+      const { output, exitCode } = await runCli(
+        ['contract', 'abi', '0xinvalid', '--json'],
+        makeResponse({ status: '1', message: 'OK', result: '[]' }),
+      );
+      expect(exitCode).toBe(1);
+      const parsed = JSON.parse(output) as { code: string; message: string };
+      expect(parsed.code).toBe('INVALID_ADDRESS');
+      expect(parsed.message).toContain('0xinvalid');
+    });
+  });
+
+  describe('token info (invalid address)', () => {
+    it('returns INVALID_ADDRESS error for malformed contract address', async () => {
+      const { output, exitCode } = await runCli(
+        ['token', 'info', '0xinvalid', '--json'],
+        makeResponse({ status: '1', message: 'OK', result: [] }),
+      );
+      expect(exitCode).toBe(1);
+      const parsed = JSON.parse(output) as { code: string; message: string };
+      expect(parsed.code).toBe('INVALID_ADDRESS');
+      expect(parsed.message).toContain('0xinvalid');
     });
   });
 
