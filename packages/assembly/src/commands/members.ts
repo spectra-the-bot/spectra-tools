@@ -169,17 +169,20 @@ members.command('list', {
   description:
     'List members from an indexer snapshot (or Registered event fallback) plus on-chain active state.',
   env,
-  output: z.array(
-    z.object({
-      address: z.string(),
-      active: z.boolean(),
-      registered: z.boolean(),
-      activeUntil: z.number(),
-      activeUntilRelative: z.string(),
-      lastHeartbeatAt: z.number(),
-      lastHeartbeatRelative: z.string(),
-    }),
-  ),
+  output: z.object({
+    members: z.array(
+      z.object({
+        address: z.string(),
+        active: z.boolean(),
+        registered: z.boolean(),
+        activeUntil: z.number(),
+        activeUntilRelative: z.string(),
+        lastHeartbeatAt: z.number(),
+        lastHeartbeatRelative: z.string(),
+      }),
+    ),
+    count: z.number(),
+  }),
   examples: [
     { description: 'List members using default indexer snapshot' },
     { description: 'Override ASSEMBLY_INDEXER_URL to use a custom snapshot source' },
@@ -257,13 +260,9 @@ members.command('list', {
         lastHeartbeatRelative: relTime(info.lastHeartbeatAt),
       };
     });
-    return c.ok(rows, {
-      cta: {
-        description: fallbackReason
-          ? `Indexer unavailable (${indexerIssue(fallbackReason)}); using on-chain Registered event fallback. Inspect one member:`
-          : 'Inspect one member:',
-        commands: [{ command: 'members info', args: { address: '<addr>' } }],
-      },
+    return c.ok({
+      members: rows,
+      count: rows.length,
     });
   },
 });
