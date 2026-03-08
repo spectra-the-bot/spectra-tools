@@ -1,5 +1,17 @@
 # @spectra-the-bot/assembly-cli
 
+## 0.3.0
+
+### Minor Changes
+
+- [#69](https://github.com/spectra-the-bot/spectra-tools/pull/69) [`ed2747d`](https://github.com/spectra-the-bot/spectra-tools/commit/ed2747d01819a59d39378f85c56434224c7bcf31) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add council auction window timing and derived bidding/closed/settled status fields to auction outputs.
+
+### Patch Changes
+
+- [#61](https://github.com/spectra-the-bot/spectra-tools/pull/61) [`4cb6df5`](https://github.com/spectra-the-bot/spectra-tools/commit/4cb6df522f22dc52284e129b83072f773709979a) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Update Assembly package documentation and metadata for public launch readiness
+
+- [#70](https://github.com/spectra-the-bot/spectra-tools/pull/70) [`290b942`](https://github.com/spectra-the-bot/spectra-tools/commit/290b9422b4f28247ad0f7f6111d2d2b98ab658d1) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Start member fallback event scans at the Registry deployment block and fail fast on long-running fallback scans.
+
 ## 0.2.0
 
 ### Minor Changes
