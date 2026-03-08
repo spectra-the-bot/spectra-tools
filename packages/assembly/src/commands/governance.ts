@@ -251,15 +251,17 @@ governance.command('proposals', {
         proposals: items,
         count: items.length,
       },
-      {
-        cta: {
-          description: 'Inspect or vote:',
-          commands: [
-            { command: 'governance proposal', args: { id: '<id>' } },
-            { command: 'governance vote', args: { id: '<id>' } },
-          ],
-        },
-      },
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Inspect or vote:',
+              commands: [
+                { command: 'governance proposal', args: { id: '<id>' } },
+                { command: 'governance vote', args: { id: '<id>' } },
+              ],
+            },
+          },
     );
   },
 });

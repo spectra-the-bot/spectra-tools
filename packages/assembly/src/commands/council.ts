@@ -356,15 +356,17 @@ council.command('auctions', {
           };
         }),
       },
-      {
-        cta: {
-          description: 'Inspect and bid:',
-          commands: [
-            { command: 'council auction', args: { day: '<day>', slot: '<slot>' } },
-            { command: 'council bid', args: { day: '<day>', slot: '<slot>' } },
-          ],
-        },
-      },
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Inspect and bid:',
+              commands: [
+                { command: 'council auction', args: { day: '<day>', slot: '<slot>' } },
+                { command: 'council bid', args: { day: '<day>', slot: '<slot>' } },
+              ],
+            },
+          },
     );
   },
 });

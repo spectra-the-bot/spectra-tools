@@ -150,15 +150,17 @@ forum.command('threads', {
         threads,
         count: threads.length,
       },
-      {
-        cta: {
-          description: 'Inspect or comment:',
-          commands: [
-            { command: 'forum thread', args: { id: '<id>' } },
-            { command: 'forum post-comment', args: { id: '<id>' } },
-          ],
-        },
-      },
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Inspect or comment:',
+              commands: [
+                { command: 'forum thread', args: { id: '<id>' } },
+                { command: 'forum post-comment', args: { id: '<id>' } },
+              ],
+            },
+          },
     );
   },
 });
