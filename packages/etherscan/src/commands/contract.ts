@@ -86,17 +86,19 @@ contractCli.command('abi', {
     );
     return c.ok(
       { address, chain: c.options.chain, abi: JSON.parse(abi) as unknown[] },
-      {
-        cta: {
-          commands: [
-            {
-              command: 'contract source',
-              args: { address },
-              description: 'Get verified source code',
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              commands: [
+                {
+                  command: 'contract source',
+                  args: { address },
+                  description: 'Get verified source code',
+                },
+              ],
             },
-          ],
-        },
-      },
+          },
     );
   },
 });
@@ -172,17 +174,19 @@ contractCli.command('source', {
         sourceCode: result.SourceCode,
         constructorArguments: result.ConstructorArguments,
       },
-      {
-        cta: {
-          commands: [
-            {
-              command: 'contract abi',
-              args: { address },
-              description: 'Get the ABI',
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              commands: [
+                {
+                  command: 'contract abi',
+                  args: { address },
+                  description: 'Get the ABI',
+                },
+              ],
             },
-          ],
-        },
-      },
+          },
     );
   },
 });
@@ -244,17 +248,19 @@ contractCli.command('creation', {
         txHash: result.txHash,
         chain: c.options.chain,
       },
-      {
-        cta: {
-          commands: [
-            {
-              command: 'tx info',
-              args: { txhash: result.txHash },
-              description: 'Get the creation transaction details',
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              commands: [
+                {
+                  command: 'tx info',
+                  args: { txhash: result.txHash },
+                  description: 'Get the creation transaction details',
+                },
+              ],
             },
-          ],
-        },
-      },
+          },
     );
   },
 });

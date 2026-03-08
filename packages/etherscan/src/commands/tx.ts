@@ -243,17 +243,19 @@ txCli.command('status', {
         error: result.errDescription || undefined,
         chain: c.options.chain,
       },
-      {
-        cta: {
-          commands: [
-            {
-              command: 'tx receipt',
-              args: { txhash: c.args.txhash },
-              description: 'Get the full receipt',
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              commands: [
+                {
+                  command: 'tx receipt',
+                  args: { txhash: c.args.txhash },
+                  description: 'Get the full receipt',
+                },
+              ],
             },
-          ],
-        },
-      },
+          },
     );
   },
 });

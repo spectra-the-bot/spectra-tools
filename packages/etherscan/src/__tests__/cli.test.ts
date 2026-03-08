@@ -62,6 +62,15 @@ describe('etherscan CLI', () => {
       expect(parsed).toHaveProperty('address');
     });
 
+    it('--json output does not contain CTA keys', async () => {
+      const { output } = await runCli(
+        ['account', 'balance', '0x742d35Cc6634C0532925a3b844Bc454e4438f44e', '--json'],
+        makeResponse({ status: '1', message: 'OK', result: '1000000000000000000' }),
+      );
+      const parsed = JSON.parse(output);
+      expect(parsed).not.toHaveProperty('cta');
+    });
+
     it('converts wei to eth correctly', async () => {
       const { output } = await runCli(
         ['account', 'balance', '0x742d35Cc6634C0532925a3b844Bc454e4438f44e', '--json'],
@@ -155,6 +164,30 @@ describe('etherscan CLI', () => {
       expect(parsed.transactions[0]?.status).toBe('success');
       expect(parsed.transactions[0]?.eth).toBe('1');
     });
+
+    it('--json output does not contain CTA keys', async () => {
+      const { output } = await runCli(
+        ['account', 'txlist', '0xabc', '--json'],
+        makeResponse({
+          status: '1',
+          message: 'OK',
+          result: [
+            {
+              hash: '0xdeadbeef',
+              from: '0xabc',
+              to: '0xdef',
+              value: '1000000000000000000',
+              timeStamp: '1700000000',
+              blockNumber: '12345',
+              isError: '0',
+              gasUsed: '21000',
+            },
+          ],
+        }),
+      );
+      const parsed = JSON.parse(output);
+      expect(parsed).not.toHaveProperty('cta');
+    });
   });
 
   describe('account txlist (invalid address)', () => {
@@ -213,6 +246,24 @@ describe('etherscan CLI', () => {
       const parsed = JSON.parse(output) as { usd: string; btc: string };
       expect(parsed.usd).toBe('2000.00');
       expect(parsed.btc).toBe('0.05');
+    });
+
+    it('--json output does not contain CTA keys', async () => {
+      const { output } = await runCli(
+        ['stats', 'ethprice', '--json'],
+        makeResponse({
+          status: '1',
+          message: 'OK',
+          result: {
+            ethbtc: '0.05',
+            ethbtc_timestamp: '1700000000',
+            ethusd: '2000.00',
+            ethusd_timestamp: '1700000000',
+          },
+        }),
+      );
+      const parsed = JSON.parse(output);
+      expect(parsed).not.toHaveProperty('cta');
     });
   });
 
@@ -285,6 +336,26 @@ describe('etherscan CLI', () => {
       expect(parsed.slow).toBe('10 Gwei');
       expect(parsed.standard).toBe('15 Gwei');
       expect(parsed.fast).toBe('20 Gwei');
+    });
+
+    it('--json output does not contain CTA keys', async () => {
+      const { output } = await runCli(
+        ['gas', 'oracle', '--json'],
+        makeResponse({
+          status: '1',
+          message: 'OK',
+          result: {
+            LastBlock: '12345',
+            SafeGasPrice: '10',
+            ProposeGasPrice: '15',
+            FastGasPrice: '20',
+            suggestBaseFee: '9',
+            gasUsedRatio: '0.5',
+          },
+        }),
+      );
+      const parsed = JSON.parse(output);
+      expect(parsed).not.toHaveProperty('cta');
     });
   });
 });

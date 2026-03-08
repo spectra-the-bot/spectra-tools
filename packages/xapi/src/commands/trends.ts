@@ -27,20 +27,22 @@ trends.command('places', {
     const first = places[0];
     return c.ok(
       { places, count: places.length },
-      {
-        cta: first
-          ? {
-              description: 'Next steps:',
-              commands: [
-                {
-                  command: 'trends location',
-                  args: { woeid: first.woeid },
-                  description: `View trends for ${first.name}`,
-                },
-              ],
-            }
-          : undefined,
-      },
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: first
+              ? {
+                  description: 'Next steps:',
+                  commands: [
+                    {
+                      command: 'trends location',
+                      args: { woeid: first.woeid },
+                      description: `View trends for ${first.name}`,
+                    },
+                  ],
+                }
+              : undefined,
+          },
     );
   },
 });
@@ -72,20 +74,22 @@ trends.command('location', {
     const firstTrend = trendItems[0];
     return c.ok(
       { trends: trendItems, count: trendItems.length },
-      {
-        cta: firstTrend
-          ? {
-              description: 'Next steps:',
-              commands: [
-                {
-                  command: 'posts search',
-                  args: { query: firstTrend.query },
-                  description: `Search posts about "${firstTrend.name}"`,
-                },
-              ],
-            }
-          : undefined,
-      },
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: firstTrend
+              ? {
+                  description: 'Next steps:',
+                  commands: [
+                    {
+                      command: 'posts search',
+                      args: { query: firstTrend.query },
+                      description: `Search posts about "${firstTrend.name}"`,
+                    },
+                  ],
+                }
+              : undefined,
+          },
     );
   },
 });

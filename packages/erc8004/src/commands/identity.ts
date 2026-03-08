@@ -368,16 +368,18 @@ identity.command('list', {
 
     return c.ok(
       { agents, total },
-      {
-        cta: {
-          description: 'Suggested commands:',
-          commands: agents.slice(0, 3).map((a) => ({
-            command: 'identity get' as const,
-            args: { agentId: a.agentId },
-            description: `View agent ${a.agentId}`,
-          })),
-        },
-      },
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Suggested commands:',
+              commands: agents.slice(0, 3).map((a) => ({
+                command: 'identity get' as const,
+                args: { agentId: a.agentId },
+                description: `View agent ${a.agentId}`,
+              })),
+            },
+          },
     );
   },
 });
@@ -433,23 +435,28 @@ identity.command('get', {
         : {}),
     };
 
-    return c.ok(result, {
-      cta: {
-        description: 'Suggested commands:',
-        commands: [
-          {
-            command: 'registration fetch' as const,
-            args: { agentId: c.args.agentId },
-            description: 'Fetch registration file',
+    return c.ok(
+      result,
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Suggested commands:',
+              commands: [
+                {
+                  command: 'registration fetch' as const,
+                  args: { agentId: c.args.agentId },
+                  description: 'Fetch registration file',
+                },
+                {
+                  command: 'reputation get' as const,
+                  args: { agentId: c.args.agentId },
+                  description: 'View reputation score',
+                },
+              ],
+            },
           },
-          {
-            command: 'reputation get' as const,
-            args: { agentId: c.args.agentId },
-            description: 'View reputation score',
-          },
-        ],
-      },
-    });
+    );
   },
 });
 
@@ -505,18 +512,20 @@ identity.command('register', {
 
     return c.ok(
       { agentId, uri: c.options.uri, txHash: hash },
-      {
-        cta: {
-          description: 'Suggested commands:',
-          commands: [
-            {
-              command: 'identity get' as const,
-              args: { agentId },
-              description: 'View your new agent',
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Suggested commands:',
+              commands: [
+                {
+                  command: 'identity get' as const,
+                  args: { agentId },
+                  description: 'View your new agent',
+                },
+              ],
             },
-          ],
-        },
-      },
+          },
     );
   },
 });

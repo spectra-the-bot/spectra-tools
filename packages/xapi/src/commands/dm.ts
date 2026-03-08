@@ -46,21 +46,23 @@ dm.command('conversations', {
     const firstParticipant = allConvos[0]?.participant_ids[0];
     return c.ok(
       { conversations: allConvos, count: allConvos.length },
-      {
-        cta: firstParticipant
-          ? {
-              description: 'Next steps:',
-              commands: [
-                {
-                  command: 'dm send',
-                  args: { participantId: firstParticipant },
-                  options: { text: 'Hello!' },
-                  description: 'Send a message to the first conversation',
-                },
-              ],
-            }
-          : undefined,
-      },
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: firstParticipant
+              ? {
+                  description: 'Next steps:',
+                  commands: [
+                    {
+                      command: 'dm send',
+                      args: { participantId: firstParticipant },
+                      options: { text: 'Hello!' },
+                      description: 'Send a message to the first conversation',
+                    },
+                  ],
+                }
+              : undefined,
+          },
     );
   },
 });

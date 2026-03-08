@@ -120,22 +120,24 @@ tokenCli.command('info', {
         website: info.website || undefined,
         description: info.description || undefined,
       },
-      {
-        cta: {
-          commands: [
-            {
-              command: 'token supply',
-              args: { contractaddress: address },
-              description: 'Get circulating supply',
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              commands: [
+                {
+                  command: 'token supply',
+                  args: { contractaddress: address },
+                  description: 'Get circulating supply',
+                },
+                {
+                  command: 'token holders',
+                  args: { contractaddress: address },
+                  description: 'List top holders',
+                },
+              ],
             },
-            {
-              command: 'token holders',
-              args: { contractaddress: address },
-              description: 'List top holders',
-            },
-          ],
-        },
-      },
+          },
     );
   },
 });
@@ -208,17 +210,19 @@ tokenCli.command('holders', {
         count: formatted.length,
         holders: formatted,
       },
-      {
-        cta: {
-          commands: [
-            {
-              command: 'token info',
-              args: { contractaddress: address },
-              description: 'Get token details',
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              commands: [
+                {
+                  command: 'token info',
+                  args: { contractaddress: address },
+                  description: 'Get token details',
+                },
+              ],
             },
-          ],
-        },
-      },
+          },
     );
   },
 });
@@ -270,17 +274,19 @@ tokenCli.command('supply', {
     );
     return c.ok(
       { contractAddress: address, chain: c.options.chain, totalSupply: supply },
-      {
-        cta: {
-          commands: [
-            {
-              command: 'token info',
-              args: { contractaddress: address },
-              description: 'Get full token info',
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              commands: [
+                {
+                  command: 'token info',
+                  args: { contractaddress: address },
+                  description: 'Get full token info',
+                },
+              ],
             },
-          ],
-        },
-      },
+          },
     );
   },
 });

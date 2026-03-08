@@ -102,18 +102,24 @@ accountCli.command('balance', {
     );
     return c.ok(
       { address, wei, eth: weiToEth(wei), chain: c.options.chain },
-      {
-        cta: {
-          commands: [
-            { command: 'account txlist', args: { address }, description: 'List transactions' },
-            {
-              command: 'account tokentx',
-              args: { address },
-              description: 'List token transfers',
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              commands: [
+                {
+                  command: 'account txlist',
+                  args: { address },
+                  description: 'List transactions',
+                },
+                {
+                  command: 'account tokentx',
+                  args: { address },
+                  description: 'List token transfers',
+                },
+              ],
             },
-          ],
-        },
-      },
+          },
     );
   },
 });
@@ -200,19 +206,21 @@ accountCli.command('txlist', {
     const firstHash = formatted[0]?.hash;
     return c.ok(
       { address, chain: c.options.chain, count: formatted.length, transactions: formatted },
-      {
-        cta: {
-          commands: firstHash
-            ? [
-                {
-                  command: 'tx info',
-                  args: { txhash: firstHash },
-                  description: 'Get details for the first transaction',
-                },
-              ]
-            : [],
-        },
-      },
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              commands: firstHash
+                ? [
+                    {
+                      command: 'tx info',
+                      args: { txhash: firstHash },
+                      description: 'Get details for the first transaction',
+                    },
+                  ]
+                : [],
+            },
+          },
     );
   },
 });
@@ -294,17 +302,19 @@ accountCli.command('tokentx', {
     }));
     return c.ok(
       { address, chain: c.options.chain, count: formatted.length, transfers: formatted },
-      {
-        cta: {
-          commands: [
-            {
-              command: 'account balance',
-              args: { address },
-              description: 'Check ETH balance',
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              commands: [
+                {
+                  command: 'account balance',
+                  args: { address },
+                  description: 'Check ETH balance',
+                },
+              ],
             },
-          ],
-        },
-      },
+          },
     );
   },
 });
@@ -367,17 +377,19 @@ accountCli.command('tokenbalance', {
     );
     return c.ok(
       { address, contract, balance, chain: c.options.chain },
-      {
-        cta: {
-          commands: [
-            {
-              command: 'token info',
-              args: { contractaddress: contract },
-              description: 'Get token info',
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              commands: [
+                {
+                  command: 'token info',
+                  args: { contractaddress: contract },
+                  description: 'Get token info',
+                },
+              ],
             },
-          ],
-        },
-      },
+          },
     );
   },
 });

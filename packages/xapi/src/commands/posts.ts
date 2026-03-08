@@ -47,23 +47,25 @@ posts.command('get', {
         retweets: post.public_metrics?.retweet_count,
         replies: post.public_metrics?.reply_count,
       },
-      {
-        cta: {
-          description: 'Explore this post:',
-          commands: [
-            {
-              command: 'posts likes',
-              args: { id: c.args.id },
-              description: 'See who liked this post',
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Explore this post:',
+              commands: [
+                {
+                  command: 'posts likes',
+                  args: { id: c.args.id },
+                  description: 'See who liked this post',
+                },
+                {
+                  command: 'posts retweets',
+                  args: { id: c.args.id },
+                  description: 'See who retweeted this post',
+                },
+              ],
             },
-            {
-              command: 'posts retweets',
-              args: { id: c.args.id },
-              description: 'See who retweeted this post',
-            },
-          ],
-        },
-      },
+          },
     );
   },
 });
@@ -119,20 +121,22 @@ posts.command('search', {
     const firstId = items[0]?.id;
     return c.ok(
       { posts: items, count: items.length },
-      {
-        cta: firstId
-          ? {
-              description: 'Next steps:',
-              commands: [
-                {
-                  command: 'posts get',
-                  args: { id: firstId },
-                  description: 'View top result in detail',
-                },
-              ],
-            }
-          : undefined,
-      },
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: firstId
+              ? {
+                  description: 'Next steps:',
+                  commands: [
+                    {
+                      command: 'posts get',
+                      args: { id: firstId },
+                      description: 'View top result in detail',
+                    },
+                  ],
+                }
+              : undefined,
+          },
     );
   },
 });
@@ -157,18 +161,23 @@ posts.command('create', {
     try {
       const client = createXApiClient(writeAuthToken(c.env));
       const res = await client.createPost(c.options.text, c.options.replyTo, c.options.quote);
-      return c.ok(res.data, {
-        cta: {
-          description: 'View your post:',
-          commands: [
-            {
-              command: 'posts get',
-              args: { id: res.data.id },
-              description: 'See the created post',
+      return c.ok(
+        res.data,
+        c.format === 'json' || c.format === 'jsonl'
+          ? undefined
+          : {
+              cta: {
+                description: 'View your post:',
+                commands: [
+                  {
+                    command: 'posts get',
+                    args: { id: res.data.id },
+                    description: 'See the created post',
+                  },
+                ],
+              },
             },
-          ],
-        },
-      });
+      );
     } catch (error) {
       const authError = toWriteAuthError('posts create', error);
       if (authError) return c.error(authError);
@@ -245,16 +254,18 @@ posts.command('likes', {
 
     return c.ok(
       { users: allUsers, count: allUsers.length },
-      {
-        cta: {
-          description: 'Next steps:',
-          commands: allUsers.slice(0, 1).map((u) => ({
-            command: 'users get',
-            args: { username: u.username },
-            description: `View profile of @${u.username}`,
-          })),
-        },
-      },
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Next steps:',
+              commands: allUsers.slice(0, 1).map((u) => ({
+                command: 'users get',
+                args: { username: u.username },
+                description: `View profile of @${u.username}`,
+              })),
+            },
+          },
     );
   },
 });

@@ -324,16 +324,18 @@ discovery.command('search', {
 
     return c.ok(
       { results, total: results.length },
-      {
-        cta: {
-          description: 'Suggested commands:',
-          commands: results.slice(0, 2).map((r) => ({
-            command: 'identity get' as const,
-            args: { agentId: r.agentId },
-            description: `View ${r.name ?? `agent ${r.agentId}`}`,
-          })),
-        },
-      },
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Suggested commands:',
+              commands: results.slice(0, 2).map((r) => ({
+                command: 'identity get' as const,
+                args: { agentId: r.agentId },
+                description: `View ${r.name ?? `agent ${r.agentId}`}`,
+              })),
+            },
+          },
     );
   },
 });

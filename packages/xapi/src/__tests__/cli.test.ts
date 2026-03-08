@@ -160,4 +160,28 @@ describe('xapi cli error and empty-result paths', () => {
     expect(exitCode).toBe(0);
     expect(JSON.parse(output)).toEqual({ posts: [], count: 0 });
   });
+
+  it('posts search --json output does not contain CTA keys', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            data: [{ id: '1', text: 'test', edit_history_tweet_ids: ['1'] }],
+            meta: { result_count: 1 },
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+      ),
+    );
+
+    process.env.X_BEARER_TOKEN = 'test-token';
+
+    const { output, exitCode } = await runCli(['posts', 'search', 'spectra', '--json']);
+
+    expect(exitCode).toBe(0);
+    const parsed = JSON.parse(output);
+    expect(parsed).not.toHaveProperty('cta');
+    expect(parsed).toHaveProperty('posts');
+  });
 });
