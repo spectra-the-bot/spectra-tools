@@ -1,6 +1,7 @@
-import { apiKeyAuth, paginateCursor } from '@spectra-the-bot/cli-shared';
+import { apiKeyAuth } from '@spectra-the-bot/cli-shared';
 import { Cli, z } from 'incur';
 import { createXApiClient, relativeTime, truncateText } from '../api.js';
+import { collectPaged } from '../collect-paged.js';
 
 const posts = Cli.create('posts', {
   description: 'Manage and search X posts.',
@@ -196,34 +197,23 @@ posts.command('likes', {
   async run(c) {
     const { apiKey } = apiKeyAuth('X_BEARER_TOKEN');
     const client = createXApiClient(apiKey);
-    const allUsers: Array<{
-      id: string;
-      name: string;
-      username: string;
-      followers: number | undefined;
-    }> = [];
-
-    for await (const user of paginateCursor({
-      fetchPage: async (cursor: string | null) => {
-        const res = await client.getPostLikes(
-          c.args.id,
-          Math.min(c.options.maxResults, 100),
-          cursor ?? undefined,
-        );
-        return {
-          items: res.data ?? [],
-          nextCursor: res.meta?.next_token ?? null,
-        };
-      },
-    })) {
-      allUsers.push({
+    const allUsers = await collectPaged(
+      (limit, cursor) => client.getPostLikes(c.args.id, limit, cursor),
+      (
+        user,
+      ): {
+        id: string;
+        name: string;
+        username: string;
+        followers: number | undefined;
+      } => ({
         id: user.id,
         name: user.name,
         username: user.username,
         followers: user.public_metrics?.followers_count,
-      });
-      if (allUsers.length >= c.options.maxResults) break;
-    }
+      }),
+      c.options.maxResults,
+    );
 
     return c.ok(
       { users: allUsers, count: allUsers.length },
@@ -265,34 +255,23 @@ posts.command('retweets', {
   async run(c) {
     const { apiKey } = apiKeyAuth('X_BEARER_TOKEN');
     const client = createXApiClient(apiKey);
-    const allUsers: Array<{
-      id: string;
-      name: string;
-      username: string;
-      followers: number | undefined;
-    }> = [];
-
-    for await (const user of paginateCursor({
-      fetchPage: async (cursor: string | null) => {
-        const res = await client.getPostRetweets(
-          c.args.id,
-          Math.min(c.options.maxResults, 100),
-          cursor ?? undefined,
-        );
-        return {
-          items: res.data ?? [],
-          nextCursor: res.meta?.next_token ?? null,
-        };
-      },
-    })) {
-      allUsers.push({
+    const allUsers = await collectPaged(
+      (limit, cursor) => client.getPostRetweets(c.args.id, limit, cursor),
+      (
+        user,
+      ): {
+        id: string;
+        name: string;
+        username: string;
+        followers: number | undefined;
+      } => ({
         id: user.id,
         name: user.name,
         username: user.username,
         followers: user.public_metrics?.followers_count,
-      });
-      if (allUsers.length >= c.options.maxResults) break;
-    }
+      }),
+      c.options.maxResults,
+    );
 
     return c.ok({ users: allUsers, count: allUsers.length });
   },
