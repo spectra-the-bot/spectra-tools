@@ -1,0 +1,119 @@
+name: External Intake Guard
+
+on:
+  issues:
+    types: [opened, reopened]
+  pull_request_target:
+    types: [opened, reopened, synchronize]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  label-external-issues:
+    if: github.event_name == 'issues'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Label issue source + intake gate
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const author = context.payload.issue.user.login;
+            const issue_number = context.payload.issue.number;
+            const isInternal = author.toLowerCase() === owner.toLowerCase();
+
+            const add = [];
+            const remove = [];
+            if (isInternal) {
+              add.push('source:internal');
+              remove.push('source:external');
+            } else {
+              add.push('source:external', 'status:needs-human-triage');
+              remove.push('source:internal', 'status:ready');
+            }
+
+            for (const name of remove) {
+              try {
+                await github.rest.issues.removeLabel({
+                  owner, repo: context.repo.repo, issue_number, name
+                });
+              } catch (_) {}
+            }
+
+            if (add.length) {
+              await github.rest.issues.addLabels({
+                owner, repo: context.repo.repo, issue_number, labels: add
+              });
+            }
+
+  label-external-prs:
+    if: github.event_name == 'pull_request_target'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Label PR source
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const author = context.payload.pull_request.user.login;
+            const issue_number = context.payload.pull_request.number;
+            const isInternal = author.toLowerCase() === owner.toLowerCase() || author === 'github-actions[bot]';
+
+            const add = isInternal ? ['source:internal'] : ['source:external'];
+            const remove = isInternal ? ['source:external'] : ['source:internal'];
+
+            for (const name of remove) {
+              try {
+                await github.rest.issues.removeLabel({
+                  owner, repo: context.repo.repo, issue_number, name
+                });
+              } catch (_) {}
+            }
+
+            await github.rest.issues.addLabels({
+              owner, repo: context.repo.repo, issue_number, labels: add
+            });
+
+  handle-claim-comments:
+    if: github.event_name == 'issue_comment' && github.event.issue.pull_request == null
+    runs-on: ubuntu-latest
+    steps:
+      - name: Apply external claim label on intent-to-work comments
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const issue_number = context.payload.issue.number;
+            const commenter = context.payload.comment.user.login;
+            const body = (context.payload.comment.body || '').toLowerCase();
+
+            if (commenter.toLowerCase() === owner.toLowerCase() || commenter === 'github-actions[bot]') {
+              return;
+            }
+
+            const claimPatterns = [
+              /\bi(?:'d| would)?\s+like\s+to\s+work\s+on\s+this\b/,
+              /\bi(?:'ll| will)\s+take\s+this\b/,
+              /\bclaim(?:ing)?\s+this\b/,
+              /\bi\s+can\s+take\s+this\b/,
+              /\bworking\s+on\s+this\b/
+            ];
+
+            const isClaim = claimPatterns.some((re) => re.test(body));
+            if (!isClaim) return;
+
+            await github.rest.issues.addLabels({
+              owner, repo, issue_number,
+              labels: ['status:claimed-external', 'source:external']
+            });
+
+            await github.rest.issues.createComment({
+              owner, repo, issue_number,
+              body: 'Thanks for claiming this 🙌 We added `status:claimed-external` to avoid bot races. A maintainer will confirm assignment and next steps shortly.'
+            });
