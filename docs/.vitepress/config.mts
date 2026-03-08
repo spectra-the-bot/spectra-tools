@@ -4,7 +4,7 @@ export default defineConfig({
   title: 'spectra-tools',
   description:
     'Agent-friendly CLI tools for Assembly governance, Etherscan, X API, and ERC-8004 on Abstract.',
-  base: process.env.GITHUB_ACTIONS ? '/spectra-tools/' : '/',
+  base: '/',
   cleanUrls: true,
   themeConfig: {
     nav: [
