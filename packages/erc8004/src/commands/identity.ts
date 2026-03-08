@@ -9,6 +9,7 @@ import {
   getPublicClient,
   getWalletClient,
 } from '../contracts/client.js';
+import { validateBigIntArg } from '../utils/validate-agent-id.js';
 
 const identity = Cli.create('identity', {
   description: 'Manage ERC-8004 agent identities.',
@@ -403,7 +404,7 @@ identity.command('get', {
   async run(c) {
     const client = getPublicClient(c.env.ABSTRACT_RPC_URL);
     const address = getIdentityRegistryAddress(c.env);
-    const tokenId = BigInt(c.args.agentId);
+    const tokenId = validateBigIntArg(c.args.agentId, 'agentId');
 
     const [owner, uri, wallet] = await Promise.all([
       readContract(client, {
@@ -568,13 +569,14 @@ identity.command('update', {
 
     const walletClient = getWalletClient(privateKey, c.env.ABSTRACT_RPC_URL);
     const address = getIdentityRegistryAddress(c.env);
+    const tokenId = validateBigIntArg(c.args.agentId, 'agentId');
 
     const hash = await writeContract(walletClient, {
       chain: abstractMainnet,
       address,
       abi: identityRegistryAbi,
       functionName: 'setAgentURI',
-      args: [BigInt(c.args.agentId), c.options.uri],
+      args: [tokenId, c.options.uri],
     });
 
     return c.ok({ agentId: c.args.agentId, uri: c.options.uri, txHash: hash });
@@ -608,7 +610,7 @@ identity.command('metadata', {
   async run(c) {
     const client = getPublicClient(c.env.ABSTRACT_RPC_URL);
     const address = getIdentityRegistryAddress(c.env);
-    const tokenId = BigInt(c.args.agentId);
+    const tokenId = validateBigIntArg(c.args.agentId, 'agentId');
     const { key } = c.options;
 
     if (!key) {
@@ -643,12 +645,13 @@ identity.command('wallet', {
   async run(c) {
     const client = getPublicClient(c.env.ABSTRACT_RPC_URL);
     const address = getIdentityRegistryAddress(c.env);
+    const tokenId = validateBigIntArg(c.args.agentId, 'agentId');
 
     const wallet = await readContract(client, {
       address,
       abi: identityRegistryAbi,
       functionName: 'getAgentWallet',
-      args: [BigInt(c.args.agentId)],
+      args: [tokenId],
     });
 
     return c.ok({ agentId: c.args.agentId, wallet: checksumAddress(wallet) });
@@ -697,17 +700,14 @@ identity.command('set-wallet', {
 
     const walletClient = getWalletClient(privateKey, c.env.ABSTRACT_RPC_URL);
     const address = getIdentityRegistryAddress(c.env);
+    const tokenId = validateBigIntArg(c.args.agentId, 'agentId');
 
     const hash = await writeContract(walletClient, {
       chain: abstractMainnet,
       address,
       abi: identityRegistryAbi,
       functionName: 'setAgentWallet',
-      args: [
-        BigInt(c.args.agentId),
-        c.options.wallet as `0x${string}`,
-        c.options.signature as `0x${string}`,
-      ],
+      args: [tokenId, c.options.wallet as `0x${string}`, c.options.signature as `0x${string}`],
     });
 
     return c.ok({

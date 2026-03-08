@@ -91,6 +91,75 @@ describe('erc8004 cli', () => {
     expect(envelope.code).toBe('INVALID_IDENTIFIER');
   });
 
+  it('identity get errors on non-numeric agentId', async () => {
+    let output = '';
+    await cli.serve(['identity', 'get', 'notanumber', '--json'], {
+      stdout(s) {
+        output += s;
+      },
+      exit() {},
+      env: {
+        IDENTITY_REGISTRY_ADDRESS: '0x1234567890123456789012345678901234567890',
+      },
+    });
+
+    const envelope = JSON.parse(output);
+    expect(envelope.code).toBe('VALIDATION_ERROR');
+    expect(envelope.message).toContain('agentId must be a numeric value');
+  });
+
+  it('reputation get errors on non-numeric agentId', async () => {
+    let output = '';
+    await cli.serve(['reputation', 'get', 'abc', '--json'], {
+      stdout(s) {
+        output += s;
+      },
+      exit() {},
+      env: {
+        REPUTATION_REGISTRY_ADDRESS: '0x1234567890123456789012345678901234567890',
+      },
+    });
+
+    const envelope = JSON.parse(output);
+    expect(envelope.code).toBe('VALIDATION_ERROR');
+    expect(envelope.message).toContain('agentId must be a numeric value');
+  });
+
+  it('validation history errors on non-numeric agentId', async () => {
+    let output = '';
+    await cli.serve(['validation', 'history', '0xinvalid', '--json'], {
+      stdout(s) {
+        output += s;
+      },
+      exit() {},
+      env: {
+        VALIDATION_REGISTRY_ADDRESS: '0x1234567890123456789012345678901234567890',
+      },
+    });
+
+    const envelope = JSON.parse(output);
+    expect(envelope.code).toBe('VALIDATION_ERROR');
+    expect(envelope.message).toContain('agentId must be a numeric value');
+  });
+
+  it('discovery resolve errors on non-numeric agentId in identifier', async () => {
+    let output = '';
+    await cli.serve(
+      ['discovery', 'resolve', '0x1234567890123456789012345678901234567890:notanumber', '--json'],
+      {
+        stdout(s) {
+          output += s;
+        },
+        exit() {},
+        env: {},
+      },
+    );
+
+    const envelope = JSON.parse(output);
+    expect(envelope.code).toBe('VALIDATION_ERROR');
+    expect(envelope.message).toContain('agentId must be a numeric value');
+  });
+
   it('registration create --json output does not contain CTA keys', async () => {
     let output = '';
     await cli.serve(['registration', 'create', '--name', 'Test Agent', '--json'], {

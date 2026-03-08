@@ -9,6 +9,7 @@ import {
   getReputationRegistryAddress,
   getWalletClient,
 } from '../contracts/client.js';
+import { validateBigIntArg } from '../utils/validate-agent-id.js';
 
 const reputation = Cli.create('reputation', {
   description:
@@ -49,7 +50,7 @@ reputation.command('get', {
   async run(c) {
     const client = getPublicClient(c.env.ABSTRACT_RPC_URL);
     const address = getReputationRegistryAddress(c.env, c.options.registry);
-    const tokenId = BigInt(c.args.agentId);
+    const tokenId = validateBigIntArg(c.args.agentId, 'agentId');
 
     const [totalScore, count] = await withRetry(
       () =>
@@ -124,6 +125,7 @@ reputation.command('feedback', {
 
     const walletClient = getWalletClient(privateKey, c.env.ABSTRACT_RPC_URL);
     const address = getReputationRegistryAddress(c.env, c.options.registry);
+    const tokenId = validateBigIntArg(c.args.agentId, 'agentId');
 
     const hash = await writeContract(walletClient, {
       chain: abstractMainnet,
@@ -131,7 +133,7 @@ reputation.command('feedback', {
       abi: reputationRegistryAbi,
       functionName: 'submitFeedback',
       args: [
-        BigInt(c.args.agentId),
+        tokenId,
         BigInt(c.options.value),
         c.options.tag1 ?? '',
         c.options.tag2 ?? '',
@@ -182,7 +184,7 @@ reputation.command('history', {
   async run(c) {
     const client = getPublicClient(c.env.ABSTRACT_RPC_URL);
     const address = getReputationRegistryAddress(c.env, c.options.registry);
-    const tokenId = BigInt(c.args.agentId);
+    const tokenId = validateBigIntArg(c.args.agentId, 'agentId');
 
     const count = await readContract(client, {
       address,

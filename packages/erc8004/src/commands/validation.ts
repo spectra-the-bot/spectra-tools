@@ -9,6 +9,7 @@ import {
   getValidationRegistryAddress,
   getWalletClient,
 } from '../contracts/client.js';
+import { validateBigIntArg } from '../utils/validate-agent-id.js';
 
 const validation = Cli.create('validation', {
   description:
@@ -71,6 +72,7 @@ validation.command('request', {
     const walletClient = getWalletClient(privateKey, c.env.ABSTRACT_RPC_URL);
     const publicClient = getPublicClient(c.env.ABSTRACT_RPC_URL);
     const address = getValidationRegistryAddress(c.env, c.options.registry);
+    const tokenId = validateBigIntArg(c.args.agentId, 'agentId');
 
     const jobHash = c.options.jobHash as `0x${string}`;
     if (jobHash.length !== 66) {
@@ -87,7 +89,7 @@ validation.command('request', {
       abi: validationRegistryAbi,
       functionName: 'requestValidation',
       args: [
-        BigInt(c.args.agentId),
+        tokenId,
         c.options.validator as `0x${string}`,
         jobHash as `0x${string}` & { length: 66 },
       ],
@@ -153,12 +155,13 @@ validation.command('status', {
   async run(c) {
     const client = getPublicClient(c.env.ABSTRACT_RPC_URL);
     const address = getValidationRegistryAddress(c.env, c.options.registry);
+    const reqId = validateBigIntArg(c.args.requestId, 'requestId');
 
     const result = await readContract(client, {
       address,
       abi: validationRegistryAbi,
       functionName: 'getValidationStatus',
-      args: [BigInt(c.args.requestId)],
+      args: [reqId],
     });
 
     const statusCode = result[3] as keyof typeof ValidationStatus;
@@ -208,7 +211,7 @@ validation.command('history', {
   async run(c) {
     const client = getPublicClient(c.env.ABSTRACT_RPC_URL);
     const address = getValidationRegistryAddress(c.env, c.options.registry);
-    const tokenId = BigInt(c.args.agentId);
+    const tokenId = validateBigIntArg(c.args.agentId, 'agentId');
 
     const count = await readContract(client, {
       address,

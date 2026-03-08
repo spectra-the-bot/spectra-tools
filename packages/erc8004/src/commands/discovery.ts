@@ -9,6 +9,7 @@ import {
 } from '../contracts/client.js';
 import { registrationSchema } from '../schema.js';
 import { fetchRegistrationUri } from '../utils/fetch-uri.js';
+import { validateBigIntArg } from '../utils/validate-agent-id.js';
 
 const discovery = Cli.create('discovery', {
   description: 'Discover and resolve ERC-8004 agents.',
@@ -381,7 +382,7 @@ discovery.command('resolve', {
     const agentId = parts.slice(1).join(':');
 
     const client = getPublicClient(c.env.ABSTRACT_RPC_URL);
-    const tokenId = BigInt(agentId);
+    const tokenId = validateBigIntArg(agentId, 'agentId');
 
     const [owner, uri] = await Promise.all([
       readContract(client, {
