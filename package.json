@@ -12,6 +12,10 @@
     "format": "biome format --write .",
     "typecheck": "pnpm --filter @spectratools/cli-shared run build && tsc --noEmit -p tsconfig.base.json && pnpm -r run typecheck",
     "test": "vitest run",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "node scripts/generate-docs.js && vitepress build docs",
+    "docs:generate": "node scripts/generate-docs.js",
+    "docs:preview": "vitepress preview docs",
     "changeset": "changeset"
   },
   "devDependencies": {
@@ -21,6 +25,7 @@
     "@types/node": "^20.0.0",
     "tsup": "^8.5.1",
     "typescript": "^5.7.3",
+    "vitepress": "^1.6.4",
     "vitest": "^2.1.8"
   }
 }
