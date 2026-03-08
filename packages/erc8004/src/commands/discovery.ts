@@ -4,6 +4,7 @@ import { readContract } from 'viem/actions';
 import { identityRegistryAbi } from '../contracts/abis.js';
 import { getIdentityRegistryAddress, getPublicClient } from '../contracts/client.js';
 import { registrationSchema } from '../schema.js';
+import { fetchRegistrationUri } from '../utils/fetch-uri.js';
 
 const discovery = Cli.create('discovery', {
   description: 'Discover and resolve ERC-8004 agents.',
@@ -12,22 +13,7 @@ const discovery = Cli.create('discovery', {
 /** Fetch and parse a registration file from a URI, returning null on failure. */
 async function tryFetchRegistration(uri: string) {
   try {
-    let httpUrl = uri;
-    if (uri.startsWith('ipfs://')) {
-      httpUrl = `https://ipfs.io/ipfs/${uri.slice(7)}`;
-    } else if (uri.startsWith('data:')) {
-      const commaIdx = uri.indexOf(',');
-      if (commaIdx === -1) return null;
-      const payload = uri.slice(commaIdx + 1);
-      const isBase64 = uri.slice(0, commaIdx).includes('base64');
-      const text = isBase64 ? atob(payload) : decodeURIComponent(payload);
-      const parsed = registrationSchema.safeParse(JSON.parse(text));
-      return parsed.success ? parsed.data : null;
-    }
-
-    const res = await fetch(httpUrl);
-    if (!res.ok) return null;
-    const raw = await res.json();
+    const raw = await fetchRegistrationUri(uri);
     const parsed = registrationSchema.safeParse(raw);
     return parsed.success ? parsed.data : null;
   } catch {
