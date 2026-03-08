@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { MockServer } from '../testing/mock-server.js';
 import { createMockServer } from '../testing/mock-server.js';
-import { createHttpClient, HttpError } from '../utils/http.js';
+import { HttpError, createHttpClient } from '../utils/http.js';
 
 describe('createHttpClient', () => {
   let server: MockServer;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { apiKeyAuth, MissingApiKeyError } from '../middleware/auth.js';
+import { MissingApiKeyError, apiKeyAuth } from '../middleware/auth.js';
 
 describe('apiKeyAuth', () => {
   it('reads and returns the configured API key from env', () => {
@@ -9,11 +9,11 @@ describe('apiKeyAuth', () => {
 
     expect(result).toEqual({ apiKey: 'test-key-123' });
 
-    delete process.env.SPECTRA_TEST_API_KEY;
+    process.env.SPECTRA_TEST_API_KEY = '';
   });
 
   it('throws MissingApiKeyError when the env var is missing', () => {
-    delete process.env.SPECTRA_MISSING_API_KEY;
+    process.env.SPECTRA_MISSING_API_KEY = '';
 
     expect(() => apiKeyAuth('SPECTRA_MISSING_API_KEY')).toThrow(MissingApiKeyError);
   });

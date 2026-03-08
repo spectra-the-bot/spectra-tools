@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createEtherscanClient, EtherscanError } from '../api.js';
+import { EtherscanError, createEtherscanClient } from '../api.js';
 
 function makeJsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
