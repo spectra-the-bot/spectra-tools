@@ -18,14 +18,16 @@ export const gasCli = Cli.create('gas', {
   description: 'Query gas oracle data and estimate confirmation latency.',
 });
 
-interface GasOracle {
-  LastBlock: string;
-  SafeGasPrice: string;
-  ProposeGasPrice: string;
-  FastGasPrice: string;
-  suggestBaseFee: string;
-  gasUsedRatio: string;
-}
+const gasOracleSchema = z.object({
+  LastBlock: z.string(),
+  SafeGasPrice: z.string(),
+  ProposeGasPrice: z.string(),
+  FastGasPrice: z.string(),
+  suggestBaseFee: z.string(),
+  gasUsedRatio: z.string(),
+});
+
+type GasOracle = z.infer<typeof gasOracleSchema>;
 
 gasCli.command('oracle', {
   description: 'Get current gas price recommendations.',
@@ -49,11 +51,14 @@ gasCli.command('oracle', {
     const client = createEtherscanClient(apiKey);
     const oracle = await withRateLimit(
       () =>
-        client.call<GasOracle>({
-          chainid: chainId,
-          module: 'gastracker',
-          action: 'gasoracle',
-        }),
+        client.call<GasOracle>(
+          {
+            chainid: chainId,
+            module: 'gastracker',
+            action: 'gasoracle',
+          },
+          gasOracleSchema,
+        ),
       rateLimiter,
     );
     return c.ok(
@@ -105,12 +110,15 @@ gasCli.command('estimate', {
     const client = createEtherscanClient(apiKey);
     const estimate = await withRateLimit(
       () =>
-        client.call<string>({
-          chainid: chainId,
-          module: 'gastracker',
-          action: 'gasestimate',
-          gasprice: c.options.gasprice,
-        }),
+        client.call<string>(
+          {
+            chainid: chainId,
+            module: 'gastracker',
+            action: 'gasestimate',
+            gasprice: c.options.gasprice,
+          },
+          z.string(),
+        ),
       rateLimiter,
     );
     return c.ok(

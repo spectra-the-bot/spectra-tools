@@ -18,12 +18,14 @@ export const statsCli = Cli.create('stats', {
   description: 'Query ETH price and total supply statistics.',
 });
 
-interface EthPrice {
-  ethbtc: string;
-  ethbtc_timestamp: string;
-  ethusd: string;
-  ethusd_timestamp: string;
-}
+const ethPriceSchema = z.object({
+  ethbtc: z.string(),
+  ethbtc_timestamp: z.string(),
+  ethusd: z.string(),
+  ethusd_timestamp: z.string(),
+});
+
+type EthPrice = z.infer<typeof ethPriceSchema>;
 
 statsCli.command('ethprice', {
   description: 'Get latest ETH price in USD and BTC.',
@@ -45,11 +47,14 @@ statsCli.command('ethprice', {
     const client = createEtherscanClient(apiKey);
     const price = await withRateLimit(
       () =>
-        client.call<EthPrice>({
-          chainid: chainId,
-          module: 'stats',
-          action: 'ethprice',
-        }),
+        client.call<EthPrice>(
+          {
+            chainid: chainId,
+            module: 'stats',
+            action: 'ethprice',
+          },
+          ethPriceSchema,
+        ),
       rateLimiter,
     );
     return c.ok(
@@ -91,11 +96,14 @@ statsCli.command('ethsupply', {
     const client = createEtherscanClient(apiKey);
     const supply = await withRateLimit(
       () =>
-        client.call<string>({
-          chainid: chainId,
-          module: 'stats',
-          action: 'ethsupply',
-        }),
+        client.call<string>(
+          {
+            chainid: chainId,
+            module: 'stats',
+            action: 'ethsupply',
+          },
+          z.string(),
+        ),
       rateLimiter,
     );
     return c.ok(

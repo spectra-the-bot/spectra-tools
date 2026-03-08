@@ -18,18 +18,36 @@ export const txCli = Cli.create('tx', {
   description: 'Query transaction details, receipts, and execution status.',
 });
 
-interface TransactionInfo {
-  hash: string;
-  from: string;
-  to: string | null;
-  value: string;
-  gas: string;
-  gasPrice: string;
-  nonce: string;
-  blockNumber: string;
-  blockHash: string;
-  input: string;
-}
+const transactionInfoSchema = z.object({
+  hash: z.string(),
+  from: z.string(),
+  to: z.string().nullable(),
+  value: z.string(),
+  gas: z.string(),
+  gasPrice: z.string(),
+  nonce: z.string(),
+  blockNumber: z.string(),
+  blockHash: z.string(),
+  input: z.string(),
+});
+
+const transactionReceiptSchema = z.object({
+  transactionHash: z.string(),
+  blockNumber: z.string(),
+  blockHash: z.string(),
+  from: z.string(),
+  to: z.string().nullable(),
+  status: z.string(),
+  gasUsed: z.string(),
+  cumulativeGasUsed: z.string(),
+  contractAddress: z.string().nullable(),
+  logs: z.array(z.unknown()),
+});
+
+const txStatusSchema = z.object({
+  status: z.string(),
+  errDescription: z.string(),
+});
 
 txCli.command('info', {
   description: 'Get transaction details by hash.',
@@ -64,12 +82,15 @@ txCli.command('info', {
     const client = createEtherscanClient(apiKey);
     const tx = await withRateLimit(
       () =>
-        client.callProxy<TransactionInfo>({
-          chainid: chainId,
-          module: 'proxy',
-          action: 'eth_getTransactionByHash',
-          txhash: c.args.txhash,
-        }),
+        client.callProxy(
+          {
+            chainid: chainId,
+            module: 'proxy',
+            action: 'eth_getTransactionByHash',
+            txhash: c.args.txhash,
+          },
+          transactionInfoSchema,
+        ),
       rateLimiter,
     );
     return c.ok(
@@ -104,19 +125,6 @@ txCli.command('info', {
   },
 });
 
-interface TransactionReceipt {
-  transactionHash: string;
-  blockNumber: string;
-  blockHash: string;
-  from: string;
-  to: string | null;
-  status: string;
-  gasUsed: string;
-  cumulativeGasUsed: string;
-  contractAddress: string | null;
-  logs: unknown[];
-}
-
 txCli.command('receipt', {
   description: 'Get the receipt for a transaction.',
   args: z.object({
@@ -150,12 +158,15 @@ txCli.command('receipt', {
     const client = createEtherscanClient(apiKey);
     const receipt = await withRateLimit(
       () =>
-        client.callProxy<TransactionReceipt>({
-          chainid: chainId,
-          module: 'proxy',
-          action: 'eth_getTransactionReceipt',
-          txhash: c.args.txhash,
-        }),
+        client.callProxy(
+          {
+            chainid: chainId,
+            module: 'proxy',
+            action: 'eth_getTransactionReceipt',
+            txhash: c.args.txhash,
+          },
+          transactionReceiptSchema,
+        ),
       rateLimiter,
     );
     return c.ok(
@@ -185,11 +196,6 @@ txCli.command('receipt', {
   },
 });
 
-interface TxStatus {
-  status: string;
-  errDescription: string;
-}
-
 txCli.command('status', {
   description: 'Check whether a transaction succeeded or failed.',
   args: z.object({
@@ -218,12 +224,15 @@ txCli.command('status', {
     const client = createEtherscanClient(apiKey);
     const result = await withRateLimit(
       () =>
-        client.call<TxStatus>({
-          chainid: chainId,
-          module: 'transaction',
-          action: 'gettxreceiptstatus',
-          txhash: c.args.txhash,
-        }),
+        client.call(
+          {
+            chainid: chainId,
+            module: 'transaction',
+            action: 'gettxreceiptstatus',
+            txhash: c.args.txhash,
+          },
+          txStatusSchema,
+        ),
       rateLimiter,
     );
     return c.ok(

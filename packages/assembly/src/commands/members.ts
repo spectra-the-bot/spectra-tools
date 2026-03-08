@@ -12,12 +12,37 @@ const env = z.object({
     .describe('Optional members snapshot endpoint (default: theaiassembly.org indexer)'),
 });
 
+const memberSnapshotSchema = z.array(z.string());
+
+class AssemblyApiValidationError extends Error {
+  constructor(
+    public readonly details: {
+      code: 'INVALID_ASSEMBLY_API_RESPONSE';
+      url: string;
+      issues: z.ZodIssue[];
+      response: unknown;
+    },
+  ) {
+    super('Assembly API response validation failed');
+    this.name = 'AssemblyApiValidationError';
+  }
+}
+
 async function memberSnapshot(url: string): Promise<string[]> {
   const res = await fetch(url);
   if (!res.ok) return [];
   const json = (await res.json()) as unknown;
-  if (!Array.isArray(json)) return [];
-  return json.filter((x): x is string => typeof x === 'string');
+  const parsed = memberSnapshotSchema.safeParse(json);
+  if (parsed.success) {
+    return parsed.data;
+  }
+
+  throw new AssemblyApiValidationError({
+    code: 'INVALID_ASSEMBLY_API_RESPONSE',
+    url,
+    issues: parsed.error.issues,
+    response: json,
+  });
 }
 
 export const members = Cli.create('members', {
@@ -46,7 +71,21 @@ members.command('list', {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const snapshotUrl =
       c.env.ASSEMBLY_INDEXER_URL ?? 'https://www.theaiassembly.org/api/indexer/members';
-    const addresses = await memberSnapshot(snapshotUrl);
+
+    let addresses: string[];
+    try {
+      addresses = await memberSnapshot(snapshotUrl);
+    } catch (error) {
+      if (error instanceof AssemblyApiValidationError) {
+        return c.error({
+          code: error.details.code,
+          message: `Member snapshot response failed validation. url=${error.details.url}; issues=${JSON.stringify(error.details.issues)}; response=${JSON.stringify(error.details.response)}`,
+          retryable: false,
+        });
+      }
+      throw error;
+    }
+
     const calls = addresses.flatMap((address) => [
       {
         abi: registryAbi,
