@@ -74,7 +74,21 @@ export default defineConfig({
             collapsed: false,
             items: [
               { text: 'Overview', link: '/assembly/' },
+              { text: 'Configuration', link: '/assembly/configuration' },
               { text: 'Commands', link: '/assembly/commands' },
+              {
+                text: 'Guides',
+                items: [
+                  {
+                    text: 'Governance Monitoring',
+                    link: '/assembly/guides/governance-monitoring',
+                  },
+                  {
+                    text: 'Agent Integration',
+                    link: '/assembly/guides/agent-integration',
+                  },
+                ],
+              },
             ],
           },
           {

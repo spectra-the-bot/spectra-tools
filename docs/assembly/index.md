@@ -1,8 +1,19 @@
 # 🏛️ Assembly CLI
 
-**Monitor and query Assembly governance on Abstract** — proposals, council seats, treasury, forum discussions, and member activity.
+`@spectratools/assembly-cli` is a read-focused governance CLI for The AI Assembly on Abstract.
 
-Assembly CLI connects directly to Abstract's onchain Assembly contracts, giving you real-time visibility into governance operations from your terminal or any automated pipeline.
+Use it to inspect:
+- overall protocol status
+- member registry activity
+- council seat occupancy and auctions
+- forum threads + petitions
+- governance proposals and vote lifecycle
+- treasury guardrails and balances
+
+It is designed for:
+- **governance participants** who need fast, verifiable read access
+- **council members** tracking seats, voting power, and proposal flow
+- **agents/automation** that need structured, machine-readable output
 
 ## Install
 
@@ -22,77 +33,37 @@ pnpm add -g @spectratools/assembly-cli
 
 :::
 
-## What you can do
+## Quick examples
 
-### Governance
-
-Track proposals, check vote participation, and monitor governance activity:
+These are the most common read commands:
 
 ```bash
-assembly-cli governance proposals --limit 5
-assembly-cli governance proposal 42
+# 1) Cross-contract governance snapshot
 assembly-cli status
-```
 
-### Members
+# 2) Member registry snapshot
+assembly-cli members list
 
-Query member registrations, lookup activity, and list the registry:
-
-```bash
-assembly-cli members list --limit 20
-assembly-cli members get 0x1234...
-```
-
-### Council
-
-View council seats and auction slot status:
-
-```bash
+# 3) Council seat occupancy
 assembly-cli council seats
+
+# 4) Forum discussion feed
+assembly-cli forum threads
+
+# 5) Governance proposal feed
+assembly-cli governance proposals
 ```
 
-### Treasury
+## Why teams use it
 
-Check treasury balances and spending controls:
-
-```bash
-assembly-cli treasury balances
-```
-
-### Forum
-
-Browse forum threads, comments, and petitions:
-
-```bash
-assembly-cli forum threads --limit 10
-assembly-cli forum thread 5
-```
-
-## Configuration
-
-Assembly CLI works out of the box — no API keys required. It connects to Abstract's public RPC by default.
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `ABSTRACT_RPC_URL` | No | Override the default RPC endpoint |
-| `ASSEMBLY_INDEXER_URL` | No | Optional indexer for faster member queries |
-
-## Use with agents
-
-```bash
-# Structured JSON output
-assembly-cli governance proposals --limit 5 --json
-
-# Full CLI manifest for agent discovery
-assembly-cli --llms
-
-# Register as an agent skill or MCP server
-assembly-cli skills add
-assembly-cli mcp add
-```
+- **Zero-config by default**: connects to Abstract mainnet public RPC out of the box
+- **No API key required** for core Assembly reads
+- **Automation-friendly output** via `--format`, `--verbose`, and `--filter-output`
+- **Agent-native integration** via `--llms`, `--schema`, `skills add`, and `mcp add`
 
 ## Reference
 
-- [Command reference](/assembly/commands) — full list of commands with arguments and examples
-- [Configuration](/configuration) — environment variables
-- [Agent integration](/agent-integration) — discovery, schemas, and structured output
+- [Command reference](/assembly/commands)
+- [Configuration](/assembly/configuration)
+- [Governance monitoring guide](/assembly/guides/governance-monitoring)
+- [Agent integration guide](/assembly/guides/agent-integration)
