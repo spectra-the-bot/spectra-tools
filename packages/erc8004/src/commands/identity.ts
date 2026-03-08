@@ -1,4 +1,4 @@
-import { checksumAddress } from '@spectra-the-bot/cli-shared';
+import { checksumAddress } from '@spectratools/cli-shared';
 import { Cli, z } from 'incur';
 import { readContract, writeContract } from 'viem/actions';
 import { identityRegistryAbi } from '../contracts/abis.js';

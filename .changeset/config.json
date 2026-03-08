@@ -1,10 +1,15 @@
 {
   "$schema": "https://unpkg.com/@changesets/config@3.0.0/schema.json",
-  "changelog": ["@changesets/changelog-github", { "repo": "spectra-the-bot/spectra-tools" }],
+  "changelog": [
+    "@changesets/changelog-github",
+    {
+      "repo": "spectra-the-bot/spectra-tools"
+    }
+  ],
   "commit": false,
   "fixed": [],
   "linked": [],
-  "access": "restricted",
+  "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
   "ignore": []

@@ -1,4 +1,4 @@
-import { checksumAddress, weiToEth } from '@spectra-the-bot/cli-shared';
+import { checksumAddress, weiToEth } from '@spectratools/cli-shared';
 
 export function toChecksum(address: string): string {
   try {

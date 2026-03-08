@@ -1,5 +1,5 @@
-import type { MockServer } from '@spectra-the-bot/cli-shared/testing';
-import { createMockServer } from '@spectra-the-bot/cli-shared/testing';
+import type { MockServer } from '@spectratools/cli-shared/testing';
+import { createMockServer } from '@spectratools/cli-shared/testing';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createXApiClient, relativeTime, truncateText } from '../api.js';
 
@@ -139,7 +139,7 @@ describe('createXApiClient - HTTP integration', () => {
     });
 
     // Use a patched client pointing at test server
-    const { createHttpClient } = await import('@spectra-the-bot/cli-shared/utils');
+    const { createHttpClient } = await import('@spectratools/cli-shared/utils');
     const http = createHttpClient({
       baseUrl: server.url,
       defaultHeaders: { Authorization: 'Bearer test-key' },
@@ -155,7 +155,7 @@ describe('createXApiClient - HTTP integration', () => {
       body: { title: 'Too Many Requests', type: 'about:blank', status: 429 },
     });
 
-    const { createHttpClient, HttpError } = await import('@spectra-the-bot/cli-shared/utils');
+    const { createHttpClient, HttpError } = await import('@spectratools/cli-shared/utils');
     const http = createHttpClient({ baseUrl: server.url });
     await expect(http.request('/fail')).rejects.toThrow(HttpError);
   });
@@ -171,7 +171,7 @@ describe('createXApiClient - HTTP integration', () => {
       },
     });
 
-    const { createHttpClient } = await import('@spectra-the-bot/cli-shared/utils');
+    const { createHttpClient } = await import('@spectratools/cli-shared/utils');
     const http = createHttpClient({ baseUrl: server.url });
     const res = await http.request<{ data: unknown[]; meta: { next_token: string } }>(
       '/2/tweets/search/recent',

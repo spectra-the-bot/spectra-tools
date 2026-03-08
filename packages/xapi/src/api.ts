@@ -1,4 +1,4 @@
-import { createHttpClient, withRetry } from '@spectra-the-bot/cli-shared';
+import { createHttpClient, withRetry } from '@spectratools/cli-shared';
 
 const BASE_URL = 'https://api.x.com/2';
 
