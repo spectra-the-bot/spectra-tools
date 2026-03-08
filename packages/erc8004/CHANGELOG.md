@@ -1,5 +1,13 @@
 # @spectra-the-bot/erc8004-cli
 
+## 0.1.3
+
+### Patch Changes
+
+- [#166](https://github.com/spectra-the-bot/spectra-tools/pull/166) [`4de0c4c`](https://github.com/spectra-the-bot/spectra-tools/commit/4de0c4c372d9579507a637c41e8d6296964a3609) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - docs(erc8004): add VitePress overview, configuration, and guide pages.
+
+- [#166](https://github.com/spectra-the-bot/spectra-tools/pull/166) [`4de0c4c`](https://github.com/spectra-the-bot/spectra-tools/commit/4de0c4c372d9579507a637c41e8d6296964a3609) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Map reputation/validation registry read reverts to structured CLI error codes instead of surfacing raw contract errors.
+
 ## 0.1.2
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @spectra-the-bot/etherscan-cli
 
+## 0.2.3
+
+### Patch Changes
+
+- [#165](https://github.com/spectra-the-bot/spectra-tools/pull/165) [`f163769`](https://github.com/spectra-the-bot/spectra-tools/commit/f16376992b66202ef5fe2a6e3c688f40d8cf35d6) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - docs(etherscan): add VitePress overview, configuration, and guide pages.
+
 ## 0.2.2
 
 ### Patch Changes

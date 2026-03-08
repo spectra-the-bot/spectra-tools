@@ -1,5 +1,15 @@
 # @spectra-the-bot/assembly-cli
 
+## 0.6.0
+
+### Minor Changes
+
+- [#162](https://github.com/spectra-the-bot/spectra-tools/pull/162) [`e5d8f5d`](https://github.com/spectra-the-bot/spectra-tools/commit/e5d8f5d79c2017494faedd0c4e09b1babd51d760) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add write command infrastructure with wallet client, signer resolution, and tx receipt formatting.
+
+### Patch Changes
+
+- [#163](https://github.com/spectra-the-bot/spectra-tools/pull/163) [`1beb7c7`](https://github.com/spectra-the-bot/spectra-tools/commit/1beb7c7d898e7b2d260baa4622a0227ecef833f6) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - docs: add VitePress overview, configuration, and guide pages.
+
 ## 0.5.1
 
 ### Patch Changes
