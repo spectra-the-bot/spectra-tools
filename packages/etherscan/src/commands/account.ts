@@ -16,7 +16,9 @@ const rateLimiter = createRateLimiter({ requestsPerSecond: 5 });
 const chainOption = z
   .string()
   .default(DEFAULT_CHAIN)
-  .describe('Chain name (abstract, ethereum, base, arbitrum, ...)');
+  .describe(
+    'Chain name (default: abstract). Options: ethereum, base, arbitrum, optimism, polygon, ...',
+  );
 
 const txListItemSchema = z.object({
   hash: z.string(),

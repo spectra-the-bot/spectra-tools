@@ -14,7 +14,9 @@ function hexToDecimal(hex: string): string {
 const chainOption = z
   .string()
   .default(DEFAULT_CHAIN)
-  .describe('Chain name (abstract, ethereum, base, arbitrum, ...)');
+  .describe(
+    'Chain name (default: abstract). Options: ethereum, base, arbitrum, optimism, polygon, ...',
+  );
 
 export const txCli = Cli.create('tx', {
   description: 'Query transaction details, receipts, and execution status.',
