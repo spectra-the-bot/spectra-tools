@@ -10,7 +10,7 @@
     "build": "pnpm -r build",
     "lint": "biome check .",
     "format": "biome format --write .",
-    "typecheck": "pnpm --filter @spectra-the-bot/cli-shared run build && tsc --noEmit -p tsconfig.base.json && pnpm -r run typecheck",
+    "typecheck": "pnpm --filter @spectratools/cli-shared run build && tsc --noEmit -p tsconfig.base.json && pnpm -r run typecheck",
     "test": "vitest run",
     "changeset": "changeset"
   },

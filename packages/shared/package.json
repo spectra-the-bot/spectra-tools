@@ -1,6 +1,6 @@
 {
   "name": "@spectratools/cli-shared",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Shared middleware, utilities, and testing helpers for spectra CLI tools",
   "type": "module",
   "license": "MIT",
@@ -10,20 +10,20 @@
   },
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "default": "./src/index.ts"
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
     },
     "./middleware": {
-      "types": "./src/middleware/index.ts",
-      "default": "./src/middleware/index.ts"
+      "types": "./dist/middleware/index.d.ts",
+      "default": "./dist/middleware/index.js"
     },
     "./utils": {
-      "types": "./src/utils/index.ts",
-      "default": "./src/utils/index.ts"
+      "types": "./dist/utils/index.d.ts",
+      "default": "./dist/utils/index.js"
     },
     "./testing": {
-      "types": "./src/testing/index.ts",
-      "default": "./src/testing/index.ts"
+      "types": "./dist/testing/index.d.ts",
+      "default": "./dist/testing/index.js"
     }
   },
   "scripts": {
