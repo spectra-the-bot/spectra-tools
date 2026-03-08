@@ -64,6 +64,27 @@ describe('registration validate', () => {
     expect(data.registration?.name).toBe('Data Agent');
   });
 
+  it('validates ERC-8004 registration when optional trust fields are omitted', async () => {
+    const reg = JSON.stringify({
+      name: 'Spec Agent',
+      services: [{ name: 'A2A', endpoint: 'https://agent.example/.well-known/agent-card.json' }],
+    });
+    const dataUri = `data:application/json,${encodeURIComponent(reg)}`;
+
+    let output = '';
+    await cli.serve(['registration', 'validate', dataUri, '--json'], {
+      stdout(s) {
+        output += s;
+      },
+      exit() {},
+    });
+
+    const data = JSON.parse(output);
+    expect(data.valid).toBe(true);
+    expect(data.registration?.x402Support).toBeUndefined();
+    expect(data.registration?.supportedTrust).toBeUndefined();
+  });
+
   it('reports errors for invalid registration', async () => {
     // Missing required "name" field
     const reg = JSON.stringify({ description: 'No name' });

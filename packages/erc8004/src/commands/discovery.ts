@@ -116,7 +116,11 @@ discovery.command('search', {
         continue;
       }
       if (service && reg?.services) {
-        const hasService = reg.services.some((s) => s.type.toLowerCase() === service.toLowerCase());
+        const needle = service.toLowerCase();
+        const hasService = reg.services.some((s) => {
+          const typeOrName = s.type ?? s.name;
+          return typeOrName !== undefined && typeOrName.toLowerCase() === needle;
+        });
         if (!hasService) continue;
       }
       if (service && !reg?.services) continue;
@@ -126,7 +130,13 @@ discovery.command('search', {
         owner: checksumAddress(owner),
         ...(reg?.name !== undefined ? { name: reg.name } : {}),
         ...(reg?.description !== undefined ? { description: reg.description } : {}),
-        ...(reg?.services !== undefined ? { services: reg.services.map((s) => s.type) } : {}),
+        ...(reg?.services !== undefined
+          ? {
+              services: reg.services
+                .map((s) => s.type ?? s.name)
+                .filter((value): value is string => value !== undefined),
+            }
+          : {}),
         uri,
       });
     }
