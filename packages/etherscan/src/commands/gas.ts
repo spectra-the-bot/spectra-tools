@@ -68,17 +68,19 @@ gasCli.command('oracle', {
         baseFee: `${oracle.suggestBaseFee} Gwei`,
         gasUsedRatio: oracle.gasUsedRatio,
       },
-      {
-        cta: {
-          commands: [
-            {
-              command: 'gas estimate',
-              options: { gasprice: oracle.ProposeGasPrice },
-              description: 'Estimate cost at standard gas price',
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              commands: [
+                {
+                  command: 'gas estimate',
+                  options: { gasprice: oracle.ProposeGasPrice },
+                  description: 'Estimate cost at standard gas price',
+                },
+              ],
             },
-          ],
-        },
-      },
+          },
     );
   },
 });
@@ -124,16 +126,18 @@ gasCli.command('estimate', {
         gasprice: c.options.gasprice,
         estimatedSeconds: estimate,
       },
-      {
-        cta: {
-          commands: [
-            {
-              command: 'gas oracle',
-              description: 'See current gas price recommendations',
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              commands: [
+                {
+                  command: 'gas oracle',
+                  description: 'See current gas price recommendations',
+                },
+              ],
             },
-          ],
-        },
-      },
+          },
     );
   },
 });

@@ -90,4 +90,18 @@ describe('erc8004 cli', () => {
     const envelope = JSON.parse(output);
     expect(envelope.code).toBe('INVALID_IDENTIFIER');
   });
+
+  it('registration create --json output does not contain CTA keys', async () => {
+    let output = '';
+    await cli.serve(['registration', 'create', '--name', 'Test Agent', '--json'], {
+      stdout(s) {
+        output += s;
+      },
+      exit() {},
+    });
+
+    const parsed = JSON.parse(output);
+    expect(parsed).toHaveProperty('name', 'Test Agent');
+    expect(parsed).not.toHaveProperty('cta');
+  });
 });

@@ -33,15 +33,25 @@ lists.command('get', {
         owner_id: list.owner_id,
         member_count: list.member_count,
       },
-      {
-        cta: {
-          description: 'Explore this list:',
-          commands: [
-            { command: 'lists members', args: { id: c.args.id }, description: 'See list members' },
-            { command: 'lists posts', args: { id: c.args.id }, description: 'See list posts' },
-          ],
-        },
-      },
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Explore this list:',
+              commands: [
+                {
+                  command: 'lists members',
+                  args: { id: c.args.id },
+                  description: 'See list members',
+                },
+                {
+                  command: 'lists posts',
+                  args: { id: c.args.id },
+                  description: 'See list posts',
+                },
+              ],
+            },
+          },
     );
   },
 });
@@ -141,20 +151,22 @@ lists.command('posts', {
     const firstId = allPosts[0]?.id;
     return c.ok(
       { posts: allPosts, count: allPosts.length },
-      {
-        cta: firstId
-          ? {
-              description: 'Next steps:',
-              commands: [
-                {
-                  command: 'posts get',
-                  args: { id: firstId },
-                  description: 'View top post in detail',
-                },
-              ],
-            }
-          : undefined,
-      },
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: firstId
+              ? {
+                  description: 'Next steps:',
+                  commands: [
+                    {
+                      command: 'posts get',
+                      args: { id: firstId },
+                      description: 'View top post in detail',
+                    },
+                  ],
+                }
+              : undefined,
+          },
     );
   },
 });

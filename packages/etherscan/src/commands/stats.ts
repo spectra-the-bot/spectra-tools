@@ -62,16 +62,18 @@ statsCli.command('ethprice', {
         usdTimestamp: new Date(Number(price.ethusd_timestamp) * 1000).toISOString(),
         btcTimestamp: new Date(Number(price.ethbtc_timestamp) * 1000).toISOString(),
       },
-      {
-        cta: {
-          commands: [
-            {
-              command: 'stats ethsupply',
-              description: 'Get total ETH supply',
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              commands: [
+                {
+                  command: 'stats ethsupply',
+                  description: 'Get total ETH supply',
+                },
+              ],
             },
-          ],
-        },
-      },
+          },
     );
   },
 });
@@ -108,16 +110,18 @@ statsCli.command('ethsupply', {
         chain: c.options.chain,
         totalSupplyWei: supply,
       },
-      {
-        cta: {
-          commands: [
-            {
-              command: 'stats ethprice',
-              description: 'Get current ETH price',
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              commands: [
+                {
+                  command: 'stats ethprice',
+                  description: 'Get current ETH price',
+                },
+              ],
             },
-          ],
-        },
-      },
+          },
     );
   },
 });

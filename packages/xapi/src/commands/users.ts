@@ -56,23 +56,25 @@ users.command('get', {
         tweets: user.public_metrics?.tweet_count,
         joined: user.created_at ? relativeTime(user.created_at) : undefined,
       },
-      {
-        cta: {
-          description: 'Explore this user:',
-          commands: [
-            {
-              command: 'users posts',
-              args: { username: user.username },
-              description: 'View their posts',
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Explore this user:',
+              commands: [
+                {
+                  command: 'users posts',
+                  args: { username: user.username },
+                  description: 'View their posts',
+                },
+                {
+                  command: 'users followers',
+                  args: { username: user.username },
+                  description: 'View their followers',
+                },
+              ],
             },
-            {
-              command: 'users followers',
-              args: { username: user.username },
-              description: 'View their followers',
-            },
-          ],
-        },
-      },
+          },
     );
   },
 });
@@ -226,20 +228,22 @@ users.command('posts', {
     const firstId = allPosts[0]?.id;
     return c.ok(
       { posts: allPosts, count: allPosts.length },
-      {
-        cta: firstId
-          ? {
-              description: 'Next steps:',
-              commands: [
-                {
-                  command: 'posts get',
-                  args: { id: firstId },
-                  description: 'View top post in detail',
-                },
-              ],
-            }
-          : undefined,
-      },
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: firstId
+              ? {
+                  description: 'Next steps:',
+                  commands: [
+                    {
+                      command: 'posts get',
+                      args: { id: firstId },
+                      description: 'View top post in detail',
+                    },
+                  ],
+                }
+              : undefined,
+          },
     );
   },
 });
@@ -314,20 +318,22 @@ users.command('search', {
     const first = items[0];
     return c.ok(
       { users: items, count: items.length },
-      {
-        cta: first
-          ? {
-              description: 'Next steps:',
-              commands: [
-                {
-                  command: 'users get',
-                  args: { username: first.username },
-                  description: `View @${first.username}'s profile`,
-                },
-              ],
-            }
-          : undefined,
-      },
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: first
+              ? {
+                  description: 'Next steps:',
+                  commands: [
+                    {
+                      command: 'users get',
+                      args: { username: first.username },
+                      description: `View @${first.username}'s profile`,
+                    },
+                  ],
+                }
+              : undefined,
+          },
     );
   },
 });

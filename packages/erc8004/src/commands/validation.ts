@@ -106,18 +106,20 @@ validation.command('request', {
         validator: checksumAddress(c.options.validator),
         txHash: hash,
       },
-      {
-        cta: {
-          description: 'Suggested commands:',
-          commands: [
-            {
-              command: 'validation status' as const,
-              args: { requestId },
-              description: 'Check validation status',
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Suggested commands:',
+              commands: [
+                {
+                  command: 'validation status' as const,
+                  args: { requestId },
+                  description: 'Check validation status',
+                },
+              ],
             },
-          ],
-        },
-      },
+          },
     );
   },
 });

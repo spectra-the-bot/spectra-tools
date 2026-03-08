@@ -53,35 +53,39 @@ registration.command('fetch', {
           registration: raw as Registration,
           valid: false,
         },
-        {
-          cta: {
-            description: 'The registration file has validation errors. Review with:',
-            commands: [
-              {
-                command: 'registration validate' as const,
-                args: { uri },
-                description: 'Validate the registration file',
+        c.format === 'json' || c.format === 'jsonl'
+          ? undefined
+          : {
+              cta: {
+                description: 'The registration file has validation errors. Review with:',
+                commands: [
+                  {
+                    command: 'registration validate' as const,
+                    args: { uri },
+                    description: 'Validate the registration file',
+                  },
+                ],
               },
-            ],
-          },
-        },
+            },
       );
     }
 
     return c.ok(
       { agentId: c.args.agentId, uri, registration: parsed.data, valid: true },
-      {
-        cta: {
-          description: 'Suggested commands:',
-          commands: [
-            {
-              command: 'reputation feedback' as const,
-              args: { agentId: c.args.agentId },
-              description: 'Submit feedback for this agent',
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Suggested commands:',
+              commands: [
+                {
+                  command: 'reputation feedback' as const,
+                  args: { agentId: c.args.agentId },
+                  description: 'Submit feedback for this agent',
+                },
+              ],
             },
-          ],
-        },
-      },
+          },
     );
   },
 });
