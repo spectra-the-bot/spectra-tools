@@ -1,5 +1,11 @@
 # @spectra-the-bot/etherscan-cli
 
+## 0.2.0
+
+### Minor Changes
+
+- [#119](https://github.com/spectra-the-bot/spectra-tools/pull/119) [`94dd56a`](https://github.com/spectra-the-bot/spectra-tools/commit/94dd56a4267e1a66c1f5089f804d4a5a5d016e16) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add end-to-end invocation tests for symlink, npx, and pack+install workflows across all CLI packages.
+
 ## 0.1.2
 
 ### Patch Changes
