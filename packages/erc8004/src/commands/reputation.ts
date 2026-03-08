@@ -11,7 +11,8 @@ import {
 } from '../contracts/client.js';
 
 const reputation = Cli.create('reputation', {
-  description: 'Manage ERC-8004 agent reputation and feedback.',
+  description:
+    'Manage ERC-8004 agent reputation and feedback. Defaults to the Abstract mainnet reputation registry deployment.',
 });
 
 function chunk<T>(items: readonly T[], size: number): T[][] {
@@ -24,15 +25,19 @@ function chunk<T>(items: readonly T[], size: number): T[][] {
 
 reputation.command('get', {
   description: 'Get the reputation score for an agent.',
+  hint: 'Defaults to the Abstract mainnet reputation registry. Override via --registry or REPUTATION_REGISTRY_ADDRESS.',
   args: z.object({
     agentId: z.string().describe('Agent token ID'),
+  }),
+  options: z.object({
+    registry: z.string().optional().describe('Reputation registry contract address override'),
   }),
   env: z.object({
     ABSTRACT_RPC_URL: z.string().optional().describe('Abstract RPC URL'),
     REPUTATION_REGISTRY_ADDRESS: z
       .string()
       .optional()
-      .describe('Reputation registry contract address'),
+      .describe('Reputation registry contract address override (defaults on Abstract mainnet)'),
   }),
   output: z.object({
     agentId: z.string(),
@@ -43,7 +48,7 @@ reputation.command('get', {
   examples: [{ args: { agentId: '1' }, description: 'Get reputation score for agent #1' }],
   async run(c) {
     const client = getPublicClient(c.env.ABSTRACT_RPC_URL);
-    const address = getReputationRegistryAddress(c.env);
+    const address = getReputationRegistryAddress(c.env, c.options.registry);
     const tokenId = BigInt(c.args.agentId);
 
     const [totalScore, count] = await withRetry(
@@ -71,7 +76,7 @@ reputation.command('get', {
 
 reputation.command('feedback', {
   description: 'Submit feedback for an agent.',
-  hint: 'Requires PRIVATE_KEY environment variable. Value is int128 (positive = good, negative = bad).',
+  hint: 'Requires PRIVATE_KEY environment variable. Value is int128 (positive = good, negative = bad). Defaults to the Abstract mainnet reputation registry; override via --registry or REPUTATION_REGISTRY_ADDRESS.',
   args: z.object({
     agentId: z.string().describe('Agent token ID'),
   }),
@@ -80,13 +85,14 @@ reputation.command('feedback', {
     tag1: z.string().optional().describe('Primary tag (e.g. "accuracy", "speed")'),
     tag2: z.string().optional().describe('Secondary tag'),
     fileUri: z.string().optional().describe('URI to a supporting file or report'),
+    registry: z.string().optional().describe('Reputation registry contract address override'),
   }),
   env: z.object({
     ABSTRACT_RPC_URL: z.string().optional().describe('Abstract RPC URL'),
     REPUTATION_REGISTRY_ADDRESS: z
       .string()
       .optional()
-      .describe('Reputation registry contract address'),
+      .describe('Reputation registry contract address override (defaults on Abstract mainnet)'),
     PRIVATE_KEY: z.string().optional().describe('Private key for signing'),
   }),
   output: z.object({
@@ -117,7 +123,7 @@ reputation.command('feedback', {
     }
 
     const walletClient = getWalletClient(privateKey, c.env.ABSTRACT_RPC_URL);
-    const address = getReputationRegistryAddress(c.env);
+    const address = getReputationRegistryAddress(c.env, c.options.registry);
 
     const hash = await writeContract(walletClient, {
       chain: abstractMainnet,
@@ -139,18 +145,20 @@ reputation.command('feedback', {
 
 reputation.command('history', {
   description: 'View feedback history for an agent.',
+  hint: 'Defaults to the Abstract mainnet reputation registry. Override via --registry or REPUTATION_REGISTRY_ADDRESS.',
   args: z.object({
     agentId: z.string().describe('Agent token ID'),
   }),
   options: z.object({
     limit: z.coerce.number().default(50).describe('Maximum number of results'),
+    registry: z.string().optional().describe('Reputation registry contract address override'),
   }),
   env: z.object({
     ABSTRACT_RPC_URL: z.string().optional().describe('Abstract RPC URL'),
     REPUTATION_REGISTRY_ADDRESS: z
       .string()
       .optional()
-      .describe('Reputation registry contract address'),
+      .describe('Reputation registry contract address override (defaults on Abstract mainnet)'),
   }),
   output: z.object({
     agentId: z.string(),
@@ -173,7 +181,7 @@ reputation.command('history', {
   ],
   async run(c) {
     const client = getPublicClient(c.env.ABSTRACT_RPC_URL);
-    const address = getReputationRegistryAddress(c.env);
+    const address = getReputationRegistryAddress(c.env, c.options.registry);
     const tokenId = BigInt(c.args.agentId);
 
     const count = await readContract(client, {
