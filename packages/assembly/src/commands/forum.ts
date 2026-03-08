@@ -1,141 +1,232 @@
 import { Cli, z } from 'incur';
-import { ASSEMBLY_BASE_URL, createAssemblyClient } from '../api.js';
+import { forumAbi } from '../contracts/abis.js';
+import { ABSTRACT_MAINNET_ADDRESSES } from '../contracts/addresses.js';
+import { createAssemblyPublicClient } from '../contracts/client.js';
+import { asNum, relTime, toChecksum } from './_common.js';
 
-const assemblyEnv = z.object({
-  ASSEMBLY_API_URL: z.string().optional().describe('Assembly API URL'),
-  ASSEMBLY_API_KEY: z.string().optional().describe('Assembly API key'),
-});
+const env = z.object({ ABSTRACT_RPC_URL: z.string().optional() });
+export const forum = Cli.create('forum', { description: 'Read forum threads/comments/petitions.' });
 
-type AssemblyEnv = z.infer<typeof assemblyEnv>;
-
-function getClient(env: AssemblyEnv) {
-  const apiUrl = env.ASSEMBLY_API_URL ?? ASSEMBLY_BASE_URL;
-  const apiKey = env.ASSEMBLY_API_KEY;
-  return createAssemblyClient(apiUrl, apiKey);
-}
-
-export const forum = Cli.create('forum', {
-  description: 'Browse the Assembly governance forum.',
-});
-
-forum.command('posts', {
-  description: 'List forum posts.',
-  options: z.object({
-    category: z
-      .enum(['governance', 'general', 'all'])
-      .optional()
-      .default('all')
-      .describe('Filter posts by category'),
-  }),
-  env: assemblyEnv,
-  examples: [
-    { description: 'List all forum posts' },
-    { options: { category: 'governance' }, description: 'List governance posts' },
-  ],
-  run(c) {
-    const client = getClient(c.env);
-    const category = c.options.category === 'all' ? undefined : c.options.category;
-    return client.forum
-      .posts(category)
-      .then((data) =>
-        c.ok(
-          data.map((p) => ({
-            id: p.id,
-            title: p.title,
-            category: p.category,
-            author: p.author,
-            createdAt: new Date(p.createdAt * 1000).toISOString(),
-            excerpt: p.excerpt,
-          })),
-          {
-            cta: {
-              description: 'View a post:',
-              commands: [{ command: 'forum post', args: { id: '<id>' } }],
-            },
-          },
-        ),
-      )
-      .catch((err: unknown) => {
-        const message = err instanceof Error ? err.message : String(err);
-        return c.error({
-          code: 'FETCH_ERROR',
-          message: `Failed to fetch forum posts: ${message}`,
-          retryable: true,
-        });
-      });
+forum.command('threads', {
+  env,
+  async run(c) {
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
+    const count = await client.readContract({
+      abi: forumAbi,
+      address: ABSTRACT_MAINNET_ADDRESSES.forum,
+      functionName: 'threadCount',
+    });
+    const ids = Array.from({ length: Number(count) }, (_, i) => BigInt(i + 1));
+    const items = (
+      ids.length
+        ? await client.multicall({
+            allowFailure: false,
+            contracts: ids.map((id) => ({
+              abi: forumAbi,
+              address: ABSTRACT_MAINNET_ADDRESSES.forum,
+              functionName: 'threads',
+              args: [id] as const,
+            })),
+          })
+        : []
+    ) as Array<Record<string, unknown>>;
+    return c.ok(
+      items.map((x: Record<string, unknown>) => ({
+        id: asNum(x.id as bigint),
+        kind: asNum(x.kind as bigint),
+        author: toChecksum(x.author as string),
+        createdAt: asNum(x.createdAt as bigint),
+        createdAtRelative: relTime(x.createdAt as bigint),
+        category: x.category,
+        title: x.title,
+      })),
+      {
+        cta: {
+          description: 'Inspect or comment:',
+          commands: [
+            { command: 'forum thread', args: { id: '<id>' } },
+            { command: 'forum post-comment', args: { id: '<id>' } },
+          ],
+        },
+      },
+    );
   },
 });
 
-forum.command('post', {
-  description: 'Get a specific forum post.',
-  args: z.object({
-    id: z.string().describe('Post ID'),
-  }),
-  env: assemblyEnv,
-  examples: [{ args: { id: '123' }, description: 'Get forum post #123' }],
-  run(c) {
-    const client = getClient(c.env);
-    return client.forum
-      .post(c.args.id)
-      .then((data) =>
-        c.ok({
-          id: data.id,
-          title: data.title,
-          category: data.category,
-          author: data.author,
-          createdAt: new Date(data.createdAt * 1000).toISOString(),
-          excerpt: data.excerpt,
-        }),
-      )
-      .catch((err: unknown) => {
-        const message = err instanceof Error ? err.message : String(err);
-        return c.error({
-          code: 'FETCH_ERROR',
-          message: `Failed to fetch forum post ${c.args.id}: ${message}`,
-          retryable: true,
-        });
-      });
+forum.command('thread', {
+  args: z.object({ id: z.coerce.number().int().positive() }),
+  env,
+  async run(c) {
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
+    const [thread, commentCount] = (await Promise.all([
+      client.readContract({
+        abi: forumAbi,
+        address: ABSTRACT_MAINNET_ADDRESSES.forum,
+        functionName: 'threads',
+        args: [BigInt(c.args.id)],
+      }),
+      client.readContract({
+        abi: forumAbi,
+        address: ABSTRACT_MAINNET_ADDRESSES.forum,
+        functionName: 'commentCount',
+      }),
+    ])) as [Record<string, unknown>, bigint];
+    const ids = Array.from({ length: Number(commentCount) }, (_, i) => BigInt(i + 1));
+    const comments = (
+      ids.length
+        ? await client.multicall({
+            allowFailure: false,
+            contracts: ids.map((id) => ({
+              abi: forumAbi,
+              address: ABSTRACT_MAINNET_ADDRESSES.forum,
+              functionName: 'comments',
+              args: [id] as const,
+            })),
+          })
+        : []
+    ) as Array<Record<string, unknown>>;
+    return c.ok({
+      thread,
+      comments: comments.filter((x) => Number(x.threadId) === c.args.id),
+    });
   },
 });
 
-forum.command('search', {
-  description: 'Search forum posts.',
-  args: z.object({
-    query: z.string().describe('Search query'),
-  }),
-  env: assemblyEnv,
-  examples: [
-    { args: { query: 'governance token' }, description: 'Search for governance token posts' },
-  ],
-  run(c) {
-    const client = getClient(c.env);
-    return client.forum
-      .search(c.args.query)
-      .then((data) =>
-        c.ok(
-          data.map((p) => ({
-            id: p.id,
-            title: p.title,
-            category: p.category,
-            author: p.author,
-            createdAt: new Date(p.createdAt * 1000).toISOString(),
-            excerpt: p.excerpt,
+forum.command('comments', {
+  args: z.object({ threadId: z.coerce.number().int().positive() }),
+  env,
+  async run(c) {
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
+    const count = (await client.readContract({
+      abi: forumAbi,
+      address: ABSTRACT_MAINNET_ADDRESSES.forum,
+      functionName: 'commentCount',
+    })) as bigint;
+    const ids = Array.from({ length: Number(count) }, (_, i) => BigInt(i + 1));
+    const comments = (
+      ids.length
+        ? await client.multicall({
+            allowFailure: false,
+            contracts: ids.map((id) => ({
+              abi: forumAbi,
+              address: ABSTRACT_MAINNET_ADDRESSES.forum,
+              functionName: 'comments',
+              args: [id] as const,
+            })),
+          })
+        : []
+    ) as Array<Record<string, unknown>>;
+    return c.ok(comments.filter((x) => Number(x.threadId) === c.args.threadId));
+  },
+});
+
+forum.command('comment', {
+  args: z.object({ id: z.coerce.number().int().positive() }),
+  env,
+  async run(c) {
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
+    const comment = await client.readContract({
+      abi: forumAbi,
+      address: ABSTRACT_MAINNET_ADDRESSES.forum,
+      functionName: 'comments',
+      args: [BigInt(c.args.id)],
+    });
+    return c.ok(comment);
+  },
+});
+
+forum.command('petitions', {
+  env,
+  async run(c) {
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
+    const count = await client.readContract({
+      abi: forumAbi,
+      address: ABSTRACT_MAINNET_ADDRESSES.forum,
+      functionName: 'petitionCount',
+    });
+    const ids = Array.from({ length: Number(count) }, (_, i) => BigInt(i + 1));
+    const petitions = ids.length
+      ? await client.multicall({
+          allowFailure: false,
+          contracts: ids.map((id) => ({
+            abi: forumAbi,
+            address: ABSTRACT_MAINNET_ADDRESSES.forum,
+            functionName: 'petitions',
+            args: [id] as const,
           })),
-          {
-            cta: {
-              description: 'View a post:',
-              commands: [{ command: 'forum post', args: { id: '<id>' } }],
-            },
-          },
-        ),
-      )
-      .catch((err: unknown) => {
-        const message = err instanceof Error ? err.message : String(err);
-        return c.error({
-          code: 'FETCH_ERROR',
-          message: `Failed to search forum: ${message}`,
-          retryable: true,
-        });
-      });
+        })
+      : [];
+    return c.ok(petitions);
+  },
+});
+
+forum.command('petition', {
+  args: z.object({ id: z.coerce.number().int().positive() }),
+  env,
+  async run(c) {
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
+    const petition = (await client.readContract({
+      abi: forumAbi,
+      address: ABSTRACT_MAINNET_ADDRESSES.forum,
+      functionName: 'petitions',
+      args: [BigInt(c.args.id)],
+    })) as { proposer: string };
+    const proposerSigned = (await client.readContract({
+      abi: forumAbi,
+      address: ABSTRACT_MAINNET_ADDRESSES.forum,
+      functionName: 'hasSignedPetition',
+      args: [BigInt(c.args.id), petition.proposer],
+    })) as boolean;
+    return c.ok({ ...petition, proposerSigned });
+  },
+});
+
+forum.command('has-signed', {
+  args: z.object({ petitionId: z.coerce.number().int().positive(), address: z.string() }),
+  env,
+  async run(c) {
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
+    const hasSigned = await client.readContract({
+      abi: forumAbi,
+      address: ABSTRACT_MAINNET_ADDRESSES.forum,
+      functionName: 'hasSignedPetition',
+      args: [BigInt(c.args.petitionId), c.args.address],
+    });
+    return c.ok({ petitionId: c.args.petitionId, address: toChecksum(c.args.address), hasSigned });
+  },
+});
+
+forum.command('stats', {
+  env,
+  async run(c) {
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
+    const [threadCount, commentCount, petitionCount, petitionThresholdBps] = (await Promise.all([
+      client.readContract({
+        abi: forumAbi,
+        address: ABSTRACT_MAINNET_ADDRESSES.forum,
+        functionName: 'threadCount',
+      }),
+      client.readContract({
+        abi: forumAbi,
+        address: ABSTRACT_MAINNET_ADDRESSES.forum,
+        functionName: 'commentCount',
+      }),
+      client.readContract({
+        abi: forumAbi,
+        address: ABSTRACT_MAINNET_ADDRESSES.forum,
+        functionName: 'petitionCount',
+      }),
+      client.readContract({
+        abi: forumAbi,
+        address: ABSTRACT_MAINNET_ADDRESSES.forum,
+        functionName: 'petitionThresholdBps',
+      }),
+    ])) as [bigint, bigint, bigint, bigint];
+    return c.ok({
+      threadCount: asNum(threadCount),
+      commentCount: asNum(commentCount),
+      petitionCount: asNum(petitionCount),
+      petitionThresholdBps: asNum(petitionThresholdBps),
+    });
   },
 });
