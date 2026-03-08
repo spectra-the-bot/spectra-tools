@@ -1,6 +1,7 @@
-import { apiKeyAuth, createRateLimiter, withRateLimit } from '@spectratools/cli-shared';
+import { createRateLimiter, withRateLimit } from '@spectratools/cli-shared';
 import { Cli, z } from 'incur';
 import { createEtherscanClient } from '../api.js';
+import { etherscanEnv } from '../auth.js';
 import { DEFAULT_CHAIN, resolveChainId } from '../chains.js';
 
 const rateLimiter = createRateLimiter({ requestsPerSecond: 5 });
@@ -9,10 +10,6 @@ const chainOption = z
   .string()
   .default(DEFAULT_CHAIN)
   .describe('Chain name (abstract, ethereum, base, arbitrum, ...)');
-
-const etherscanEnv = z.object({
-  ETHERSCAN_API_KEY: z.string().optional().describe('Etherscan V2 API key'),
-});
 
 export const gasCli = Cli.create('gas', {
   description: 'Query gas oracle data and estimate confirmation latency.',
@@ -46,7 +43,7 @@ gasCli.command('oracle', {
   }),
   examples: [{ options: { chain: 'abstract' }, description: 'Get gas oracle on Abstract' }],
   async run(c) {
-    const { apiKey } = apiKeyAuth('ETHERSCAN_API_KEY');
+    const apiKey = c.env.ETHERSCAN_API_KEY;
     const chainId = resolveChainId(c.options.chain);
     const client = createEtherscanClient(apiKey);
     const oracle = await withRateLimit(
@@ -105,7 +102,7 @@ gasCli.command('estimate', {
     },
   ],
   async run(c) {
-    const { apiKey } = apiKeyAuth('ETHERSCAN_API_KEY');
+    const apiKey = c.env.ETHERSCAN_API_KEY;
     const chainId = resolveChainId(c.options.chain);
     const client = createEtherscanClient(apiKey);
     const estimate = await withRateLimit(

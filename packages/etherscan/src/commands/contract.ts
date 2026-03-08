@@ -1,11 +1,7 @@
-import {
-  apiKeyAuth,
-  checksumAddress,
-  createRateLimiter,
-  withRateLimit,
-} from '@spectratools/cli-shared';
+import { checksumAddress, createRateLimiter, withRateLimit } from '@spectratools/cli-shared';
 import { Cli, z } from 'incur';
 import { createEtherscanClient } from '../api.js';
+import { etherscanEnv } from '../auth.js';
 import { DEFAULT_CHAIN, resolveChainId } from '../chains.js';
 
 const rateLimiter = createRateLimiter({ requestsPerSecond: 5 });
@@ -14,10 +10,6 @@ const chainOption = z
   .string()
   .default(DEFAULT_CHAIN)
   .describe('Chain name (abstract, ethereum, base, arbitrum, ...)');
-
-const etherscanEnv = z.object({
-  ETHERSCAN_API_KEY: z.string().optional().describe('Etherscan V2 API key'),
-});
 
 export const contractCli = Cli.create('contract', {
   description: 'Query contract ABI, source code, and deployment metadata.',
@@ -64,7 +56,7 @@ contractCli.command('abi', {
     },
   ],
   async run(c) {
-    const { apiKey } = apiKeyAuth('ETHERSCAN_API_KEY');
+    const apiKey = c.env.ETHERSCAN_API_KEY;
     const chainId = resolveChainId(c.options.chain);
     const address = checksumAddress(c.args.address);
     const client = createEtherscanClient(apiKey);
@@ -128,7 +120,7 @@ contractCli.command('source', {
     },
   ],
   async run(c) {
-    const { apiKey } = apiKeyAuth('ETHERSCAN_API_KEY');
+    const apiKey = c.env.ETHERSCAN_API_KEY;
     const chainId = resolveChainId(c.options.chain);
     const address = checksumAddress(c.args.address);
     const client = createEtherscanClient(apiKey);
@@ -201,7 +193,7 @@ contractCli.command('creation', {
     },
   ],
   async run(c) {
-    const { apiKey } = apiKeyAuth('ETHERSCAN_API_KEY');
+    const apiKey = c.env.ETHERSCAN_API_KEY;
     const chainId = resolveChainId(c.options.chain);
     const address = checksumAddress(c.args.address);
     const client = createEtherscanClient(apiKey);

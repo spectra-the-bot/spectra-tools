@@ -9,6 +9,7 @@ import { treasury } from './commands/treasury.js';
 import { councilSeatsAbi, governanceAbi, registryAbi } from './contracts/abis.js';
 import { ABSTRACT_MAINNET_ADDRESSES } from './contracts/addresses.js';
 import { createAssemblyPublicClient } from './contracts/client.js';
+import { applyFriendlyErrorHandling } from './error-handling.js';
 
 const cli = Cli.create('assembly', {
   description: 'Assembly governance CLI for Abstract chain.',
@@ -148,6 +149,8 @@ cli.command('health', {
     });
   },
 });
+
+applyFriendlyErrorHandling(cli);
 
 export { cli };
 

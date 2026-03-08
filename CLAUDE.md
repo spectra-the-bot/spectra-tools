@@ -105,9 +105,22 @@ pnpm changeset
 - **PR bodies via `--body-file`** — never inline multiline markdown in `--body "..."`.
 - Squash merge PRs to main.
 - Branch naming: `feat/`, `fix/`, `docs/`, `refactor/`, `test/`.
+- **Every PR must include a changeset file** — see Publishing section below.
 
-### Publishing
-- Changeset-driven: add `.changeset/*.md` in PRs → merge creates Version Packages PR → merge publishes to npm.
+### Publishing (Changeset-Driven)
+- **Every PR that changes package behavior MUST include a changeset file.**
+- Create `.changeset/<descriptive-name>.md` with this format:
+  ```markdown
+  ---
+  "@spectratools/<package-name>": patch|minor|major
+  ---
+
+  One-line description of what changed.
+  ```
+- Bump type: `patch` for bug fixes, `minor` for new features/improvements, `major` for breaking changes.
+- On merge to main, the release workflow detects the changeset and opens a "Version Packages" PR that bumps versions and updates CHANGELOGs.
+- When the Version Packages PR is merged, the workflow publishes to npm automatically.
+- **Do NOT run `pnpm changeset version` or `pnpm changeset publish` locally.** Let the CI handle it.
 - `NPM_TOKEN` secret required in GitHub Actions.
 - All packages published with `--access public` under `@spectratools` scope.
 

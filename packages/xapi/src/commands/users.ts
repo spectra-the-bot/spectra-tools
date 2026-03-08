@@ -1,6 +1,6 @@
 import { Cli, z } from 'incur';
 import { createXApiClient, relativeTime, truncateText } from '../api.js';
-import { readAuthToken, xApiEnv } from '../auth.js';
+import { readAuthToken, xApiReadEnv } from '../auth.js';
 import { collectPaged } from '../collect-paged.js';
 
 const users = Cli.create('users', {
@@ -22,7 +22,7 @@ users.command('get', {
   options: z.object({
     verbose: z.boolean().optional().describe('Show full bio without truncation'),
   }),
-  env: xApiEnv,
+  env: xApiReadEnv,
   output: z.object({
     id: z.string(),
     name: z.string(),
@@ -38,7 +38,7 @@ users.command('get', {
     { args: { username: '12345' }, description: 'Get a user by ID' },
   ],
   async run(c) {
-    const client = createXApiClient(readAuthToken());
+    const client = createXApiClient(readAuthToken(c.env));
     const res = await resolveUser(client, c.args.username);
     const user = res.data;
     return c.ok(
@@ -86,7 +86,7 @@ users.command('followers', {
     maxResults: z.number().default(100).describe('Maximum followers to return'),
   }),
   alias: { maxResults: 'n' },
-  env: xApiEnv,
+  env: xApiReadEnv,
   output: z.object({
     users: z.array(
       z.object({
@@ -100,7 +100,7 @@ users.command('followers', {
   }),
   examples: [{ args: { username: 'jack' }, description: 'List followers of jack' }],
   async run(c) {
-    const client = createXApiClient(readAuthToken());
+    const client = createXApiClient(readAuthToken(c.env));
     const userRes = await resolveUser(client, c.args.username);
     const userId = userRes.data.id;
     const allUsers = await collectPaged(
@@ -135,7 +135,7 @@ users.command('following', {
     maxResults: z.number().default(100).describe('Maximum accounts to return'),
   }),
   alias: { maxResults: 'n' },
-  env: xApiEnv,
+  env: xApiReadEnv,
   output: z.object({
     users: z.array(
       z.object({
@@ -149,7 +149,7 @@ users.command('following', {
   }),
   examples: [{ args: { username: 'jack' }, description: 'List accounts jack follows' }],
   async run(c) {
-    const client = createXApiClient(readAuthToken());
+    const client = createXApiClient(readAuthToken(c.env));
     const userRes = await resolveUser(client, c.args.username);
     const userId = userRes.data.id;
     const allUsers = await collectPaged(
@@ -185,7 +185,7 @@ users.command('posts', {
     verbose: z.boolean().optional().describe('Show full text without truncation'),
   }),
   alias: { maxResults: 'n' },
-  env: xApiEnv,
+  env: xApiReadEnv,
   output: z.object({
     posts: z.array(
       z.object({
@@ -200,7 +200,7 @@ users.command('posts', {
   }),
   examples: [{ args: { username: 'jack' }, description: "Get jack's recent posts" }],
   async run(c) {
-    const client = createXApiClient(readAuthToken());
+    const client = createXApiClient(readAuthToken(c.env));
     const userRes = await resolveUser(client, c.args.username);
     const userId = userRes.data.id;
     const allPosts = await collectPaged(
@@ -254,7 +254,7 @@ users.command('mentions', {
     verbose: z.boolean().optional().describe('Show full text'),
   }),
   alias: { maxResults: 'n' },
-  env: xApiEnv,
+  env: xApiReadEnv,
   output: z.object({
     posts: z.array(
       z.object({
@@ -267,7 +267,7 @@ users.command('mentions', {
   }),
   examples: [{ args: { username: 'jack' }, description: 'Get mentions of jack' }],
   async run(c) {
-    const client = createXApiClient(readAuthToken());
+    const client = createXApiClient(readAuthToken(c.env));
     const userRes = await resolveUser(client, c.args.username);
     const userId = userRes.data.id;
     const allPosts = await collectPaged(
@@ -289,7 +289,7 @@ users.command('search', {
   args: z.object({
     query: z.string().describe('Search query'),
   }),
-  env: xApiEnv,
+  env: xApiReadEnv,
   output: z.object({
     users: z.array(
       z.object({
@@ -303,7 +303,7 @@ users.command('search', {
   }),
   examples: [{ args: { query: 'TypeScript' }, description: 'Search for users about TypeScript' }],
   async run(c) {
-    const client = createXApiClient(readAuthToken());
+    const client = createXApiClient(readAuthToken(c.env));
     const res = await client.searchUsers(c.args.query);
     const items = (res.data ?? []).map((u) => ({
       id: u.id,

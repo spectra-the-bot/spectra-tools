@@ -1,6 +1,12 @@
 import { Cli, z } from 'incur';
 import { createXApiClient, relativeTime, truncateText } from '../api.js';
-import { readAuthToken, toWriteAuthError, writeAuthToken, xApiEnv } from '../auth.js';
+import {
+  readAuthToken,
+  toWriteAuthError,
+  writeAuthToken,
+  xApiReadEnv,
+  xApiWriteEnv,
+} from '../auth.js';
 import { collectPaged } from '../collect-paged.js';
 
 const posts = Cli.create('posts', {
@@ -15,7 +21,7 @@ posts.command('get', {
   options: z.object({
     verbose: z.boolean().optional().describe('Show full text without truncation'),
   }),
-  env: xApiEnv,
+  env: xApiReadEnv,
   output: z.object({
     id: z.string(),
     text: z.string(),
@@ -27,7 +33,7 @@ posts.command('get', {
   }),
   examples: [{ args: { id: '1234567890' }, description: 'Get a post by ID' }],
   async run(c) {
-    const client = createXApiClient(readAuthToken());
+    const client = createXApiClient(readAuthToken(c.env));
     const res = await client.getPost(c.args.id);
     const post = res.data;
     const text = c.options.verbose ? post.text : truncateText(post.text);
@@ -73,7 +79,7 @@ posts.command('search', {
     verbose: z.boolean().optional().describe('Show full text without truncation'),
   }),
   alias: { maxResults: 'n' },
-  env: xApiEnv,
+  env: xApiReadEnv,
   output: z.object({
     posts: z.array(
       z.object({
@@ -95,7 +101,7 @@ posts.command('search', {
     },
   ],
   async run(c) {
-    const client = createXApiClient(readAuthToken());
+    const client = createXApiClient(readAuthToken(c.env));
     const res = await client.searchPosts(c.args.query, c.options.maxResults, c.options.sort);
     const items = (res.data ?? []).map((p) => ({
       id: p.id,
@@ -132,7 +138,7 @@ posts.command('create', {
     replyTo: z.string().optional().describe('Reply to post ID'),
     quote: z.string().optional().describe('Quote post ID'),
   }),
-  env: xApiEnv,
+  env: xApiWriteEnv,
   output: z.object({
     id: z.string(),
     text: z.string(),
@@ -143,7 +149,7 @@ posts.command('create', {
   ],
   async run(c) {
     try {
-      const client = createXApiClient(writeAuthToken());
+      const client = createXApiClient(writeAuthToken(c.env));
       const res = await client.createPost(c.options.text, c.options.replyTo, c.options.quote);
       return c.ok(res.data, {
         cta: {
@@ -170,7 +176,7 @@ posts.command('delete', {
   args: z.object({
     id: z.string().describe('Post ID to delete'),
   }),
-  env: xApiEnv,
+  env: xApiWriteEnv,
   output: z.object({
     deleted: z.boolean(),
     id: z.string(),
@@ -178,7 +184,7 @@ posts.command('delete', {
   examples: [{ args: { id: '1234567890' }, description: 'Delete a post' }],
   async run(c) {
     try {
-      const client = createXApiClient(writeAuthToken());
+      const client = createXApiClient(writeAuthToken(c.env));
       const res = await client.deletePost(c.args.id);
       return c.ok({ deleted: res.data.deleted, id: c.args.id });
     } catch (error) {
@@ -198,7 +204,7 @@ posts.command('likes', {
     maxResults: z.number().default(100).describe('Maximum users to return'),
   }),
   alias: { maxResults: 'n' },
-  env: xApiEnv,
+  env: xApiReadEnv,
   output: z.object({
     users: z.array(
       z.object({
@@ -212,7 +218,7 @@ posts.command('likes', {
   }),
   examples: [{ args: { id: '1234567890' }, description: 'See who liked a post' }],
   async run(c) {
-    const client = createXApiClient(readAuthToken());
+    const client = createXApiClient(readAuthToken(c.env));
     const allUsers = await collectPaged(
       (limit, cursor) => client.getPostLikes(c.args.id, limit, cursor),
       (
@@ -256,7 +262,7 @@ posts.command('retweets', {
     maxResults: z.number().default(100).describe('Maximum users to return'),
   }),
   alias: { maxResults: 'n' },
-  env: xApiEnv,
+  env: xApiReadEnv,
   output: z.object({
     users: z.array(
       z.object({
@@ -270,7 +276,7 @@ posts.command('retweets', {
   }),
   examples: [{ args: { id: '1234567890' }, description: 'See who retweeted a post' }],
   async run(c) {
-    const client = createXApiClient(readAuthToken());
+    const client = createXApiClient(readAuthToken(c.env));
     const allUsers = await collectPaged(
       (limit, cursor) => client.getPostRetweets(c.args.id, limit, cursor),
       (
