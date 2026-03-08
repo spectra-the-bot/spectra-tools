@@ -13,7 +13,6 @@ describe('erc8004 cli', () => {
     expect(output).toContain('erc8004');
   });
 
-
   it('reputation feedback errors without private key', async () => {
     let output = '';
     await cli.serve(['reputation', 'feedback', '1', '--value', '10', '--json'], {
