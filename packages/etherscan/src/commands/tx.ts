@@ -42,7 +42,7 @@ const transactionReceiptSchema = z.object({
 });
 
 const txStatusSchema = z.object({
-  status: z.string(),
+  isError: z.string(),
   errDescription: z.string(),
 });
 
@@ -102,22 +102,24 @@ txCli.command('info', {
         block: tx.blockNumber,
         chain: c.options.chain,
       },
-      {
-        cta: {
-          commands: [
-            {
-              command: 'tx receipt',
-              args: { txhash: c.args.txhash },
-              description: 'Get the transaction receipt',
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              commands: [
+                {
+                  command: 'tx receipt',
+                  args: { txhash: c.args.txhash },
+                  description: 'Get the transaction receipt',
+                },
+                {
+                  command: 'tx status',
+                  args: { txhash: c.args.txhash },
+                  description: 'Check execution status',
+                },
+              ],
             },
-            {
-              command: 'tx status',
-              args: { txhash: c.args.txhash },
-              description: 'Check execution status',
-            },
-          ],
-        },
-      },
+          },
     );
   },
 });
@@ -178,17 +180,19 @@ txCli.command('receipt', {
         logCount: receipt.logs.length,
         chain: c.options.chain,
       },
-      {
-        cta: {
-          commands: [
-            {
-              command: 'tx info',
-              args: { txhash: c.args.txhash },
-              description: 'Get full transaction details',
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              commands: [
+                {
+                  command: 'tx info',
+                  args: { txhash: c.args.txhash },
+                  description: 'Get full transaction details',
+                },
+              ],
             },
-          ],
-        },
-      },
+          },
     );
   },
 });
@@ -225,7 +229,7 @@ txCli.command('status', {
           {
             chainid: chainId,
             module: 'transaction',
-            action: 'gettxreceiptstatus',
+            action: 'getstatus',
             txhash: c.args.txhash,
           },
           txStatusSchema,
@@ -235,7 +239,7 @@ txCli.command('status', {
     return c.ok(
       {
         hash: c.args.txhash,
-        status: result.status === '1' ? 'success' : 'failed',
+        status: result.isError === '0' ? 'success' : 'failed',
         error: result.errDescription || undefined,
         chain: c.options.chain,
       },
