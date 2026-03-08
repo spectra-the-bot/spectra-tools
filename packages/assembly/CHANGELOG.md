@@ -1,5 +1,11 @@
 # @spectra-the-bot/assembly-cli
 
+## 0.3.2
+
+### Patch Changes
+
+- [#75](https://github.com/spectra-the-bot/spectra-tools/pull/75) [`b2aefd6`](https://github.com/spectra-the-bot/spectra-tools/commit/b2aefd6752a9a1a63569b2c7340e99875c66ace3) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Normalize package.json formatting for published package manifests to satisfy Biome CI checks.
+
 ## 0.3.1
 
 ### Patch Changes
