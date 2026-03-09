@@ -26,6 +26,31 @@ function resolveTerminalContent(options: {
   throw new Error('Terminal template requires either content or command/output input.');
 }
 
+/**
+ * Build a validated {@link DesignSpec} for a terminal screenshot.
+ *
+ * Accepts either raw terminal content or a command/output pair and wraps it in
+ * a single `terminal` element with macOS-style window chrome and a drop shadow.
+ * At least one of `content`, `command`, or `output` must be provided.
+ *
+ * @param options - Terminal screenshot configuration.
+ * @param options.command - Shell command to display (prepended with the prompt).
+ * @param options.output - Command output text.
+ * @param options.content - Raw terminal content — takes precedence over
+ *   `command`/`output` when provided.
+ * @param options.title - Optional window title bar text.
+ * @param options.prompt - Prompt prefix used when rendering `command`. Defaults
+ *   to `"$ "`.
+ * @param options.theme - Built-in theme name. Defaults to `"dark"`.
+ * @param options.width - Canvas width in pixels. Defaults to `800`.
+ * @param options.height - Canvas height in pixels. Defaults to `400`.
+ * @param options.surroundColor - Background colour behind the terminal window.
+ * @param options.windowControls - Window control style (`"macos"`, `"bw"`, or
+ *   `"none"`). Defaults to `"macos"`.
+ * @param options.scale - Render scale multiplier. Defaults to `2`.
+ * @returns A fully validated and parsed {@link DesignSpec}.
+ * @throws When none of `content`, `command`, or `output` is provided.
+ */
 export function buildTerminalSpec(options: {
   command?: string;
   output?: string;

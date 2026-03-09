@@ -245,6 +245,22 @@ function applySvgOperations(ctx: SKRSContext2D, operations: SvgPathOperation[]):
   }
 }
 
+/**
+ * Render an array of freestyle draw commands onto a canvas context.
+ *
+ * Supports eight command types: `rect`, `circle`, `text`, `line`, `bezier`,
+ * `path`, `badge`, and `gradient-rect`. Each command is rendered in order and
+ * produces a corresponding {@link RenderedElement} with computed bounds for
+ * downstream QA checks.
+ *
+ * @param ctx - The `@napi-rs/canvas` 2D rendering context to draw into.
+ * @param commands - Array of {@link DrawCommand} objects from the design spec's
+ *   `draw` field.
+ * @param theme - The resolved {@link Theme} used for font resolution and
+ *   default colours.
+ * @returns An array of {@link RenderedElement} entries describing each drawn
+ *   command's bounding box and colours.
+ */
 export function renderDrawCommands(
   ctx: SKRSContext2D,
   commands: DrawCommand[],
