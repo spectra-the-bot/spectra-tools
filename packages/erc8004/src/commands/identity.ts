@@ -570,6 +570,176 @@ identity.command('metadata', {
   },
 });
 
+identity.command('set-metadata', {
+  description: 'Set a metadata key-value pair on an agent.',
+  hint: 'Requires PRIVATE_KEY environment variable for signing. Caller must be the token owner.',
+  args: z.object({
+    agentId: z.string().describe('Agent token ID'),
+  }),
+  options: z.object({
+    key: z.string().describe('Metadata key to set'),
+    value: z.string().describe('Metadata value to set'),
+  }),
+  env: z.object({
+    ABSTRACT_RPC_URL: z.string().optional().describe('Abstract RPC URL'),
+    IDENTITY_REGISTRY_ADDRESS: z.string().optional().describe('Identity registry contract address'),
+    PRIVATE_KEY: z.string().optional().describe('Private key for signing'),
+  }),
+  output: z.object({
+    agentId: z.string(),
+    key: z.string(),
+    value: z.string(),
+    txHash: z.string(),
+  }),
+  examples: [
+    {
+      args: { agentId: '1' },
+      options: { key: 'contact', value: 'agent@example.com' },
+      description: 'Set contact metadata for agent #1',
+    },
+  ],
+  async run(c) {
+    const privateKey = c.env.PRIVATE_KEY;
+    if (!privateKey) {
+      return c.error({
+        code: 'NO_PRIVATE_KEY',
+        message: 'PRIVATE_KEY environment variable is required for write operations.',
+        retryable: false,
+      });
+    }
+
+    const walletClient = getWalletClient(privateKey, c.env.ABSTRACT_RPC_URL);
+    const address = getIdentityRegistryAddress(c.env);
+    const tokenId = validateBigIntArg(c.args.agentId, 'agentId');
+
+    const hash = await writeContract(walletClient, {
+      chain: abstractMainnet,
+      address,
+      abi: identityRegistryAbi,
+      functionName: 'setMetadata',
+      args: [tokenId, c.options.key, c.options.value],
+    });
+
+    return c.ok(
+      { agentId: c.args.agentId, key: c.options.key, value: c.options.value, txHash: hash },
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Suggested commands:',
+              commands: [
+                {
+                  command: 'identity metadata' as const,
+                  args: { agentId: c.args.agentId },
+                  description: 'Read metadata back',
+                },
+              ],
+            },
+          },
+    );
+  },
+});
+
+identity.command('transfer', {
+  description: 'Transfer an agent identity token to a new owner.',
+  hint: 'Requires PRIVATE_KEY environment variable. Caller must be the token owner or approved.',
+  args: z.object({
+    agentId: z.string().describe('Agent token ID to transfer'),
+  }),
+  options: z.object({
+    to: z.string().describe('Recipient address'),
+    safe: z
+      .boolean()
+      .default(true)
+      .describe(
+        'Use safeTransferFrom (checks recipient can receive ERC-721). Disable with --no-safe.',
+      ),
+  }),
+  env: z.object({
+    ABSTRACT_RPC_URL: z.string().optional().describe('Abstract RPC URL'),
+    IDENTITY_REGISTRY_ADDRESS: z.string().optional().describe('Identity registry contract address'),
+    PRIVATE_KEY: z.string().optional().describe('Private key for signing'),
+  }),
+  output: z.object({
+    agentId: z.string(),
+    from: z.string(),
+    to: z.string(),
+    txHash: z.string(),
+  }),
+  examples: [
+    {
+      args: { agentId: '1' },
+      options: { to: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' },
+      description: 'Transfer agent #1 to a new owner',
+    },
+  ],
+  async run(c) {
+    const privateKey = c.env.PRIVATE_KEY;
+    if (!privateKey) {
+      return c.error({
+        code: 'NO_PRIVATE_KEY',
+        message: 'PRIVATE_KEY environment variable is required for write operations.',
+        retryable: false,
+      });
+    }
+
+    const walletClient = getWalletClient(privateKey, c.env.ABSTRACT_RPC_URL);
+    const publicClient = getPublicClient(c.env.ABSTRACT_RPC_URL);
+    const address = getIdentityRegistryAddress(c.env);
+    const tokenId = validateBigIntArg(c.args.agentId, 'agentId');
+    const toAddress = c.options.to as `0x${string}`;
+
+    if (toAddress === '0x0000000000000000000000000000000000000000') {
+      return c.error({
+        code: 'INVALID_RECIPIENT',
+        message: 'Cannot transfer to the zero address. Use burn if available.',
+        retryable: false,
+      });
+    }
+
+    // Verify current ownership
+    const currentOwner = await readContract(publicClient, {
+      address,
+      abi: identityRegistryAbi,
+      functionName: 'ownerOf',
+      args: [tokenId],
+    });
+
+    const functionName = c.options.safe ? 'safeTransferFrom' : 'transferFrom';
+
+    const hash = await writeContract(walletClient, {
+      chain: abstractMainnet,
+      address,
+      abi: identityRegistryAbi,
+      functionName,
+      args: [currentOwner, toAddress, tokenId],
+    });
+
+    return c.ok(
+      {
+        agentId: c.args.agentId,
+        from: checksumAddress(currentOwner),
+        to: checksumAddress(toAddress),
+        txHash: hash,
+      },
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Suggested commands:',
+              commands: [
+                {
+                  command: 'identity get' as const,
+                  args: { agentId: c.args.agentId },
+                  description: 'Verify new ownership',
+                },
+              ],
+            },
+          },
+    );
+  },
+});
+
 identity.command('wallet', {
   description: "Get an agent's associated wallet address.",
   args: z.object({
