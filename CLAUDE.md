@@ -27,11 +27,14 @@ Published to npm as `@spectratools/*-cli`.
 ```
 spectra-tools/
 ├── packages/
+│   ├── aborean/      → @spectratools/aborean-cli (Aborean Finance DEX — pools, swaps, gauges, ve)
 │   ├── assembly/     → @spectratools/assembly-cli (Assembly governance, onchain via viem)
 │   ├── erc8004/      → @spectratools/erc8004-cli (ERC-8004 agent identity registry)
 │   ├── etherscan/    → @spectratools/etherscan-cli (Etherscan/Abscan block explorer API)
-│   ├── xapi/         → @spectratools/xapi-cli (Twitter/X API v2)
-│   └── shared/       → @spectratools/cli-shared (auth, retry, rate-limit, pagination middleware)
+│   ├── graphic-designer/ → @spectratools/graphic-designer-cli (deterministic visual content generator)
+│   ├── shared/       → @spectratools/cli-shared (auth, retry, rate-limit, pagination middleware)
+│   ├── tx-shared/    → @spectratools/tx-shared (shared transaction primitives, signer resolution)
+│   └── xapi/         → @spectratools/xapi-cli (Twitter/X API v2)
 ├── docs/
 │   ├── cli-output-contract-v1.md           → Output format standard
 │   └── cli-output-contract-implementation-plan.md → Rollout plan
@@ -96,6 +99,30 @@ pnpm changeset
 ### ERC-8004 CLI (onchain)
 - Queries ERC-8004 Agent Identity Registry via viem.
 - Default registry: `0x8004a169fb4a3325136eb29fa0ceb6d2e539a432` on Abstract mainnet.
+
+### Graphic Designer CLI
+- Canvas-based rendering via `@napi-rs/canvas` — no browser or puppeteer dependency.
+- **Bundled fonts:** Inter, JetBrains Mono, Space Grotesk (woff2 in `packages/graphic-designer/fonts/`). No system font dependency.
+- **DesignSpec-driven pipeline:** `design render --spec <spec.json>` → PNG. Spec schema in `spec.schema.ts` (Zod).
+- Templates: `code` (Carbon-style code screenshots), `terminal`, `flowchart` (ELK.js auto-layout), `cards`.
+- Freestyle draw layer with 8 draw command types for hero graphics and custom compositions.
+- 6 built-in themes: dark, light, dracula, github-dark, one-dark, nord.
+- **QA + publish workflow:** `design qa --in <png> --spec <spec.json>` validates clipping, contrast, bounds, content safety. `design publish --in <png> --target gist` uploads artifacts.
+- Deterministic output: same spec + version = same artifact hash.
+- Syntax highlighting via shiki.
+
+### Aborean CLI (onchain)
+- CLI for Aborean Finance DEX on Abstract — pools, swaps, gauges, voting escrow, lending, vaults.
+- All reads/writes via `viem` against Aborean contracts (ABIs in `packages/aborean/src/contracts/abis/`).
+- Contract addresses in `packages/aborean/src/contracts/addresses.ts`.
+- Depends on `@spectratools/cli-shared` for auth, retry, and rate-limit middleware.
+- Chain: Abstract mainnet (chain ID 2741).
+
+### tx-shared (library)
+- Shared transaction primitives consumed by write-capable CLIs (e.g. assembly-cli, aborean-cli).
+- Exports: `resolveSigner`, `executeTx`, `toSignerOptions`, `TxError`, `abstractMainnet`, `createAbstractClient`.
+- Signer resolution precedence: private key → keystore → Privy.
+- Not a CLI — a library package used by other packages for consistent signer and transaction handling.
 
 ### Shared Package
 - Exports: `createHttpClient`, `withRetry`, `withRateLimit`, `apiKeyAuth`, pagination helpers.
