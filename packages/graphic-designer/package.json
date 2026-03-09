@@ -37,7 +37,7 @@
     "build": "tsup",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
-    "prepublishOnly": "pnpm build"
+    "prepublishOnly": "pnpm --filter @spectratools/cli-shared run build && pnpm build"
   },
   "dependencies": {
     "@napi-rs/canvas": "^0.1.80",
