@@ -1,5 +1,15 @@
 # @spectra-the-bot/erc8004-cli
 
+## 0.2.0
+
+### Minor Changes
+
+- [#227](https://github.com/spectra-the-bot/spectra-tools/pull/227) [`a2b97fe`](https://github.com/spectra-the-bot/spectra-tools/commit/a2b97fe0ec121328f1db1513cba6bf365348e693) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add `identity set-metadata` and `identity transfer` commands.
+
+  - `identity set-metadata <agentId> --key <key> --value <value>`: Write a metadata key-value pair on an agent identity (requires signer).
+  - `identity transfer <agentId> --to <address>`: Transfer an agent identity token to a new owner via `safeTransferFrom` (default) or `transferFrom` (`--no-safe`). Includes ownership pre-check and zero-address guard.
+  - ABI additions: `transferFrom`, `safeTransferFrom`, `approve`, `getApproved`, `setApprovalForAll`, `isApprovedForAll` (standard ERC-721 functions).
+
 ## 0.1.4
 
 ### Patch Changes
