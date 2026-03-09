@@ -407,10 +407,37 @@ cl.command('pools', {
 
     const rows = poolStates.map((pool) => toPoolRow(pool, tokenMeta));
 
-    return c.ok({
-      count: rows.length,
-      pools: rows,
-    });
+    const firstPool = rows[0];
+
+    return c.ok(
+      {
+        count: rows.length,
+        pools: rows,
+      },
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Explore CL pools:',
+              commands: [
+                ...(firstPool
+                  ? [
+                      {
+                        command: 'cl pool' as const,
+                        args: { pool: firstPool.pool },
+                        description: `Inspect ${firstPool.pair}`,
+                      },
+                    ]
+                  : []),
+                {
+                  command: 'cl positions' as const,
+                  args: { owner: '<address>' },
+                  description: 'List CL positions for an address',
+                },
+              ],
+            },
+          },
+    );
   },
 });
 
@@ -436,9 +463,36 @@ cl.command('pool', {
     const [poolState] = await readPoolStates(client, [checksummedPool]);
     const tokenMeta = await readTokenMetadata(client, [poolState.token0, poolState.token1]);
 
-    return c.ok({
-      pool: toPoolRow(poolState, tokenMeta),
-    });
+    const row = toPoolRow(poolState, tokenMeta);
+
+    return c.ok(
+      {
+        pool: row,
+      },
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Next steps:',
+              commands: [
+                {
+                  command: 'cl quote' as const,
+                  args: {
+                    tokenIn: row.token0.address,
+                    tokenOut: row.token1.address,
+                    amountIn: '1',
+                  },
+                  description: `Quote a ${row.token0.symbol} → ${row.token1.symbol} swap`,
+                },
+                {
+                  command: 'cl positions' as const,
+                  args: { owner: '<address>' },
+                  description: 'List positions in this pool',
+                },
+              ],
+            },
+          },
+    );
   },
 });
 
@@ -551,11 +605,40 @@ cl.command('positions', {
       };
     });
 
-    return c.ok({
-      owner,
-      count: positions.length,
-      positions,
-    });
+    const firstPosition = positions[0];
+
+    return c.ok(
+      {
+        owner,
+        count: positions.length,
+        positions,
+      },
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Related commands:',
+              commands: firstPosition
+                ? [
+                    {
+                      command: 'cl pool' as const,
+                      args: { pool: '<poolAddress>' },
+                      description: `Inspect pool for ${firstPosition.pair}`,
+                    },
+                    {
+                      command: 'cl quote' as const,
+                      args: {
+                        tokenIn: firstPosition.token0.address,
+                        tokenOut: firstPosition.token1.address,
+                        amountIn: '1',
+                      },
+                      description: `Quote a ${firstPosition.token0.symbol} → ${firstPosition.token1.symbol} swap`,
+                    },
+                  ]
+                : [],
+            },
+          },
+    );
   },
 });
 
@@ -679,30 +762,55 @@ cl.command('quote', {
         ? null
         : finiteOrNull(((poolMidPriceOutPerIn - quotePriceOutPerIn) / poolMidPriceOutPerIn) * 100);
 
-    return c.ok({
-      pool: checksumAddress(selectedPool.pool),
-      selectedFee: selectedPool.fee,
-      selectedTickSpacing: selectedPool.tickSpacing,
-      tokenIn: inMeta,
-      tokenOut: outMeta,
-      amountIn: {
-        raw: amountInRaw.toString(),
-        decimal: amountInDecimal,
+    return c.ok(
+      {
+        pool: checksumAddress(selectedPool.pool),
+        selectedFee: selectedPool.fee,
+        selectedTickSpacing: selectedPool.tickSpacing,
+        tokenIn: inMeta,
+        tokenOut: outMeta,
+        amountIn: {
+          raw: amountInRaw.toString(),
+          decimal: amountInDecimal,
+        },
+        amountOut: {
+          raw: amountOutRaw.toString(),
+          decimal: amountOutDecimal,
+        },
+        execution: {
+          sqrtPriceX96After: quote[1].toString(),
+          initializedTicksCrossed: quote[2],
+          gasEstimate: quote[3].toString(),
+        },
+        prices: {
+          poolMidPriceOutPerIn,
+          quotePriceOutPerIn,
+          priceImpactPct,
+        },
       },
-      amountOut: {
-        raw: amountOutRaw.toString(),
-        decimal: amountOutDecimal,
-      },
-      execution: {
-        sqrtPriceX96After: quote[1].toString(),
-        initializedTicksCrossed: quote[2],
-        gasEstimate: quote[3].toString(),
-      },
-      prices: {
-        poolMidPriceOutPerIn,
-        quotePriceOutPerIn,
-        priceImpactPct,
-      },
-    });
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Related commands:',
+              commands: [
+                {
+                  command: 'cl pool' as const,
+                  args: { pool: checksumAddress(selectedPool.pool) },
+                  description: 'Inspect the pool used for this quote',
+                },
+                {
+                  command: 'cl quote' as const,
+                  args: {
+                    tokenIn: outMeta.address,
+                    tokenOut: inMeta.address,
+                    amountIn: amountOutDecimal,
+                  },
+                  description: `Reverse quote ${outMeta.symbol} → ${inMeta.symbol}`,
+                },
+              ],
+            },
+          },
+    );
   },
 });

@@ -402,13 +402,47 @@ pools.command('list', {
       poolStates.map((pool) => ({ pool: pool.pool, stable: pool.stable })),
     );
 
-    return c.ok({
-      total,
-      offset,
-      limit: c.options.limit,
-      count: poolStates.length,
-      pools: poolStates.map((pool, index) => toPoolSummary(pool, tokenMeta, fees[index] ?? null)),
-    });
+    const summaries = poolStates.map((pool, index) =>
+      toPoolSummary(pool, tokenMeta, fees[index] ?? null),
+    );
+    const firstPool = summaries[0];
+
+    return c.ok(
+      {
+        total,
+        offset,
+        limit: c.options.limit,
+        count: summaries.length,
+        pools: summaries,
+      },
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Explore pools:',
+              commands: [
+                ...(firstPool
+                  ? [
+                      {
+                        command: 'pools pool' as const,
+                        args: { address: firstPool.pool },
+                        description: `Inspect ${firstPool.pair}`,
+                      },
+                    ]
+                  : []),
+                ...(firstPool
+                  ? [
+                      {
+                        command: 'pools fees' as const,
+                        args: { pool: firstPool.pool },
+                        description: `Check fees for ${firstPool.pair}`,
+                      },
+                    ]
+                  : []),
+              ],
+            },
+          },
+    );
   },
 });
 
@@ -485,26 +519,53 @@ pools.command('pool', {
     const tokenMeta = await readTokenMetadata(client, [token0, token1]);
     const [fee] = await readPoolFees(client, [{ pool: poolAddress, stable }]);
 
-    return c.ok({
-      pool: {
-        ...toPoolSummary(
-          {
-            pool: poolAddress,
-            token0,
-            token1,
-            stable,
-            reserve0: reserves[0],
-            reserve1: reserves[1],
-            blockTimestampLast: reserves[2],
-            totalSupply,
-          },
-          tokenMeta,
-          fee ?? null,
-        ),
-        poolFees: checksumAddress(poolFees),
-        factory: checksumAddress(factory),
+    const summary = toPoolSummary(
+      {
+        pool: poolAddress,
+        token0,
+        token1,
+        stable,
+        reserve0: reserves[0],
+        reserve1: reserves[1],
+        blockTimestampLast: reserves[2],
+        totalSupply,
       },
-    });
+      tokenMeta,
+      fee ?? null,
+    );
+
+    return c.ok(
+      {
+        pool: {
+          ...summary,
+          poolFees: checksumAddress(poolFees),
+          factory: checksumAddress(factory),
+        },
+      },
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Next steps:',
+              commands: [
+                {
+                  command: 'pools quote' as const,
+                  args: {
+                    tokenIn: summary.token0.address,
+                    tokenOut: summary.token1.address,
+                    amountIn: '1',
+                  },
+                  description: `Quote a ${summary.token0.symbol} → ${summary.token1.symbol} swap`,
+                },
+                {
+                  command: 'pools fees' as const,
+                  args: { pool: checksumAddress(poolAddress) },
+                  description: 'Check fee configuration',
+                },
+              ],
+            },
+          },
+    );
   },
 });
 
@@ -594,21 +655,46 @@ pools.command('quote', {
 
     const ratio = Number(amountOutDecimal) / Number(amountInDecimal);
 
-    return c.ok({
-      pool: checksumAddress(poolAddress),
-      stable: c.options.stable,
-      tokenIn: inMeta,
-      tokenOut: outMeta,
-      amountIn: {
-        raw: amountInRaw.toString(),
-        decimal: amountInDecimal,
+    return c.ok(
+      {
+        pool: checksumAddress(poolAddress),
+        stable: c.options.stable,
+        tokenIn: inMeta,
+        tokenOut: outMeta,
+        amountIn: {
+          raw: amountInRaw.toString(),
+          decimal: amountInDecimal,
+        },
+        amountOut: {
+          raw: amountOutRaw.toString(),
+          decimal: amountOutDecimal,
+        },
+        priceOutPerIn: Number(amountInDecimal) === 0 ? null : finiteOrNull(ratio),
       },
-      amountOut: {
-        raw: amountOutRaw.toString(),
-        decimal: amountOutDecimal,
-      },
-      priceOutPerIn: Number(amountInDecimal) === 0 ? null : finiteOrNull(ratio),
-    });
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Related commands:',
+              commands: [
+                {
+                  command: 'pools pool' as const,
+                  args: { address: checksumAddress(poolAddress) },
+                  description: 'Inspect the pool used for this quote',
+                },
+                {
+                  command: 'pools quote' as const,
+                  args: {
+                    tokenIn: outMeta.address,
+                    tokenOut: inMeta.address,
+                    amountIn: amountOutDecimal,
+                  },
+                  description: `Reverse quote ${outMeta.symbol} → ${inMeta.symbol}`,
+                },
+              ],
+            },
+          },
+    );
   },
 });
 
@@ -667,13 +753,38 @@ pools.command('fees', {
     const stableFee = toFeeInfo(stableFeeRaw ?? null);
     const volatileFee = toFeeInfo(volatileFeeRaw ?? null);
 
-    return c.ok({
-      pool: checksumAddress(pool),
-      pair: `${token0Meta.symbol}/${token1Meta.symbol}`,
-      stable,
-      activeFee: stable ? stableFee : volatileFee,
-      stableFee,
-      volatileFee,
-    });
+    return c.ok(
+      {
+        pool: checksumAddress(pool),
+        pair: `${token0Meta.symbol}/${token1Meta.symbol}`,
+        stable,
+        activeFee: stable ? stableFee : volatileFee,
+        stableFee,
+        volatileFee,
+      },
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Related commands:',
+              commands: [
+                {
+                  command: 'pools pool' as const,
+                  args: { address: checksumAddress(pool) },
+                  description: 'View full pool state',
+                },
+                {
+                  command: 'pools quote' as const,
+                  args: {
+                    tokenIn: token0Meta.address,
+                    tokenOut: token1Meta.address,
+                    amountIn: '1',
+                  },
+                  description: `Quote a ${token0Meta.symbol} → ${token1Meta.symbol} swap`,
+                },
+              ],
+            },
+          },
+    );
   },
 });

@@ -475,46 +475,73 @@ cli.command('status', {
     const now = Math.floor(Date.now() / 1000);
     const epochEnd = Number(activePeriod) + Number(weekSeconds);
 
-    return c.ok({
-      v2PoolCount: Number(v2PoolCount),
-      clPoolCount: Number(clPoolCount),
-      gaugeCount: Number(gaugeCount),
-      totalVotingWeight: String(totalVotingWeight),
-      veABXTotalSupply: String(veABXTotalSupply),
-      veABXLockedSupply: String(veABXLockedSupply),
-      epoch: {
-        activePeriod: Number(activePeriod),
-        epochEnd,
-        secondsRemaining: Math.max(0, epochEnd - now),
-        epochCount: Number(epochCount),
-        weeklyEmission: String(weeklyEmission),
+    return c.ok(
+      {
+        v2PoolCount: Number(v2PoolCount),
+        clPoolCount: Number(clPoolCount),
+        gaugeCount: Number(gaugeCount),
+        totalVotingWeight: String(totalVotingWeight),
+        veABXTotalSupply: String(veABXTotalSupply),
+        veABXLockedSupply: String(veABXLockedSupply),
+        epoch: {
+          activePeriod: Number(activePeriod),
+          epochEnd,
+          secondsRemaining: Math.max(0, epochEnd - now),
+          epochCount: Number(epochCount),
+          weeklyEmission: String(weeklyEmission),
+        },
+        topPools: v2PoolSnapshot.topPools as Array<{
+          pool: string;
+          pair: string;
+          poolType: 'stable' | 'volatile';
+          token0: { address: string; symbol: string; decimals: number };
+          token1: { address: string; symbol: string; decimals: number };
+          reserves: { token0: string; token1: string };
+          tvlEstimateUnits: number;
+        }>,
+        tvl: {
+          v2ReserveUnitEstimate: v2PoolSnapshot.reserveUnitTvl,
+          vaultManagedVotingPower,
+        },
+        vaults: {
+          relayCount: vaultRelayCount,
+          managedVotingPower: vaultManagedVotingPower,
+          note: vaultNote,
+        },
+        lending: {
+          available: lendingAvailable,
+          morpho: lendingMorpho,
+          marketCount: lendingMarketCount,
+          supplyByLoanToken: lendingSupplyByLoanToken,
+          note: lendingNote,
+        },
       },
-      topPools: v2PoolSnapshot.topPools as Array<{
-        pool: string;
-        pair: string;
-        poolType: 'stable' | 'volatile';
-        token0: { address: string; symbol: string; decimals: number };
-        token1: { address: string; symbol: string; decimals: number };
-        reserves: { token0: string; token1: string };
-        tvlEstimateUnits: number;
-      }>,
-      tvl: {
-        v2ReserveUnitEstimate: v2PoolSnapshot.reserveUnitTvl,
-        vaultManagedVotingPower,
-      },
-      vaults: {
-        relayCount: vaultRelayCount,
-        managedVotingPower: vaultManagedVotingPower,
-        note: vaultNote,
-      },
-      lending: {
-        available: lendingAvailable,
-        morpho: lendingMorpho,
-        marketCount: lendingMarketCount,
-        supplyByLoanToken: lendingSupplyByLoanToken,
-        note: lendingNote,
-      },
-    });
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Drill down:',
+              commands: [
+                {
+                  command: 'pools list' as const,
+                  description: 'List V2 AMM pools',
+                },
+                {
+                  command: 'cl pools' as const,
+                  description: 'List Slipstream CL pools',
+                },
+                {
+                  command: 'gauges list' as const,
+                  description: 'List active gauges',
+                },
+                {
+                  command: 've stats' as const,
+                  description: 'View veABX global stats',
+                },
+              ],
+            },
+          },
+    );
   },
 });
 
