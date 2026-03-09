@@ -1,0 +1,65 @@
+{
+  "name": "@spectratools/graphic-designer",
+  "version": "0.1.0",
+  "description": "Deterministic infographic renderer + QA/publish pipeline for GTM and ops visuals.",
+  "type": "module",
+  "license": "MIT",
+  "author": "spectra-the-bot",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "design": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./renderer": {
+      "types": "./dist/renderer.d.ts",
+      "default": "./dist/renderer.js"
+    },
+    "./qa": {
+      "types": "./dist/qa.d.ts",
+      "default": "./dist/qa.js"
+    },
+    "./spec": {
+      "types": "./dist/spec.schema.d.ts",
+      "default": "./dist/spec.schema.js"
+    },
+    "./templates": {
+      "types": "./dist/templates/index.d.ts",
+      "default": "./dist/templates/index.js"
+    },
+    "./publish": {
+      "types": "./dist/publish/index.d.ts",
+      "default": "./dist/publish/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "prepublishOnly": "pnpm build"
+  },
+  "dependencies": {
+    "@napi-rs/canvas": "^0.1.80",
+    "incur": "^0.2.2",
+    "sharp": "^0.34.4"
+  },
+  "devDependencies": {
+    "typescript": "5.7.3",
+    "vitest": "2.1.8"
+  },
+  "files": ["dist", "README.md"],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "keywords": ["graphics", "infographics", "canvas", "deterministic", "cli", "spectratools"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/spectra-the-bot/spectra-tools.git",
+    "directory": "packages/graphic-designer"
+  },
+  "homepage": "https://github.com/spectra-the-bot/spectra-tools/tree/main/packages/graphic-designer#readme"
+}
