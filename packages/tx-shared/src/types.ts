@@ -26,4 +26,5 @@ export interface SignerOptions {
   privyAppId?: string;
   privyWalletId?: string;
   privyAuthorizationKey?: string;
+  privyApiUrl?: string;
 }

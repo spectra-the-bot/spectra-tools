@@ -8,6 +8,9 @@ import { resolveSigner } from '../resolve-signer.js';
 const KNOWN_PRIVATE_KEY = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
 const KNOWN_ADDRESS = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266';
 const TEST_PASSWORD = 'test123';
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
+const VALID_PRIVY_AUTHORIZATION_KEY =
+  'wallet-auth:MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgvTXNoUAp1AJufoDRET9wFxWGj8rcRxHsi8b6swUq1PWhRANCAASkH1LqVUxrZRUr76ueaPFZKa0puuwGlEYx1fo6XVNiKiYcH1R26YLOe6fDjORlXOTnwucUSROOVcrxjsMttrER';
 
 const TEST_KEYSTORE_JSON = {
   crypto: {
@@ -72,9 +75,9 @@ describe('resolveSigner', () => {
       keystorePath: '/tmp/does-not-matter.json',
       keystorePassword: 'unused',
       privy: true,
-      privyAppId: 'app-id',
-      privyWalletId: 'wallet-id',
-      privyAuthorizationKey: 'auth-key',
+      privyAppId: 'app-id-1234',
+      privyWalletId: 'wallet-id-1234',
+      privyAuthorizationKey: 'wallet-auth:invalid',
     });
 
     expect(signer.provider).toBe('private-key');
@@ -88,9 +91,9 @@ describe('resolveSigner', () => {
       keystorePath,
       keystorePassword: TEST_PASSWORD,
       privy: true,
-      privyAppId: 'app-id',
-      privyWalletId: 'wallet-id',
-      privyAuthorizationKey: 'auth-key',
+      privyAppId: 'app-id-1234',
+      privyWalletId: 'wallet-id-1234',
+      privyAuthorizationKey: 'wallet-auth:invalid',
     });
 
     expect(signer.provider).toBe('keystore');
@@ -103,28 +106,69 @@ describe('resolveSigner', () => {
     });
   });
 
-  it('throws PRIVY_AUTH_FAILED when privy mode is enabled', async () => {
+  it('resolves a privy signer when privy mode is enabled', async () => {
+    const signer = await resolveSigner({
+      privy: true,
+      privyAppId: 'app-id-1234',
+      privyWalletId: 'wallet-id-1234',
+      privyAuthorizationKey: VALID_PRIVY_AUTHORIZATION_KEY,
+    });
+
+    expect(signer.provider).toBe('privy');
+    expect(signer.address).toBe(ZERO_ADDRESS);
+  });
+
+  it('resolves a privy signer when privy env config is present without --privy', async () => {
+    const signer = await resolveSigner({
+      privyAppId: 'app-id-1234',
+      privyWalletId: 'wallet-id-1234',
+      privyAuthorizationKey: VALID_PRIVY_AUTHORIZATION_KEY,
+    });
+
+    expect(signer.provider).toBe('privy');
+    expect(signer.address).toBe(ZERO_ADDRESS);
+  });
+
+  it('supports overriding privy api url', async () => {
+    const signer = await resolveSigner({
+      privy: true,
+      privyAppId: 'app-id-1234',
+      privyWalletId: 'wallet-id-1234',
+      privyAuthorizationKey: VALID_PRIVY_AUTHORIZATION_KEY,
+      privyApiUrl: 'https://api.sandbox.privy.io/',
+    });
+
+    expect(signer.provider).toBe('privy');
+    expect((signer as { privy: { apiUrl: string } }).privy.apiUrl).toBe(
+      'https://api.sandbox.privy.io',
+    );
+  });
+
+  it('throws PRIVY_AUTH_FAILED when required privy fields are missing', async () => {
     await expect(
       resolveSigner({
         privy: true,
-        privyAppId: 'app-id',
-        privyWalletId: 'wallet-id',
-        privyAuthorizationKey: 'auth-key',
+        privyAppId: 'app-id-1234',
       }),
     ).rejects.toMatchObject({
       code: 'PRIVY_AUTH_FAILED',
+      message:
+        'Privy signer requires configuration: missing PRIVY_WALLET_ID, PRIVY_AUTHORIZATION_KEY',
     });
   });
 
-  it('throws PRIVY_AUTH_FAILED when privy env config is present without --privy', async () => {
+  it('throws PRIVY_AUTH_FAILED when authorization key is malformed', async () => {
     await expect(
       resolveSigner({
-        privyAppId: 'app-id',
-        privyWalletId: 'wallet-id',
+        privy: true,
+        privyAppId: 'app-id-1234',
+        privyWalletId: 'wallet-id-1234',
         privyAuthorizationKey: 'auth-key',
       }),
     ).rejects.toMatchObject({
       code: 'PRIVY_AUTH_FAILED',
+      message:
+        'Invalid PRIVY_AUTHORIZATION_KEY format: expected wallet-auth:<base64-pkcs8-p256-private-key>',
     });
   });
 

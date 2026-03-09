@@ -8,6 +8,7 @@ describe('signer flag/env schemas', () => {
       keystore: '/tmp/keystore.json',
       password: 'pw',
       privy: true,
+      'privy-api-url': 'https://api.sandbox.privy.io',
     });
 
     expect(result.success).toBe(true);
@@ -20,6 +21,7 @@ describe('signer flag/env schemas', () => {
       PRIVY_APP_ID: 'app-id',
       PRIVY_WALLET_ID: 'wallet-id',
       PRIVY_AUTHORIZATION_KEY: 'auth-key',
+      PRIVY_API_URL: 'https://api.sandbox.privy.io',
     });
 
     expect(result.success).toBe(true);
@@ -32,6 +34,7 @@ describe('signer flag/env schemas', () => {
         keystore: '/tmp/keystore.json',
         password: undefined,
         privy: true,
+        'privy-api-url': undefined,
       },
       {
         PRIVATE_KEY: '0xabc',
@@ -39,6 +42,7 @@ describe('signer flag/env schemas', () => {
         PRIVY_APP_ID: 'app-id',
         PRIVY_WALLET_ID: 'wallet-id',
         PRIVY_AUTHORIZATION_KEY: 'auth-key',
+        PRIVY_API_URL: 'https://api.sandbox.privy.io',
       },
     );
 
@@ -50,6 +54,7 @@ describe('signer flag/env schemas', () => {
       privyAppId: 'app-id',
       privyWalletId: 'wallet-id',
       privyAuthorizationKey: 'auth-key',
+      privyApiUrl: 'https://api.sandbox.privy.io',
     });
   });
 
@@ -60,6 +65,7 @@ describe('signer flag/env schemas', () => {
         keystore: '/tmp/keystore.json',
         password: 'flag-password',
         privy: false,
+        'privy-api-url': 'https://api.flag.privy.io',
       },
       {
         PRIVATE_KEY: '0xenv',
@@ -67,10 +73,12 @@ describe('signer flag/env schemas', () => {
         PRIVY_APP_ID: undefined,
         PRIVY_WALLET_ID: undefined,
         PRIVY_AUTHORIZATION_KEY: undefined,
+        PRIVY_API_URL: 'https://api.env.privy.io',
       },
     );
 
     expect(options.privateKey).toBe('0xflag');
     expect(options.keystorePassword).toBe('flag-password');
+    expect(options.privyApiUrl).toBe('https://api.flag.privy.io');
   });
 });
