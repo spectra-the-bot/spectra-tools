@@ -74,6 +74,30 @@ function parseEdgeToken(token: string): { from: string; to: string; label?: stri
   };
 }
 
+/**
+ * Build a validated {@link DesignSpec} for a flowchart diagram.
+ *
+ * Accepts plain-text node and edge definitions and converts them into
+ * `flow-node` and `connection` elements with automatic ELK-based layout.
+ *
+ * Node tokens use the format `"Label"` or `"Label:shape"` (e.g.
+ * `"Start:pill"`). Edge tokens use `"From->To"` or `"From->To:label"`.
+ *
+ * @param options - Flowchart configuration.
+ * @param options.nodes - Array of node token strings to create.
+ * @param options.edges - Array of edge token strings defining connections.
+ * @param options.title - Optional header title displayed above the flowchart.
+ * @param options.direction - ELK layout direction. Defaults to `"TB"`.
+ * @param options.algorithm - ELK layout algorithm. Defaults to `"layered"`.
+ * @param options.theme - Built-in theme name. Defaults to `"dark"`.
+ * @param options.nodeShape - Default node shape when not specified per-node.
+ *   Defaults to `"rounded-box"`.
+ * @param options.width - Canvas width override in pixels.
+ * @param options.height - Canvas height override in pixels.
+ * @returns A fully validated and parsed {@link DesignSpec}.
+ * @throws When a node token is empty, duplicated, or an edge references an
+ *   unknown node.
+ */
 export function buildFlowchartSpec(options: {
   nodes: string[];
   edges: string[];

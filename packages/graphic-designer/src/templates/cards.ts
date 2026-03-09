@@ -16,6 +16,26 @@ function inferColumns(cardCount: number): number {
   return 4;
 }
 
+/**
+ * Build a validated {@link DesignSpec} for a card grid layout.
+ *
+ * Converts an array of card data into `card` elements arranged in a grid. The
+ * number of columns is inferred from the card count when not specified
+ * explicitly.
+ *
+ * @param options - Card grid configuration.
+ * @param options.cards - Array of card data objects. Each must include `title`
+ *   and `body`; `badge`, `metric`, and `tone` are optional.
+ * @param options.title - Optional header title displayed above the card grid.
+ * @param options.subtitle - Optional header subtitle (only rendered when
+ *   `title` is also set).
+ * @param options.columns - Number of grid columns. When omitted, a heuristic
+ *   chooses based on card count (1–4 columns).
+ * @param options.theme - Built-in theme name. Defaults to `"dark"`.
+ * @param options.width - Canvas width override in pixels.
+ * @param options.height - Canvas height override in pixels.
+ * @returns A fully validated and parsed {@link DesignSpec}.
+ */
 export function buildCardsSpec(options: {
   cards: Array<{ title: string; body: string; badge?: string; metric?: string; tone?: string }>;
   title?: string;

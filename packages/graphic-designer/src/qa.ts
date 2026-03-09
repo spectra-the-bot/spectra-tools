@@ -94,11 +94,35 @@ function loadMetadataFromString(raw: string): RenderMetadata {
   return JSON.parse(raw) as RenderMetadata;
 }
 
+/**
+ * Read and parse a sidecar `.meta.json` file produced by
+ * {@link writeRenderArtifacts}.
+ *
+ * @param path - Absolute or relative path to the `.meta.json` sidecar file.
+ * @returns The parsed {@link RenderMetadata} object.
+ */
 export async function readMetadata(path: string): Promise<RenderMetadata> {
   const raw = await readFile(resolve(path), 'utf8');
   return loadMetadataFromString(raw);
 }
 
+/**
+ * Run quality-assurance checks on a rendered design image.
+ *
+ * Validates the rendered PNG against the source spec and optional metadata.
+ * Checks include: dimension matching, element clipping against the safe frame,
+ * element overlap detection, WCAG contrast ratio, footer spacing, text
+ * truncation, and draw-command bounds.
+ *
+ * @param options - QA configuration.
+ * @param options.imagePath - Path to the rendered PNG image to validate.
+ * @param options.spec - The {@link DesignSpec} used to produce the image.
+ * @param options.metadata - Optional {@link RenderMetadata} from the render
+ *   pass. When provided, layout-level checks (overlap, clipping, contrast) are
+ *   performed against the element positions recorded in the metadata.
+ * @returns A {@link QaReport} summarising whether the image passes and listing
+ *   any issues found.
+ */
 export async function runQa(options: {
   imagePath: string;
   spec: DesignSpec;

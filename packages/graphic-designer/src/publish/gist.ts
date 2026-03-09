@@ -50,6 +50,22 @@ const github = createHttpClient({
   },
 });
 
+/**
+ * Publish rendered design artifacts to a GitHub Gist.
+ *
+ * Creates (or updates, when {@link GistPublishOptions.gistId} is set) a gist
+ * containing the PNG image as a base64 text file, the sidecar `.meta.json`
+ * metadata, and a Markdown README with an embedded preview.
+ *
+ * Requires a GitHub token — either passed via {@link GistPublishOptions.token}
+ * or resolved from the `GITHUB_TOKEN` environment variable.
+ *
+ * @param options - Publish configuration including file paths, gist settings,
+ *   and optional retry policy.
+ * @returns A {@link GistPublishResult} with the gist ID, URL, attempt count,
+ *   and list of created file names.
+ * @throws When no GitHub token is available or the API request fails.
+ */
 export async function publishToGist(options: GistPublishOptions): Promise<GistPublishResult> {
   const token = requireGitHubToken(options.token);
   const retry = options.retryPolicy ?? DEFAULT_RETRY;

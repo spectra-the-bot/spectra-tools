@@ -24,6 +24,7 @@ import {
 import { resolveTheme } from './themes/index.js';
 import { canonicalJson, sha256Hex, shortHash } from './utils/hash.js';
 
+/** Default generator version stamped into render metadata when none is provided. */
 export const DEFAULT_GENERATOR_VERSION = '0.2.0';
 
 export type Rect = {
@@ -90,6 +91,16 @@ function buildArtifactBaseName(specHash: string, generatorVersion: string): stri
   return `design-v2-g${safeVersion}-s${shortHash(specHash)}`;
 }
 
+/**
+ * Compute a deterministic SHA-256 hash of a design spec.
+ *
+ * The spec is serialised to canonical JSON (sorted keys, no whitespace) before
+ * hashing, so two structurally identical specs always produce the same hash
+ * regardless of property order.
+ *
+ * @param spec - The parsed design spec to hash.
+ * @returns A lowercase hex-encoded SHA-256 digest string.
+ */
 export function computeSpecHash(spec: DesignSpec): string {
   return sha256Hex(canonicalJson(spec));
 }
@@ -264,6 +275,24 @@ function drawAlignedTextBlock(
   };
 }
 
+/**
+ * Render a design spec to a PNG image buffer and accompanying metadata.
+ *
+ * This is the main entry point for the graphic-designer rendering pipeline.
+ * Fonts are loaded automatically (via {@link loadFonts}), the spec is validated
+ * and parsed, layout is computed, and all elements are drawn onto an
+ * off-screen canvas backed by `@napi-rs/canvas`.
+ *
+ * @param input - A raw or parsed {@link DesignSpec} object. It will be
+ *   validated through Zod before rendering.
+ * @param options - Optional overrides for metadata fields.
+ * @param options.generatorVersion - Semantic version stamped into metadata.
+ *   Defaults to {@link DEFAULT_GENERATOR_VERSION}.
+ * @param options.renderedAt - ISO-8601 timestamp for the render. Defaults to
+ *   `new Date().toISOString()`.
+ * @returns A {@link RenderResult} containing the PNG buffer and full render
+ *   metadata (spec hash, artifact hash, layout snapshot, etc.).
+ */
 export async function renderDesign(
   input: DesignSpec,
   options: { generatorVersion?: string; renderedAt?: string } = {},
@@ -592,6 +621,21 @@ function resolveOutputPaths(
   return { imagePath, metadataPath };
 }
 
+/**
+ * Write a render result to disk as a PNG image and a sidecar `.meta.json` file.
+ *
+ * If {@link out} points to a `.png` file the metadata file is placed alongside
+ * it with a `.meta.json` extension. If {@link out} is a directory, both files
+ * are named after the deterministic artifact base name derived from the spec
+ * hash and generator version.
+ *
+ * Parent directories are created recursively when they do not exist.
+ *
+ * @param result - The {@link RenderResult} returned by {@link renderDesign}.
+ * @param out - Destination path — either a `.png` file path or a directory.
+ * @returns A {@link WrittenArtifacts} object with the resolved file paths and
+ *   metadata.
+ */
 export async function writeRenderArtifacts(
   result: RenderResult,
   out: string,
@@ -610,6 +654,15 @@ export async function writeRenderArtifacts(
   };
 }
 
+/**
+ * Infer the conventional sidecar metadata path for a rendered image.
+ *
+ * For `.png` files the extension is replaced with `.meta.json`. For all other
+ * paths `.meta.json` is appended to the basename.
+ *
+ * @param imagePath - Absolute or relative path to the rendered image file.
+ * @returns The resolved path to the expected `.meta.json` sidecar file.
+ */
 export function inferSidecarPath(imagePath: string): string {
   const resolved = resolve(imagePath);
   if (extname(resolved).toLowerCase() !== '.png') {

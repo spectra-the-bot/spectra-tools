@@ -16,6 +16,7 @@ type RadialGradientSpec = {
 
 export type GradientSpec = LinearGradientSpec | RadialGradientSpec;
 
+/** Default seven-colour rainbow palette used by {@link drawRainbowRule} when no custom colours are provided. */
 export const DEFAULT_RAINBOW_COLORS = [
   '#FF6B6B',
   '#FFA94D',
@@ -111,6 +112,20 @@ function withAlpha(color: string, alpha: number): string {
   return `rgba(${parsed.r}, ${parsed.g}, ${parsed.b}, ${effectiveAlpha})`;
 }
 
+/**
+ * Fill a rectangle with a linear or radial gradient.
+ *
+ * Supports optional rounded corners via {@link borderRadius}. Linear gradients
+ * are rotated around the rectangle's centre according to the spec's `angle`
+ * field; radial gradients originate from the centre.
+ *
+ * @param ctx - The `@napi-rs/canvas` 2D rendering context.
+ * @param rect - The target {@link Rect} to fill.
+ * @param gradient - A {@link GradientSpec} describing the gradient type, angle
+ *   (for linear), and colour stops.
+ * @param borderRadius - Corner radius in pixels. Defaults to `0` (sharp
+ *   corners).
+ */
 export function drawGradientRect(
   ctx: SKRSContext2D,
   rect: Rect,
@@ -142,6 +157,23 @@ export function drawGradientRect(
   ctx.restore();
 }
 
+/**
+ * Draw a horizontal rainbow gradient rule (decorative divider line).
+ *
+ * The rule is centred vertically on {@link y} and spans from {@link x} to
+ * `x + width`. When fewer than two colours are supplied the
+ * {@link DEFAULT_RAINBOW_COLORS} palette is used as a fallback.
+ *
+ * @param ctx - The `@napi-rs/canvas` 2D rendering context.
+ * @param x - Left edge x-coordinate.
+ * @param y - Vertical centre y-coordinate of the rule.
+ * @param width - Horizontal width in pixels.
+ * @param thickness - Rule thickness in pixels. Defaults to `2`.
+ * @param colors - Array of hex colour strings for the gradient stops. Defaults
+ *   to {@link DEFAULT_RAINBOW_COLORS}.
+ * @param borderRadius - Corner radius. Defaults to half the thickness for a
+ *   pill shape.
+ */
 export function drawRainbowRule(
   ctx: SKRSContext2D,
   x: number,
@@ -171,6 +203,21 @@ export function drawRainbowRule(
   ctx.restore();
 }
 
+/**
+ * Draw a radial vignette overlay across the full canvas.
+ *
+ * The vignette fades from fully transparent at the centre to the specified
+ * {@link color} at the edges, controlled by {@link intensity}. It is a no-op
+ * when width, height, or intensity are zero or negative.
+ *
+ * @param ctx - The `@napi-rs/canvas` 2D rendering context.
+ * @param width - Canvas width in pixels.
+ * @param height - Canvas height in pixels.
+ * @param intensity - Opacity of the vignette at the edges, clamped to 0–1.
+ *   Defaults to `0.3`.
+ * @param color - Hex colour string for the vignette tint. Defaults to
+ *   `'#000000'`.
+ */
 export function drawVignette(
   ctx: SKRSContext2D,
   width: number,

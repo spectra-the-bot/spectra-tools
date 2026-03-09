@@ -98,6 +98,25 @@ async function githubJsonMaybe<T>(
   }, retry);
 }
 
+/**
+ * Publish rendered design artifacts to a GitHub repository.
+ *
+ * Uploads the PNG image and sidecar `.meta.json` metadata to the specified
+ * repository via the GitHub Contents API. Files are placed under
+ * {@link GitHubPublishOptions.pathPrefix} (defaults to `"artifacts"`). If a
+ * file already exists at the destination it is updated in-place (its SHA is
+ * fetched first for the update).
+ *
+ * Requires a GitHub token — either passed via
+ * {@link GitHubPublishOptions.token} or resolved from the `GITHUB_TOKEN`
+ * environment variable.
+ *
+ * @param options - Publish configuration including file paths, target repo,
+ *   branch, commit message, and optional retry policy.
+ * @returns A {@link GitHubPublishResult} with the repo, branch, and per-file
+ *   metadata (path, SHA, HTML URL).
+ * @throws When no GitHub token is available or the API request fails.
+ */
 export async function publishToGitHub(options: GitHubPublishOptions): Promise<GitHubPublishResult> {
   const token = requireGitHubToken(options.token);
   const branch = options.branch ?? 'main';

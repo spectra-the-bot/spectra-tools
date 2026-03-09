@@ -172,12 +172,14 @@ const drawCommandSchema = z.discriminatedUnion('type', [
   drawGradientRectSchema,
 ]);
 
+/** Default canvas dimensions and padding (1200 × 675 px, 48 px padding). */
 export const defaultCanvas = {
   width: 1200,
   height: 675,
   padding: 48,
 } as const;
 
+/** Default QA constraint thresholds applied when no explicit constraints are given. */
 export const defaultConstraints = {
   minContrastRatio: 4.5,
   minFooterSpacing: 16,
@@ -185,6 +187,7 @@ export const defaultConstraints = {
   maxTextTruncation: 0.1,
 } as const;
 
+/** Default auto-layout config used for flowcharts (ELK layered, top-to-bottom). */
 export const defaultAutoLayout = {
   mode: 'auto',
   algorithm: 'layered',
@@ -194,6 +197,7 @@ export const defaultAutoLayout = {
   edgeRouting: 'polyline',
 } as const;
 
+/** Default grid layout config (3 columns, 24 px gap, variable height). */
 export const defaultGridLayout = {
   mode: 'grid',
   columns: 3,
@@ -201,6 +205,7 @@ export const defaultGridLayout = {
   equalHeight: false,
 } as const;
 
+/** Default stack layout config (vertical direction, 24 px gap, stretch alignment). */
 export const defaultStackLayout = {
   mode: 'stack',
   direction: 'vertical',
@@ -208,8 +213,26 @@ export const defaultStackLayout = {
   alignment: 'stretch',
 } as const;
 
+/** Default layout configuration — alias for {@link defaultGridLayout}. */
 export const defaultLayout = defaultGridLayout;
 
+/**
+ * Infer the most appropriate layout mode from the element types present in a
+ * design spec.
+ *
+ * When an explicit layout is provided it is returned as-is. Otherwise the
+ * heuristic inspects the element list:
+ *
+ * - Flow-nodes **and** connections → {@link defaultAutoLayout} (ELK graph).
+ * - All cards → {@link defaultGridLayout}.
+ * - Contains code-block or terminal → {@link defaultStackLayout}.
+ * - Fallback → {@link defaultGridLayout}.
+ *
+ * @param elements - The array of spec elements to inspect.
+ * @param explicitLayout - An optional explicit layout config that short-circuits
+ *   inference when provided.
+ * @returns The resolved {@link LayoutConfig}.
+ */
 export function inferLayout(elements: Element[], explicitLayout?: LayoutConfig): LayoutConfig {
   if (explicitLayout) {
     return explicitLayout;
@@ -491,6 +514,7 @@ const canvasSchema = z
 
 const themeInputSchema = z.union([builtInThemeSchema, themeSchema]);
 
+/** Zod schema that validates and transforms raw input into a fully resolved {@link DesignSpec}. This is the source of truth for spec validation. */
 export const designSpecSchema = z
   .object({
     version: z.literal(2).default(2),
@@ -560,6 +584,16 @@ export type DesignSafeFrame = {
 
 export { builtInThemeBackgrounds, builtInThemes, defaultTheme, resolveTheme };
 
+/**
+ * Compute the safe rendering area by insetting the canvas by its padding value.
+ *
+ * Elements positioned within the safe frame are guaranteed not to be clipped by
+ * the canvas edges.
+ *
+ * @param spec - A parsed {@link DesignSpec} with resolved canvas dimensions and
+ *   padding.
+ * @returns A {@link DesignSafeFrame} rectangle describing the usable area.
+ */
 export function deriveSafeFrame(spec: DesignSpec): DesignSafeFrame {
   return {
     x: spec.canvas.padding,
@@ -569,6 +603,16 @@ export function deriveSafeFrame(spec: DesignSpec): DesignSafeFrame {
   };
 }
 
+/**
+ * Validate and parse raw input into a fully resolved {@link DesignSpec}.
+ *
+ * Uses {@link designSpecSchema} under the hood. Throws a `ZodError` if the
+ * input does not conform to the schema.
+ *
+ * @param input - Raw (unvalidated) input object to parse.
+ * @returns A validated and transformed {@link DesignSpec}.
+ * @throws {import('zod').ZodError} When the input fails schema validation.
+ */
 export function parseDesignSpec(input: unknown): DesignSpec {
   return designSpecSchema.parse(input);
 }
