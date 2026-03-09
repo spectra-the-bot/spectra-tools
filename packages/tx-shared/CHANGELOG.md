@@ -1,5 +1,11 @@
 # @spectratools/tx-shared
 
+## 0.4.1
+
+### Patch Changes
+
+- [#189](https://github.com/spectra-the-bot/spectra-tools/pull/189) [`44331aa`](https://github.com/spectra-the-bot/spectra-tools/commit/44331aadf5501e5e75c1af2a3d6228ea68655f6c) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Document tx-shared signer providers and transaction lifecycle with assembly integration examples.
+
 ## 0.4.0
 
 ### Minor Changes

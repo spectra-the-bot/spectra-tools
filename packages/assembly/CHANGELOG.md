@@ -1,5 +1,16 @@
 # @spectra-the-bot/assembly-cli
 
+## 0.8.1
+
+### Patch Changes
+
+- [#189](https://github.com/spectra-the-bot/spectra-tools/pull/189) [`44331aa`](https://github.com/spectra-the-bot/spectra-tools/commit/44331aadf5501e5e75c1af2a3d6228ea68655f6c) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Document tx-shared signer providers and transaction lifecycle with assembly integration examples.
+
+- [#186](https://github.com/spectra-the-bot/spectra-tools/pull/186) [`2b6033f`](https://github.com/spectra-the-bot/spectra-tools/commit/2b6033f3fecb9baaa0e840ff5154a468c216a7fe) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Distinguish bid-executable auction slots from upcoming windows in council auction status output.
+
+- Updated dependencies [[`44331aa`](https://github.com/spectra-the-bot/spectra-tools/commit/44331aadf5501e5e75c1af2a3d6228ea68655f6c)]:
+  - @spectratools/tx-shared@0.4.1
+
 ## 0.8.0
 
 ### Minor Changes
