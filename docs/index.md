@@ -62,8 +62,11 @@ assembly-cli governance proposals --limit 3
 # Machine-readable JSON for agents and scripts
 assembly-cli governance proposals --limit 3 --format json
 
-# Export full CLI manifest for agent discovery
+# Export compact command index for agent discovery
 assembly-cli --llms
+
+# Export full CLI manifest with all details
+assembly-cli --llms-full
 
 # Get JSON Schema for any command
 assembly-cli governance proposals --schema

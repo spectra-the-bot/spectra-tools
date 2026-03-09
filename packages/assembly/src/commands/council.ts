@@ -1,8 +1,17 @@
 import { Cli, z } from 'incur';
+import { parseEther } from 'viem';
 import { councilSeatsAbi } from '../contracts/abis.js';
 import { ABSTRACT_MAINNET_ADDRESSES } from '../contracts/addresses.js';
 import { createAssemblyPublicClient } from '../contracts/client.js';
 import { asNum, eth, relTime, timeValue, toChecksum } from './_common.js';
+import {
+  type FormattedDryRunResult,
+  type FormattedTxResult,
+  assemblyWriteTx,
+  resolveAccount,
+  writeEnv,
+  writeOptions,
+} from './_write-utils.js';
 
 const env = z.object({
   ABSTRACT_RPC_URL: z.string().optional().describe('Abstract RPC URL override'),
@@ -532,6 +541,335 @@ council.command('params', {
       auctionEpochStart: asNum(auctionEpochStart),
       auctionWindowStart: asNum(auctionWindowStart),
       auctionWindowEnd: asNum(auctionWindowEnd),
+    });
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Write commands
+// ---------------------------------------------------------------------------
+
+const txResultOutput = z.union([
+  z.object({
+    status: z.enum(['success', 'reverted']),
+    hash: z.string(),
+    blockNumber: z.number(),
+    gasUsed: z.string(),
+    from: z.string(),
+    to: z.string().nullable(),
+    effectiveGasPrice: z.string().optional(),
+  }),
+  z.object({
+    status: z.literal('dry-run'),
+    estimatedGas: z.string(),
+    simulationResult: z.unknown(),
+  }),
+]);
+
+council.command('bid', {
+  description: 'Place a bid on a council seat auction (payable).',
+  hint: 'Requires PRIVATE_KEY environment variable for signing.',
+  args: z.object({
+    day: z.coerce.number().int().nonnegative().describe('Auction day index'),
+    slot: z.coerce.number().int().nonnegative().describe('Slot index within day'),
+  }),
+  options: writeOptions.extend({
+    amount: z.string().describe('ETH amount to bid (e.g. "0.1")'),
+  }),
+  env: writeEnv,
+  output: z.object({
+    day: z.number(),
+    slot: z.number(),
+    bidAmount: z.string(),
+    tx: txResultOutput,
+  }),
+  examples: [
+    {
+      args: { day: 0, slot: 0 },
+      options: { amount: '0.1' },
+      description: 'Bid 0.1 ETH on day 0, slot 0',
+    },
+  ],
+  async run(c) {
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
+
+    // --- Parse amount ---
+    let amountWei: bigint;
+    try {
+      amountWei = parseEther(c.options.amount);
+    } catch {
+      return c.error({
+        code: 'INVALID_AMOUNT',
+        message: `Invalid ETH amount: "${c.options.amount}". Provide a decimal number (e.g. "0.1").`,
+        retryable: false,
+      });
+    }
+    if (amountWei <= 0n) {
+      return c.error({
+        code: 'INVALID_AMOUNT',
+        message: 'Bid amount must be greater than zero.',
+        retryable: false,
+      });
+    }
+
+    // --- Pre-flight: validate slot range ---
+    const slotsPerDay = (await client.readContract({
+      abi: councilSeatsAbi,
+      address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+      functionName: 'AUCTION_SLOTS_PER_DAY',
+    })) as bigint;
+    if (c.args.slot >= Number(slotsPerDay)) {
+      return c.error({
+        code: 'OUT_OF_RANGE',
+        message: `Slot ${c.args.slot} does not exist (max: ${Number(slotsPerDay) - 1})`,
+        retryable: false,
+      });
+    }
+
+    // --- Pre-flight: read auction status ---
+    const [auctionTuple, windowEnd, latestBlock] = await Promise.all([
+      client.readContract({
+        abi: councilSeatsAbi,
+        address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+        functionName: 'auctions',
+        args: [BigInt(c.args.day), c.args.slot],
+      }),
+      client.readContract({
+        abi: councilSeatsAbi,
+        address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+        functionName: 'auctionWindowEnd',
+        args: [BigInt(c.args.day), c.args.slot],
+      }),
+      client.getBlock({ blockTag: 'latest' }),
+    ]);
+    const auction = decodeAuction(auctionTuple);
+    const windowEndTimestamp = windowEnd as bigint;
+    const currentTimestamp = (latestBlock as { timestamp: bigint }).timestamp;
+    const status = deriveAuctionStatus({
+      settled: auction.settled,
+      windowEnd: windowEndTimestamp,
+      currentTimestamp,
+    });
+
+    if (status === 'settled') {
+      return c.error({
+        code: 'AUCTION_SETTLED',
+        message: `Auction (day=${c.args.day}, slot=${c.args.slot}) is already settled. Winner: ${toChecksum(auction.highestBidder)}.`,
+        retryable: false,
+      });
+    }
+    if (status === 'closed') {
+      return c.error({
+        code: 'AUCTION_CLOSED',
+        message: `Auction (day=${c.args.day}, slot=${c.args.slot}) bidding window has ended. Use "council settle" instead.`,
+        retryable: false,
+      });
+    }
+
+    if (auction.highestBid >= amountWei) {
+      return c.error({
+        code: 'BID_TOO_LOW',
+        message: `Bid of ${c.options.amount} ETH is not higher than current highest bid of ${eth(auction.highestBid)}. Increase your bid amount.`,
+        retryable: false,
+      });
+    }
+
+    // --- Execute bid ---
+    const txResult = await assemblyWriteTx({
+      env: c.env,
+      options: c.options,
+      address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+      abi: councilSeatsAbi,
+      functionName: 'bid',
+      args: [BigInt(c.args.day), c.args.slot],
+      value: amountWei,
+    });
+
+    return c.ok(
+      {
+        day: c.args.day,
+        slot: c.args.slot,
+        bidAmount: `${c.options.amount} ETH`,
+        tx: txResult as FormattedTxResult | FormattedDryRunResult,
+      },
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Next steps:',
+              commands: [
+                {
+                  command: 'council auction',
+                  args: { day: String(c.args.day), slot: String(c.args.slot) },
+                  description: 'Check auction status',
+                },
+              ],
+            },
+          },
+    );
+  },
+});
+
+council.command('settle', {
+  description: 'Settle a completed council seat auction.',
+  hint: 'Requires PRIVATE_KEY environment variable for signing.',
+  args: z.object({
+    day: z.coerce.number().int().nonnegative().describe('Auction day index'),
+    slot: z.coerce.number().int().nonnegative().describe('Slot index within day'),
+  }),
+  options: writeOptions,
+  env: writeEnv,
+  output: z.object({
+    day: z.number(),
+    slot: z.number(),
+    highestBidder: z.string(),
+    highestBid: z.string(),
+    tx: txResultOutput,
+  }),
+  examples: [
+    {
+      args: { day: 0, slot: 0 },
+      description: 'Settle the auction for day 0, slot 0',
+    },
+  ],
+  async run(c) {
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
+
+    // --- Pre-flight: validate slot range ---
+    const slotsPerDay = (await client.readContract({
+      abi: councilSeatsAbi,
+      address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+      functionName: 'AUCTION_SLOTS_PER_DAY',
+    })) as bigint;
+    if (c.args.slot >= Number(slotsPerDay)) {
+      return c.error({
+        code: 'OUT_OF_RANGE',
+        message: `Slot ${c.args.slot} does not exist (max: ${Number(slotsPerDay) - 1})`,
+        retryable: false,
+      });
+    }
+
+    // --- Pre-flight: read auction status ---
+    const [auctionTuple, windowEnd, latestBlock] = await Promise.all([
+      client.readContract({
+        abi: councilSeatsAbi,
+        address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+        functionName: 'auctions',
+        args: [BigInt(c.args.day), c.args.slot],
+      }),
+      client.readContract({
+        abi: councilSeatsAbi,
+        address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+        functionName: 'auctionWindowEnd',
+        args: [BigInt(c.args.day), c.args.slot],
+      }),
+      client.getBlock({ blockTag: 'latest' }),
+    ]);
+    const auction = decodeAuction(auctionTuple);
+    const windowEndTimestamp = windowEnd as bigint;
+    const currentTimestamp = (latestBlock as { timestamp: bigint }).timestamp;
+    const status = deriveAuctionStatus({
+      settled: auction.settled,
+      windowEnd: windowEndTimestamp,
+      currentTimestamp,
+    });
+
+    if (status === 'settled') {
+      return c.error({
+        code: 'ALREADY_SETTLED',
+        message: `Auction (day=${c.args.day}, slot=${c.args.slot}) is already settled.`,
+        retryable: false,
+      });
+    }
+    if (status === 'bidding') {
+      return c.error({
+        code: 'AUCTION_STILL_ACTIVE',
+        message: `Auction (day=${c.args.day}, slot=${c.args.slot}) is still accepting bids. Window ends ${relTime(windowEndTimestamp)}.`,
+        retryable: false,
+      });
+    }
+
+    // --- Execute settle ---
+    const txResult = await assemblyWriteTx({
+      env: c.env,
+      options: c.options,
+      address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+      abi: councilSeatsAbi,
+      functionName: 'settleAuction',
+      args: [BigInt(c.args.day), c.args.slot],
+    });
+
+    return c.ok(
+      {
+        day: c.args.day,
+        slot: c.args.slot,
+        highestBidder: toChecksum(auction.highestBidder),
+        highestBid: eth(auction.highestBid),
+        tx: txResult as FormattedTxResult | FormattedDryRunResult,
+      },
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Next steps:',
+              commands: [
+                {
+                  command: 'council seats',
+                  description: 'View updated council seats',
+                },
+              ],
+            },
+          },
+    );
+  },
+});
+
+council.command('withdraw-refund', {
+  description: 'Withdraw pending bid refunds for the signer address.',
+  hint: 'Requires PRIVATE_KEY environment variable for signing.',
+  options: writeOptions,
+  env: writeEnv,
+  output: z.object({
+    address: z.string(),
+    refundAmount: z.string(),
+    refundAmountWei: z.string(),
+    tx: txResultOutput.optional(),
+  }),
+  examples: [{ description: 'Withdraw all pending bid refunds' }],
+  async run(c) {
+    const account = resolveAccount(c.env);
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
+
+    // --- Pre-flight: check pending refund ---
+    const pendingAmount = (await client.readContract({
+      abi: councilSeatsAbi,
+      address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+      functionName: 'pendingReturns',
+      args: [account.address],
+    })) as bigint;
+
+    if (pendingAmount === 0n) {
+      return c.ok({
+        address: toChecksum(account.address),
+        refundAmount: '0 ETH',
+        refundAmountWei: '0',
+      });
+    }
+
+    // --- Execute withdraw ---
+    const txResult = await assemblyWriteTx({
+      env: c.env,
+      options: c.options,
+      address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+      abi: councilSeatsAbi,
+      functionName: 'withdrawRefund',
+    });
+
+    return c.ok({
+      address: toChecksum(account.address),
+      refundAmount: eth(pendingAmount),
+      refundAmountWei: pendingAmount.toString(),
+      tx: txResult as FormattedTxResult | FormattedDryRunResult,
     });
   },
 });

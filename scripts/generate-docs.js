@@ -71,7 +71,7 @@ function main() {
   for (const pkg of packages) {
     console.log(`Generating docs for ${pkg.name}...`);
 
-    const markdown = run('node', [pkg.cliPath, '--llms']);
+    const markdown = run('node', [pkg.cliPath, '--llms-full']);
     const normalized = normalizeMarkdown(markdown);
     const outputPath = path.resolve(rootDir, pkg.outPath);
 

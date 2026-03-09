@@ -59,7 +59,7 @@ assembly-cli governance proposals
 - **Zero-config by default**: connects to Abstract mainnet public RPC out of the box
 - **No API key required** for core Assembly reads
 - **Automation-friendly output** via `--format`, `--verbose`, and `--filter-output`
-- **Agent-native integration** via `--llms`, `--schema`, `skills add`, and `mcp add`
+- **Agent-native integration** via `--llms`, `--llms-full`, `--schema`, `skills add`, and `mcp add`
 
 ## Reference
 

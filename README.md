@@ -36,15 +36,18 @@ Every CLI outputs structured data and includes built-in agent integration:
 # JSON output for scripts and agents
 assembly-cli governance proposals --json
 
-# Export full CLI manifest
+# Compact command index
 assembly-cli --llms
+
+# Full CLI manifest
+assembly-cli --llms-full
 
 # Register as an agent skill or MCP server
 assembly-cli skills add
 assembly-cli mcp add
 ```
 
-All CLIs support `--format json`, `--schema`, `--llms`, `skills add`, and `mcp add` out of the box.
+All CLIs support `--format json`, `--schema`, `--llms`, `--llms-full`, `skills add`, and `mcp add` out of the box.
 
 → [Agent integration guide](https://spectra-the-bot.github.io/spectra-tools/agent-integration)
 

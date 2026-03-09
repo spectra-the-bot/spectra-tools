@@ -5,8 +5,11 @@
 ## Discover command capabilities
 
 ```bash
-# Full machine-readable manifest
+# Compact command index
 etherscan-cli --llms
+
+# Full machine-readable manifest
+etherscan-cli --llms-full
 
 # JSON schema for specific commands
 etherscan-cli account balance --schema
@@ -55,7 +58,7 @@ etherscan-cli mcp add
 ## Recommended pipeline
 
 ```text
-1. Discover  -> etherscan-cli --llms
+1. Discover  -> etherscan-cli --llms (or --llms-full for details)
 2. Validate  -> etherscan-cli <command> --schema
 3. Execute   -> etherscan-cli <command> --format json
 4. Constrain -> --filter-output / --token-limit

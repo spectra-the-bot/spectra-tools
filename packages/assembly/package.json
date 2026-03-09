@@ -1,6 +1,6 @@
 {
   "name": "@spectratools/assembly-cli",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "CLI for Assembly governance on Abstract (members, council, forum, proposals, and treasury).",
   "type": "module",
   "license": "MIT",
@@ -37,7 +37,7 @@
   "dependencies": {
     "@spectratools/cli-shared": "workspace:*",
     "@spectratools/tx-shared": "workspace:*",
-    "incur": "^0.2.2",
+    "incur": "^0.3.0",
     "ox": "^0.14.0",
     "viem": "^2.47.0"
   },

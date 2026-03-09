@@ -1,5 +1,17 @@
 # @spectra-the-bot/assembly-cli
 
+## 0.7.0
+
+### Minor Changes
+
+- [#175](https://github.com/spectra-the-bot/spectra-tools/pull/175) [`405781b`](https://github.com/spectra-the-bot/spectra-tools/commit/405781b5ba1ec9485b4f7fcdc00983f4f3bc116b) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add council write commands: bid, settle, withdraw-refund.
+
+- [#174](https://github.com/spectra-the-bot/spectra-tools/pull/174) [`e231309`](https://github.com/spectra-the-bot/spectra-tools/commit/e231309a1953cbbea7c79e7db609ff8b7a93fd5c) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add membership write commands: register, heartbeat, renew.
+
+### Patch Changes
+
+- [#178](https://github.com/spectra-the-bot/spectra-tools/pull/178) [`b3ec9e2`](https://github.com/spectra-the-bot/spectra-tools/commit/b3ec9e215683c55e28ff2811610ec7c4f21fff93) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Update incur to latest — adopt --llms compact index + --llms-full flags.
+
 ## 0.6.0
 
 ### Minor Changes

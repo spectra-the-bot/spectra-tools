@@ -55,8 +55,11 @@ erc8004-cli discovery resolve 0x8004a169fb4a3325136eb29fa0ceb6d2e539a432:634
 # Structured output for automation
 erc8004-cli discovery search --service mcp --limit 5 --json
 
-# Emit machine-readable command manifest
+# Compact command index
 erc8004-cli --llms
+
+# Full machine-readable command manifest
+erc8004-cli --llms-full
 
 # Register as local skills / MCP entry
 erc8004-cli skills add

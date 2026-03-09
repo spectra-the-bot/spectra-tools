@@ -1,6 +1,6 @@
 {
   "name": "@spectratools/etherscan-cli",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Etherscan API CLI for spectra-the-bot",
   "type": "module",
   "license": "MIT",
@@ -25,7 +25,7 @@
   },
   "dependencies": {
     "@spectratools/cli-shared": "workspace:*",
-    "incur": "^0.2.2"
+    "incur": "^0.3.0"
   },
   "devDependencies": {
     "typescript": "5.7.3",

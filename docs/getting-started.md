@@ -107,7 +107,8 @@ All CLIs are built for agent consumption. Register any CLI as a skill or MCP ser
 ```bash
 assembly-cli skills add    # register as agent skill
 assembly-cli mcp add       # register as MCP server
-assembly-cli --llms        # export manifest for discovery
+assembly-cli --llms        # compact command index for discovery
+assembly-cli --llms-full   # full manifest with all details
 ```
 
 → [Agent integration guide](/agent-integration)

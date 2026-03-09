@@ -13,18 +13,26 @@ Most CLIs are built for humans and retrofitted for machines. spectra-tools takes
 
 ## Discover capabilities
 
-### CLI manifest (`--llms`)
+### CLI manifest (`--llms` / `--llms-full`)
 
-Every CLI can export its full command tree, arguments, environment variables, output fields, and examples as a markdown manifest:
+Every CLI can export its command surface for agent discovery:
+
+- **`--llms`** — compact command index (names, one-line descriptions)
+- **`--llms-full`** — full manifest with arguments, environment variables, output fields, and examples
 
 ```bash
+# Compact index — quick discovery
 assembly-cli --llms
 etherscan-cli --llms
-xapi-cli --llms
-erc8004-cli --llms
+
+# Full manifest — complete reference
+assembly-cli --llms-full
+etherscan-cli --llms-full
+xapi-cli --llms-full
+erc8004-cli --llms-full
 ```
 
-This is the single source of truth for what a CLI can do. Agents can parse this to understand available commands before executing them.
+Use `--llms` for fast discovery and `--llms-full` when agents need the complete command reference.
 
 ### Command schema (`--schema`)
 
@@ -128,7 +136,7 @@ etherscan-cli account balance 0x... --json --filter-output "balance,symbol"
 ## Recommended agent pipeline
 
 ```
-1. Discover    →  assembly-cli --llms
+1. Discover    →  assembly-cli --llms (or --llms-full for details)
 2. Introspect  →  assembly-cli governance proposals --schema
 3. Execute     →  assembly-cli governance proposals --limit 5 --json
 4. Validate    →  check exit code + parse JSON
