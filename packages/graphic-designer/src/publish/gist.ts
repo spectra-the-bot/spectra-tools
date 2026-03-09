@@ -1,6 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { basename } from 'node:path';
-import { type RetryPolicy, withRetry } from '../utils/retry.js';
+import type { RetryOptions } from '@spectratools/cli-shared/middleware';
+import { withRetry } from '@spectratools/cli-shared/middleware';
+import { createHttpClient } from '@spectratools/cli-shared/utils';
 
 export type GistPublishOptions = {
   imagePath: string;
@@ -10,14 +12,13 @@ export type GistPublishOptions = {
   filenamePrefix?: string;
   public?: boolean;
   token?: string;
-  retryPolicy?: RetryPolicy;
+  retryPolicy?: RetryOptions;
 };
 
 export type GistPublishResult = {
   target: 'gist';
   gistId: string;
   htmlUrl: string;
-  attempts: number;
   files: string[];
 };
 
@@ -35,36 +36,23 @@ function requireGitHubToken(token?: string): string {
   return resolved;
 }
 
-async function gistJson<T>(
-  path: string,
-  init: RequestInit,
-  token: string,
-  retryPolicy?: RetryPolicy,
-): Promise<{ value: T; attempts: number }> {
-  return withRetry(async () => {
-    const response = await fetch(`https://api.github.com${path}`, {
-      ...init,
-      headers: {
-        Accept: 'application/vnd.github+json',
-        Authorization: `Bearer ${token}`,
-        'User-Agent': 'spectratools-graphic-designer',
-        ...init.headers,
-      },
-    });
+const DEFAULT_RETRY: RetryOptions = {
+  maxRetries: 3,
+  baseMs: 500,
+  maxMs: 4_000,
+};
 
-    if (!response.ok) {
-      const text = await response.text();
-      throw new Error(
-        `GitHub Gist API ${path} failed (${response.status}): ${text || response.statusText}`,
-      );
-    }
-
-    return (await response.json()) as T;
-  }, retryPolicy);
-}
+const github = createHttpClient({
+  baseUrl: 'https://api.github.com',
+  defaultHeaders: {
+    Accept: 'application/vnd.github+json',
+    'User-Agent': 'spectratools-graphic-designer',
+  },
+});
 
 export async function publishToGist(options: GistPublishOptions): Promise<GistPublishResult> {
   const token = requireGitHubToken(options.token);
+  const retry = options.retryPolicy ?? DEFAULT_RETRY;
 
   const [imageBuffer, metadataBuffer] = await Promise.all([
     readFile(options.imagePath),
@@ -109,21 +97,20 @@ export async function publishToGist(options: GistPublishOptions): Promise<GistPu
   const endpoint = options.gistId ? `/gists/${options.gistId}` : '/gists';
   const method = options.gistId ? 'PATCH' : 'POST';
 
-  const published = await gistJson<GistResponse>(
-    endpoint,
-    {
-      method,
-      body: JSON.stringify(payload),
-    },
-    token,
-    options.retryPolicy,
+  const published = await withRetry(
+    () =>
+      github.request<GistResponse>(endpoint, {
+        method,
+        body: payload,
+        headers: { Authorization: `Bearer ${token}` },
+      }),
+    retry,
   );
 
   return {
     target: 'gist',
-    gistId: published.value.id,
-    htmlUrl: published.value.html_url,
-    attempts: published.attempts,
-    files: Object.keys(published.value.files ?? payload.files),
+    gistId: published.id,
+    htmlUrl: published.html_url,
+    files: Object.keys(published.files ?? payload.files),
   };
 }

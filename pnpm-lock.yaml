@@ -120,6 +120,9 @@ importers:
       '@napi-rs/canvas':
         specifier: ^0.1.80
         version: 0.1.96
+      '@spectratools/cli-shared':
+        specifier: workspace:*
+        version: link:../shared
       elkjs:
         specifier: ^0.11.0
         version: 0.11.1
