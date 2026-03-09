@@ -80,6 +80,8 @@ describe('createXApiClient - posts', () => {
     expect(typeof client.deletePost).toBe('function');
     expect(typeof client.getPostLikes).toBe('function');
     expect(typeof client.getPostRetweets).toBe('function');
+    expect(typeof client.likePost).toBe('function');
+    expect(typeof client.retweetPost).toBe('function');
   });
 
   it('has all expected user methods', () => {
@@ -87,6 +89,8 @@ describe('createXApiClient - posts', () => {
     expect(typeof client.getUserById).toBe('function');
     expect(typeof client.getUserFollowers).toBe('function');
     expect(typeof client.getUserFollowing).toBe('function');
+    expect(typeof client.followUser).toBe('function');
+    expect(typeof client.unfollowUser).toBe('function');
     expect(typeof client.getUserPosts).toBe('function');
     expect(typeof client.getUserMentions).toBe('function');
     expect(typeof client.searchUsers).toBe('function');

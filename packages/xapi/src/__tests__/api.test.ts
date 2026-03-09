@@ -138,6 +138,68 @@ describe('createXApiClient', () => {
     });
   });
 
+  it('builds social growth write requests correctly', async () => {
+    mocks.request.mockResolvedValueOnce({ data: { liked: true } });
+    mocks.request.mockResolvedValueOnce({ data: { retweeted: true } });
+    mocks.request.mockResolvedValueOnce({ data: { following: true, pending_follow: false } });
+    mocks.request.mockResolvedValueOnce({ data: { following: false } });
+    const client = createXApiClient('token');
+
+    await client.likePost('user-1', 'tweet-1');
+    await client.retweetPost('user-1', 'tweet-1');
+    await client.followUser('source-1', 'target-1');
+    await client.unfollowUser('source-1', 'target-1');
+
+    expect(mocks.request).toHaveBeenNthCalledWith(1, '/users/user-1/likes', {
+      method: 'POST',
+      body: { tweet_id: 'tweet-1' },
+    });
+
+    expect(mocks.request).toHaveBeenNthCalledWith(2, '/users/user-1/retweets', {
+      method: 'POST',
+      body: { tweet_id: 'tweet-1' },
+    });
+
+    expect(mocks.request).toHaveBeenNthCalledWith(3, '/users/source-1/following', {
+      method: 'POST',
+      body: { target_user_id: 'target-1' },
+    });
+
+    expect(mocks.request).toHaveBeenNthCalledWith(4, '/users/source-1/following/target-1', {
+      method: 'DELETE',
+    });
+  });
+
+  it('passes since_id on timeline endpoints when provided', async () => {
+    mocks.request.mockResolvedValueOnce({ data: [] });
+    mocks.request.mockResolvedValueOnce({ data: [] });
+    const client = createXApiClient('token');
+
+    await client.getHomeTimeline('user-1', 50, 'next-1', 'since-1');
+    await client.getMentionsTimeline('user-1', 25, undefined, 'since-2');
+
+    expect(mocks.request).toHaveBeenNthCalledWith(
+      1,
+      '/users/user-1/timelines/reverse_chronological',
+      {
+        query: {
+          max_results: 50,
+          'tweet.fields': 'id,text,author_id,created_at,public_metrics',
+          pagination_token: 'next-1',
+          since_id: 'since-1',
+        },
+      },
+    );
+
+    expect(mocks.request).toHaveBeenNthCalledWith(2, '/users/user-1/mentions', {
+      query: {
+        max_results: 25,
+        'tweet.fields': 'id,text,author_id,created_at,public_metrics',
+        since_id: 'since-2',
+      },
+    });
+  });
+
   it('propagates upstream API failures', async () => {
     const upstreamError = new Error('x api unavailable');
     mocks.request.mockRejectedValueOnce(upstreamError);
