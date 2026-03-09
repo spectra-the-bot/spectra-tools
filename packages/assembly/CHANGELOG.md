@@ -1,5 +1,14 @@
 # @spectra-the-bot/assembly-cli
 
+## 0.10.1
+
+### Patch Changes
+
+- [#223](https://github.com/spectra-the-bot/spectra-tools/pull/223) [`5e9555e`](https://github.com/spectra-the-bot/spectra-tools/commit/5e9555e5c7262c32e592b0d76c8e9e35f5be962f) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Finalize Privy rollout docs and parsing coverage, including API URL override guidance and consumer README references.
+
+- Updated dependencies [[`5e9555e`](https://github.com/spectra-the-bot/spectra-tools/commit/5e9555e5c7262c32e592b0d76c8e9e35f5be962f)]:
+  - @spectratools/tx-shared@0.5.2
+
 ## 0.10.0
 
 ### Minor Changes

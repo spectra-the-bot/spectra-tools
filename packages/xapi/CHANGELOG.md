@@ -1,5 +1,13 @@
 # @spectra-the-bot/xapi-cli
 
+## 0.6.0
+
+### Minor Changes
+
+- [#224](https://github.com/spectra-the-bot/spectra-tools/pull/224) [`387f2d8`](https://github.com/spectra-the-bot/spectra-tools/commit/387f2d8fd281026aba90c182f025068f26f8f2a4) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add list write commands for create/delete and member add/remove with write-auth validation and CLI coverage.
+
+- [#225](https://github.com/spectra-the-bot/spectra-tools/pull/225) [`a44df76`](https://github.com/spectra-the-bot/spectra-tools/commit/a44df76c6d3390c0afbd0befa4e41d449424af7a) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add xapi post unlike/bookmark command actions and user block/mute moderation commands.
+
 ## 0.5.0
 
 ### Minor Changes

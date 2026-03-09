@@ -1,5 +1,11 @@
 # @spectratools/tx-shared
 
+## 0.5.2
+
+### Patch Changes
+
+- [#223](https://github.com/spectra-the-bot/spectra-tools/pull/223) [`5e9555e`](https://github.com/spectra-the-bot/spectra-tools/commit/5e9555e5c7262c32e592b0d76c8e9e35f5be962f) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Finalize Privy rollout docs and parsing coverage, including API URL override guidance and consumer README references.
+
 ## Release Notes Addendum
 
 - Privy provider support is fully available in `resolveSigner` and `executeTx` (not a stub): tx sends (`eth_sendTransaction`), message signing (`personal_sign`), typed data signing (`eth_signTypedData_v4`), and raw tx signing (`eth_signTransaction`) are supported when `PRIVY_APP_ID`, `PRIVY_WALLET_ID`, and `PRIVY_AUTHORIZATION_KEY` are configured.
