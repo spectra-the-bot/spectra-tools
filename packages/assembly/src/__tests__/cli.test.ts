@@ -1508,6 +1508,101 @@ describe('forum write commands', () => {
     );
   });
 
+  describe('forum create-petition', () => {
+    it('creates a petition for active members and returns expected ids', async () => {
+      mockClient.readContract
+        .mockResolvedValueOnce(true) // isActive
+        .mockResolvedValueOnce(3n) // petitionCount
+        .mockResolvedValueOnce(10n); // threadCount
+
+      const out = await runWrite([
+        'forum',
+        'create-petition',
+        '--title',
+        'Expand treasury diversification',
+        '--description',
+        'Allocate 5% to stablecoins.',
+        '--kind',
+        '1',
+        '--category',
+        'treasury',
+      ]);
+
+      expect(out.ok).toBe(true);
+      const data = out.data as Record<string, unknown>;
+      expect(data.expectedPetitionId).toBe(4);
+      expect(data.expectedThreadId).toBe(11);
+      expect(data.kind).toBe(1);
+      expect(data.category).toBe('treasury');
+      expect(data.title).toBe('Expand treasury diversification');
+      const tx = (data.tx ?? {}) as Record<string, unknown>;
+      expect(tx.status).toBe('success');
+
+      expect(mockWalletClient.writeContract).toHaveBeenCalledWith(
+        expect.objectContaining({
+          functionName: 'createPetition',
+          args: [
+            'treasury',
+            expect.objectContaining({
+              kind: 1,
+              title: 'Expand treasury diversification',
+              description: 'Allocate 5% to stablecoins.',
+              intentSteps: [],
+              configUpdates: [],
+            }),
+          ],
+        }),
+      );
+    });
+
+    it('rejects petition from non-active member', async () => {
+      mockClient.readContract
+        .mockResolvedValueOnce(false) // isActive
+        .mockResolvedValueOnce(3n) // petitionCount
+        .mockResolvedValueOnce(10n); // threadCount
+
+      const out = await runWrite([
+        'forum',
+        'create-petition',
+        '--title',
+        'Should fail',
+        '--description',
+        'Not active',
+        '--kind',
+        '0',
+      ]);
+
+      expect(out.ok).toBe(false);
+      expect(out.error?.code).toBe('NOT_ACTIVE_MEMBER');
+      expect(mockWalletClient.writeContract).not.toHaveBeenCalled();
+    });
+
+    it('supports --dry-run without broadcasting', async () => {
+      mockClient.readContract
+        .mockResolvedValueOnce(true) // isActive
+        .mockResolvedValueOnce(0n) // petitionCount
+        .mockResolvedValueOnce(5n); // threadCount
+
+      const out = await runWrite([
+        'forum',
+        'create-petition',
+        '--title',
+        'Dry run petition',
+        '--description',
+        'Testing dry run',
+        '--kind',
+        '2',
+        '--dry-run',
+      ]);
+
+      expect(out.ok).toBe(true);
+      const data = out.data as Record<string, unknown>;
+      const tx = (data.tx ?? {}) as Record<string, unknown>;
+      expect(tx.status).toBe('dry-run');
+      expect(mockWalletClient.writeContract).not.toHaveBeenCalled();
+    });
+  });
+
   it('prevents duplicate signatures for sign-petition', async () => {
     mockClient.readContract
       .mockResolvedValueOnce(true)
