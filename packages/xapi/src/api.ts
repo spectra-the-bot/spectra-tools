@@ -82,6 +82,12 @@ export interface XRetweetPostResponse {
   };
 }
 
+export interface XBookmarkPostResponse {
+  data: {
+    bookmarked: boolean;
+  };
+}
+
 export interface XFollowUserResponse {
   data: {
     following: boolean;
@@ -95,8 +101,43 @@ export interface XUnfollowUserResponse {
   };
 }
 
+export interface XBlockUserResponse {
+  data: {
+    blocking: boolean;
+  };
+}
+
+export interface XMuteUserResponse {
+  data: {
+    muting: boolean;
+  };
+}
+
+export interface XCreateListResponse {
+  data: {
+    id: string;
+    name: string;
+  };
+}
+
+export interface XDeleteListResponse {
+  data: {
+    deleted: boolean;
+  };
+}
+
+export interface XListMembershipResponse {
+  data: {
+    is_member: boolean;
+  };
+}
+
 // ── Client factory ────────────────────────────────────────────────────────────
 
+/**
+ * NOTE: Write endpoints in this client require a user-context OAuth 2.0 bearer
+ * token (X_ACCESS_TOKEN). App-only bearer tokens can read but cannot mutate.
+ */
 export function createXApiClient(bearerToken: string) {
   const defaultHeaders = {
     Authorization: `Bearer ${bearerToken}`,
@@ -191,6 +232,18 @@ export function createXApiClient(bearerToken: string) {
     return post<XLikePostResponse>(`/users/${userId}/likes`, { tweet_id: tweetId });
   }
 
+  function unlikePost(userId: string, tweetId: string) {
+    return del<XLikePostResponse>(`/users/${userId}/likes/${tweetId}`);
+  }
+
+  function bookmarkPost(userId: string, tweetId: string) {
+    return post<XBookmarkPostResponse>(`/users/${userId}/bookmarks`, { tweet_id: tweetId });
+  }
+
+  function unbookmarkPost(userId: string, tweetId: string) {
+    return del<XBookmarkPostResponse>(`/users/${userId}/bookmarks/${tweetId}`);
+  }
+
   function retweetPost(userId: string, tweetId: string) {
     return post<XRetweetPostResponse>(`/users/${userId}/retweets`, { tweet_id: tweetId });
   }
@@ -237,6 +290,26 @@ export function createXApiClient(bearerToken: string) {
 
   function unfollowUser(sourceUserId: string, targetUserId: string) {
     return del<XUnfollowUserResponse>(`/users/${sourceUserId}/following/${targetUserId}`);
+  }
+
+  function blockUser(sourceUserId: string, targetUserId: string) {
+    return post<XBlockUserResponse>(`/users/${sourceUserId}/blocking`, {
+      target_user_id: targetUserId,
+    });
+  }
+
+  function unblockUser(sourceUserId: string, targetUserId: string) {
+    return del<XBlockUserResponse>(`/users/${sourceUserId}/blocking/${targetUserId}`);
+  }
+
+  function muteUser(sourceUserId: string, targetUserId: string) {
+    return post<XMuteUserResponse>(`/users/${sourceUserId}/muting`, {
+      target_user_id: targetUserId,
+    });
+  }
+
+  function unmuteUser(sourceUserId: string, targetUserId: string) {
+    return del<XMuteUserResponse>(`/users/${sourceUserId}/muting/${targetUserId}`);
   }
 
   function getUserPosts(id: string, maxResults: number, nextToken?: string) {
@@ -316,6 +389,28 @@ export function createXApiClient(bearerToken: string) {
     });
   }
 
+  function createList(name: string, description?: string, isPrivate?: boolean) {
+    return post<XCreateListResponse>('/lists', {
+      name,
+      ...(description ? { description } : {}),
+      ...(isPrivate !== undefined ? { private: isPrivate } : {}),
+    });
+  }
+
+  function deleteList(id: string) {
+    return del<XDeleteListResponse>(`/lists/${id}`);
+  }
+
+  function addListMember(id: string, userId: string) {
+    return post<XListMembershipResponse>(`/lists/${id}/members`, {
+      user_id: userId,
+    });
+  }
+
+  function removeListMember(id: string, userId: string) {
+    return del<XListMembershipResponse>(`/lists/${id}/members/${userId}`);
+  }
+
   // ── Trends ─────────────────────────────────────────────────────────────────
 
   function getTrendingPlaces() {
@@ -372,6 +467,9 @@ export function createXApiClient(bearerToken: string) {
     getPostLikes,
     getPostRetweets,
     likePost,
+    unlikePost,
+    bookmarkPost,
+    unbookmarkPost,
     retweetPost,
     getUserByUsername,
     getUserById,
@@ -379,6 +477,10 @@ export function createXApiClient(bearerToken: string) {
     getUserFollowing,
     followUser,
     unfollowUser,
+    blockUser,
+    unblockUser,
+    muteUser,
+    unmuteUser,
     getUserPosts,
     getUserMentions,
     searchUsers,
@@ -387,6 +489,10 @@ export function createXApiClient(bearerToken: string) {
     getList,
     getListMembers,
     getListPosts,
+    createList,
+    deleteList,
+    addListMember,
+    removeListMember,
     getTrendingPlaces,
     getTrendsByLocation,
     getDmConversations,
