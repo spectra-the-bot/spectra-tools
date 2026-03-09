@@ -170,10 +170,41 @@ cli.command('render', {
         code: 'QA_FAILED',
         message: `Render completed but QA failed (${runReport.qa.issueCount} issues). Review qa output.`,
         retryable: false,
+        cta: {
+          description: 'Fix and re-render:',
+          commands: [
+            {
+              command: 'render',
+              options: { spec: c.options.spec, out: c.options.out, allowQaFail: true },
+              description: 'Re-render with --allowQaFail to bypass QA gate',
+            },
+          ],
+        },
       });
     }
 
-    return c.ok(runReport);
+    return c.ok(
+      runReport,
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Next steps:',
+              commands: [
+                {
+                  command: 'qa',
+                  options: { in: runReport.imagePath, spec: runReport.specPath },
+                  description: 'Run standalone QA checks',
+                },
+                {
+                  command: 'publish',
+                  options: { in: runReport.imagePath, target: 'gist' },
+                  description: 'Publish the rendered artifact',
+                },
+              ],
+            },
+          },
+    );
   },
 });
 
@@ -240,10 +271,36 @@ template.command('flowchart', {
         code: 'QA_FAILED',
         message: `Render completed but QA failed (${runReport.qa.issueCount} issues). Review qa output.`,
         retryable: false,
+        cta: {
+          description: 'Fix and re-render:',
+          commands: [
+            {
+              command: 'template flowchart',
+              options: { nodes: c.options.nodes, edges: c.options.edges, out: c.options.out },
+              description: 'Re-render after adjusting inputs',
+            },
+          ],
+        },
       });
     }
 
-    return c.ok(runReport);
+    return c.ok(
+      runReport,
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Next step:',
+              commands: [
+                {
+                  command: 'publish',
+                  options: { in: runReport.imagePath, target: 'gist' },
+                  description: 'Publish the rendered artifact',
+                },
+              ],
+            },
+          },
+    );
   },
 });
 
@@ -339,10 +396,36 @@ template.command('code', {
         code: 'QA_FAILED',
         message: `Render completed but QA failed (${runReport.qa.issueCount} issues). Review qa output.`,
         retryable: false,
+        cta: {
+          description: 'Fix and re-render:',
+          commands: [
+            {
+              command: 'template code',
+              options: { language: c.options.language, out: c.options.out },
+              description: 'Re-render after adjusting inputs',
+            },
+          ],
+        },
       });
     }
 
-    return c.ok(runReport);
+    return c.ok(
+      runReport,
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Next step:',
+              commands: [
+                {
+                  command: 'publish',
+                  options: { in: runReport.imagePath, target: 'gist' },
+                  description: 'Publish the rendered artifact',
+                },
+              ],
+            },
+          },
+    );
   },
 });
 
@@ -406,10 +489,36 @@ template.command('terminal', {
         code: 'QA_FAILED',
         message: `Render completed but QA failed (${runReport.qa.issueCount} issues). Review qa output.`,
         retryable: false,
+        cta: {
+          description: 'Fix and re-render:',
+          commands: [
+            {
+              command: 'template terminal',
+              options: { out: c.options.out },
+              description: 'Re-render after adjusting inputs',
+            },
+          ],
+        },
       });
     }
 
-    return c.ok(runReport);
+    return c.ok(
+      runReport,
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Next step:',
+              commands: [
+                {
+                  command: 'publish',
+                  options: { in: runReport.imagePath, target: 'gist' },
+                  description: 'Publish the rendered artifact',
+                },
+              ],
+            },
+          },
+    );
   },
 });
 
@@ -472,10 +581,36 @@ template.command('cards', {
         code: 'QA_FAILED',
         message: `Render completed but QA failed (${runReport.qa.issueCount} issues). Review qa output.`,
         retryable: false,
+        cta: {
+          description: 'Fix and re-render:',
+          commands: [
+            {
+              command: 'template cards',
+              options: { cards: c.options.cards, out: c.options.out },
+              description: 'Re-render after adjusting inputs',
+            },
+          ],
+        },
       });
     }
 
-    return c.ok(runReport);
+    return c.ok(
+      runReport,
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Next step:',
+              commands: [
+                {
+                  command: 'publish',
+                  options: { in: runReport.imagePath, target: 'gist' },
+                  description: 'Publish the rendered artifact',
+                },
+              ],
+            },
+          },
+    );
   },
 });
 
@@ -542,10 +677,36 @@ cli.command('qa', {
         code: 'QA_FAILED',
         message: `QA checks failed (${report.issues.length} issues).`,
         retryable: false,
+        cta: {
+          description: 'Fix and re-render:',
+          commands: [
+            {
+              command: 'render',
+              options: { spec: c.options.spec, out: '<path>' },
+              description: 'Re-render after fixing spec issues',
+            },
+          ],
+        },
       });
     }
 
-    return c.ok(response);
+    return c.ok(
+      response,
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'QA passed — publish:',
+              commands: [
+                {
+                  command: 'publish',
+                  options: { in: c.options.in, target: 'gist' },
+                  description: 'Publish the artifact',
+                },
+              ],
+            },
+          },
+    );
   },
 });
 
