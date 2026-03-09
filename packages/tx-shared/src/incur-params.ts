@@ -10,6 +10,10 @@ export const signerFlagSchema = z.object({
   keystore: z.string().optional().describe('Path to an encrypted V3 keystore JSON file'),
   password: z.string().optional().describe('Keystore password (non-interactive mode)'),
   privy: z.boolean().default(false).describe('Use Privy server wallet signer mode'),
+  'privy-api-url': z
+    .string()
+    .optional()
+    .describe('Override Privy API base URL (defaults to https://api.privy.io)'),
 });
 
 /** Shared signer-related environment variables for write-capable commands. */
@@ -22,6 +26,10 @@ export const signerEnvSchema = z.object({
     .string()
     .optional()
     .describe('Privy authorization private key used to sign intent requests'),
+  PRIVY_API_URL: z
+    .string()
+    .optional()
+    .describe('Optional Privy API base URL override (default https://api.privy.io)'),
 });
 
 export type SignerFlags = z.infer<typeof signerFlagSchema>;
@@ -31,6 +39,7 @@ export type SignerEnv = z.infer<typeof signerEnvSchema>;
 export function toSignerOptions(flags: SignerFlags, env: SignerEnv): SignerOptions {
   const privateKey = flags['private-key'] ?? env.PRIVATE_KEY;
   const keystorePassword = flags.password ?? env.KEYSTORE_PASSWORD;
+  const privyApiUrl = flags['privy-api-url'] ?? env.PRIVY_API_URL;
 
   return {
     ...(privateKey !== undefined ? { privateKey } : {}),
@@ -42,5 +51,6 @@ export function toSignerOptions(flags: SignerFlags, env: SignerEnv): SignerOptio
     ...(env.PRIVY_AUTHORIZATION_KEY !== undefined
       ? { privyAuthorizationKey: env.PRIVY_AUTHORIZATION_KEY }
       : {}),
+    ...(privyApiUrl !== undefined ? { privyApiUrl } : {}),
   };
 }

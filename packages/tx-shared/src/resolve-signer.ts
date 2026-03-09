@@ -44,6 +44,7 @@ export async function resolveSigner(opts: SignerOptions): Promise<TxSigner> {
       ...(opts.privyAuthorizationKey !== undefined
         ? { privyAuthorizationKey: opts.privyAuthorizationKey }
         : {}),
+      ...(opts.privyApiUrl !== undefined ? { privyApiUrl: opts.privyApiUrl } : {}),
     });
   }
 

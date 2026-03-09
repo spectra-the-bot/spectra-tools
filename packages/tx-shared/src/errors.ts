@@ -5,7 +5,8 @@ export type TxErrorCode =
   | 'GAS_ESTIMATION_FAILED'
   | 'SIGNER_NOT_CONFIGURED'
   | 'KEYSTORE_DECRYPT_FAILED'
-  | 'PRIVY_AUTH_FAILED';
+  | 'PRIVY_AUTH_FAILED'
+  | 'PRIVY_TRANSPORT_FAILED';
 
 export class TxError extends Error {
   public readonly code: TxErrorCode;
