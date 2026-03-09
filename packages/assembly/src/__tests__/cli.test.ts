@@ -1392,3 +1392,331 @@ describe('governance write commands', () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// forum write commands
+// ---------------------------------------------------------------------------
+describe('forum write commands', () => {
+  const TEST_PK = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
+
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    process.env.PRIVATE_KEY = TEST_PK;
+    mockClient.estimateContractGas.mockResolvedValue(21000n);
+    mockClient.simulateContract.mockResolvedValue({ result: undefined });
+    mockWalletClient.writeContract.mockResolvedValue(MOCK_HASH);
+    mockClient.waitForTransactionReceipt.mockResolvedValue({
+      transactionHash: MOCK_HASH,
+      blockNumber: 42n,
+      gasUsed: 21000n,
+      status: 'success',
+      from: MOCK_FROM,
+      to: '0x90095f88859acd5f1733f44edd509ba2e1293047',
+      effectiveGasPrice: 1000000000n,
+      blockHash: '0x0000000000000000000000000000000000000000000000000000000000000000',
+      contractAddress: null,
+      cumulativeGasUsed: 21000n,
+      logs: [],
+      logsBloom: '0x',
+      transactionIndex: 0,
+      type: 'eip1559',
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    process.env.PRIVATE_KEY = undefined;
+  });
+
+  async function runWrite(argv: string[]) {
+    const { cli } = await import('../cli.js');
+    const lines: string[] = [];
+    await cli.serve([...argv, '--format', 'json', '--verbose'], {
+      stdout: (line) => lines.push(line),
+      exit: () => undefined,
+    });
+    const json = [...lines].reverse().find((x) => x.trim().startsWith('{')) ?? '{}';
+    return JSON.parse(json) as Envelope;
+  }
+
+  it('creates a discussion thread for active members', async () => {
+    mockClient.readContract.mockResolvedValueOnce(true).mockResolvedValueOnce(3n);
+
+    const out = await runWrite([
+      'forum',
+      'post',
+      '--category',
+      'general',
+      '--title',
+      'New roadmap thread',
+      '--body',
+      'Here is the plan.',
+    ]);
+
+    expect(out.ok).toBe(true);
+    const data = out.data as Record<string, unknown>;
+    expect(data.expectedThreadId).toBe(4);
+    const tx = (data.tx ?? {}) as Record<string, unknown>;
+    expect(tx.status).toBe('success');
+
+    expect(mockWalletClient.writeContract).toHaveBeenCalledWith(
+      expect.objectContaining({
+        functionName: 'postDiscussionThread',
+        args: ['general', 'New roadmap thread', 'Here is the plan.'],
+      }),
+    );
+  });
+
+  it('rejects forum post for non-active members', async () => {
+    mockClient.readContract.mockResolvedValueOnce(false).mockResolvedValueOnce(3n);
+
+    const out = await runWrite([
+      'forum',
+      'post',
+      '--category',
+      'general',
+      '--title',
+      'Denied post',
+      '--body',
+      'Should fail',
+    ]);
+
+    expect(out.ok).toBe(false);
+    expect(out.error?.code).toBe('NOT_ACTIVE_MEMBER');
+  });
+
+  it('posts a comment via forum comment when --body is provided', async () => {
+    mockClient.readContract
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(10n)
+      .mockResolvedValueOnce(5n);
+
+    const out = await runWrite(['forum', 'comment', '2', '--body', 'Support', '--parent-id', '1']);
+
+    expect(out.ok).toBe(true);
+    const data = out.data as Record<string, unknown>;
+    expect(data.threadId).toBe(2);
+    expect(data.parentId).toBe(1);
+    expect(data.expectedCommentId).toBe(6);
+
+    expect(mockWalletClient.writeContract).toHaveBeenCalledWith(
+      expect.objectContaining({
+        functionName: 'postComment',
+        args: [2n, 1n, 'Support'],
+      }),
+    );
+  });
+
+  it('prevents duplicate signatures for sign-petition', async () => {
+    mockClient.readContract
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(5n)
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce([
+        1n,
+        addrA,
+        1700000000n,
+        'general',
+        'title',
+        'body',
+        5n,
+        false,
+        7n,
+        {},
+      ]);
+
+    const out = await runWrite(['forum', 'sign-petition', '1']);
+
+    expect(out.ok).toBe(false);
+    expect(out.error?.code).toBe('ALREADY_SIGNED');
+    expect(mockWalletClient.writeContract).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// treasury write commands
+// ---------------------------------------------------------------------------
+describe('treasury write commands', () => {
+  const TEST_PK = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
+
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    process.env.PRIVATE_KEY = TEST_PK;
+    mockClient.estimateContractGas.mockResolvedValue(21000n);
+    mockClient.simulateContract.mockResolvedValue({ result: undefined });
+    mockWalletClient.writeContract.mockResolvedValue(MOCK_HASH);
+    mockClient.waitForTransactionReceipt.mockResolvedValue({
+      transactionHash: MOCK_HASH,
+      blockNumber: 42n,
+      gasUsed: 21000n,
+      status: 'success',
+      from: MOCK_FROM,
+      to: '0x90095f88859acd5f1733f44edd509ba2e1293047',
+      effectiveGasPrice: 1000000000n,
+      blockHash: '0x0000000000000000000000000000000000000000000000000000000000000000',
+      contractAddress: null,
+      cumulativeGasUsed: 21000n,
+      logs: [],
+      logsBloom: '0x',
+      transactionIndex: 0,
+      type: 'eip1559',
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    process.env.PRIVATE_KEY = undefined;
+  });
+
+  async function runWrite(argv: string[]) {
+    const { cli } = await import('../cli.js');
+    const lines: string[] = [];
+    await cli.serve([...argv, '--format', 'json', '--verbose'], {
+      stdout: (line) => lines.push(line),
+      exit: () => undefined,
+    });
+    const json = [...lines].reverse().find((x) => x.trim().startsWith('{')) ?? '{}';
+    return JSON.parse(json) as Envelope;
+  }
+
+  it('rejects propose-spend for non-council members', async () => {
+    mockClient.readContract
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(addrB)
+      .mockResolvedValueOnce(4n)
+      .mockResolvedValueOnce(8n)
+      .mockResolvedValueOnce(true);
+
+    const out = await runWrite([
+      'treasury',
+      'propose-spend',
+      '--token',
+      addrA,
+      '--recipient',
+      addrB,
+      '--amount',
+      '1',
+      '--title',
+      'Spend 1 token',
+      '--description',
+      'Move funds',
+    ]);
+
+    expect(out.ok).toBe(false);
+    expect(out.error?.code).toBe('NOT_COUNCIL_MEMBER');
+  });
+
+  it('rejects propose-spend when token is not whitelisted', async () => {
+    mockClient.readContract
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(addrB)
+      .mockResolvedValueOnce(4n)
+      .mockResolvedValueOnce(8n)
+      .mockResolvedValueOnce(false);
+
+    const out = await runWrite([
+      'treasury',
+      'propose-spend',
+      '--token',
+      addrA,
+      '--recipient',
+      addrB,
+      '--amount',
+      '1',
+      '--title',
+      'Spend 1 token',
+      '--description',
+      'Move funds',
+    ]);
+
+    expect(out.ok).toBe(false);
+    expect(out.error?.code).toBe('ASSET_NOT_WHITELISTED');
+  });
+
+  it('creates treasury spend proposal with intent step metadata', async () => {
+    mockClient.readContract
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(addrB)
+      .mockResolvedValueOnce(4n)
+      .mockResolvedValueOnce(8n)
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(true);
+
+    const out = await runWrite([
+      'treasury',
+      'propose-spend',
+      '--token',
+      addrA,
+      '--recipient',
+      addrB,
+      '--amount',
+      '1',
+      '--title',
+      'Spend 1 token',
+      '--description',
+      'Move funds',
+    ]);
+
+    expect(out.ok).toBe(true);
+    const data = out.data as Record<string, unknown>;
+    expect(data.expectedProposalId).toBe(5);
+    expect(data.expectedThreadId).toBe(9);
+    const tx = (data.tx ?? {}) as Record<string, unknown>;
+    expect(tx.status).toBe('success');
+
+    expect(mockWalletClient.writeContract).toHaveBeenCalledWith(
+      expect.objectContaining({
+        functionName: 'createCouncilProposal',
+        args: [
+          'treasury',
+          expect.objectContaining({
+            kind: 2,
+            intentSteps: [
+              expect.objectContaining({
+                module: addrB,
+                moduleData: expect.any(String),
+              }),
+            ],
+          }),
+        ],
+      }),
+    );
+  });
+
+  it('supports --dry-run for propose-spend', async () => {
+    mockClient.readContract
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(addrB)
+      .mockResolvedValueOnce(4n)
+      .mockResolvedValueOnce(8n)
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(true);
+
+    const out = await runWrite([
+      'treasury',
+      'propose-spend',
+      '--token',
+      addrA,
+      '--recipient',
+      addrB,
+      '--amount',
+      '1',
+      '--title',
+      'Spend 1 token',
+      '--description',
+      'Move funds',
+      '--dry-run',
+    ]);
+
+    expect(out.ok).toBe(true);
+    const tx = ((out.data as Record<string, unknown>).tx ?? {}) as Record<string, unknown>;
+    expect(tx.status).toBe('dry-run');
+    expect(mockWalletClient.writeContract).not.toHaveBeenCalled();
+  });
+});

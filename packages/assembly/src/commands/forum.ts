@@ -1,11 +1,27 @@
+import { TxError } from '@spectratools/tx-shared';
 import { Cli, z } from 'incur';
-import { forumAbi } from '../contracts/abis.js';
+import { forumAbi, registryAbi } from '../contracts/abis.js';
 import { ABSTRACT_MAINNET_ADDRESSES } from '../contracts/addresses.js';
 import { createAssemblyPublicClient } from '../contracts/client.js';
 import { asNum, jsonSafe, relTime, timeValue, toChecksum } from './_common.js';
+import {
+  type FormattedDryRunResult,
+  type FormattedTxResult,
+  assemblyWriteTx,
+  resolveAccount,
+  writeEnv,
+  writeOptions,
+} from './_write-utils.js';
 
 const env = z.object({
   ABSTRACT_RPC_URL: z.string().optional().describe('Abstract RPC URL override'),
+});
+
+const commentEnv = env.extend({
+  PRIVATE_KEY: z
+    .string()
+    .optional()
+    .describe('Private key (required only when posting a comment via --body)'),
 });
 
 type ThreadTuple = readonly [
@@ -34,6 +50,32 @@ type PetitionTuple = readonly [
 ];
 
 const timestampOutput = z.union([z.number(), z.string()]);
+
+const txResultOutput = z.union([
+  z.object({
+    status: z.literal('success'),
+    hash: z.string(),
+    blockNumber: z.number(),
+    gasUsed: z.string(),
+    from: z.string(),
+    to: z.string().nullable(),
+    effectiveGasPrice: z.string().optional(),
+  }),
+  z.object({
+    status: z.literal('reverted'),
+    hash: z.string(),
+    blockNumber: z.number(),
+    gasUsed: z.string(),
+    from: z.string(),
+    to: z.string().nullable(),
+    effectiveGasPrice: z.string().optional(),
+  }),
+  z.object({
+    status: z.literal('dry-run'),
+    estimatedGas: z.string(),
+    simulationResult: z.unknown(),
+  }),
+]);
 
 function decodeThread(value: unknown) {
   const [id, kind, author, createdAt, category, title, body, proposalId, petitionId] =
@@ -157,7 +199,7 @@ forum.command('threads', {
               description: 'Inspect or comment:',
               commands: [
                 { command: 'forum thread', args: { id: '<id>' } },
-                { command: 'forum post-comment', args: { id: '<id>' } },
+                { command: 'forum post-comment', args: { threadId: '<id>' } },
               ],
             },
           },
@@ -268,36 +310,439 @@ forum.command('comments', {
 });
 
 forum.command('comment', {
-  description: 'Get one comment by comment id.',
+  description: 'Get one comment by id, or post to a thread when --body is provided.',
   args: z.object({
-    id: z.coerce.number().int().positive().describe('Comment id (1-indexed)'),
+    id: z.coerce.number().int().positive().describe('Comment id (read) or thread id (write)'),
   }),
-  env,
+  options: writeOptions.extend({
+    body: z.string().min(1).optional().describe('Comment body (write mode)'),
+    'parent-id': z.coerce
+      .number()
+      .int()
+      .nonnegative()
+      .default(0)
+      .describe('Optional parent comment id for threaded replies (write mode)'),
+  }),
+  env: commentEnv,
   output: z.record(z.string(), z.unknown()),
-  examples: [{ args: { id: 1 }, description: 'Fetch comment #1' }],
+  examples: [
+    { args: { id: 1 }, description: 'Fetch comment #1' },
+    {
+      args: { id: 1 },
+      options: { body: 'I support this proposal.' },
+      description: 'Post a new comment on thread #1',
+    },
+  ],
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
-    const commentCount = (await client.readContract({
-      abi: forumAbi,
-      address: ABSTRACT_MAINNET_ADDRESSES.forum,
-      functionName: 'commentCount',
-    })) as bigint;
 
-    if (c.args.id > Number(commentCount)) {
+    if (!c.options.body) {
+      const commentCount = (await client.readContract({
+        abi: forumAbi,
+        address: ABSTRACT_MAINNET_ADDRESSES.forum,
+        functionName: 'commentCount',
+      })) as bigint;
+
+      if (c.args.id > Number(commentCount)) {
+        return c.error({
+          code: 'OUT_OF_RANGE',
+          message: `Comment id ${c.args.id} does not exist (commentCount: ${commentCount})`,
+          retryable: false,
+        });
+      }
+
+      const commentTuple = await client.readContract({
+        abi: forumAbi,
+        address: ABSTRACT_MAINNET_ADDRESSES.forum,
+        functionName: 'comments',
+        args: [BigInt(c.args.id)],
+      });
+      return c.ok(jsonSafe(decodeComment(commentTuple)) as Record<string, unknown>);
+    }
+
+    if (!c.env.PRIVATE_KEY) {
       return c.error({
-        code: 'OUT_OF_RANGE',
-        message: `Comment id ${c.args.id} does not exist (commentCount: ${commentCount})`,
+        code: 'MISSING_PRIVATE_KEY',
+        message: 'PRIVATE_KEY is required when posting a comment.',
         retryable: false,
       });
     }
 
-    const commentTuple = await client.readContract({
-      abi: forumAbi,
-      address: ABSTRACT_MAINNET_ADDRESSES.forum,
-      functionName: 'comments',
-      args: [BigInt(c.args.id)],
-    });
-    return c.ok(jsonSafe(decodeComment(commentTuple)) as Record<string, unknown>);
+    const account = resolveAccount({ PRIVATE_KEY: c.env.PRIVATE_KEY });
+    const [activeMember, threadCount, commentCount] = (await Promise.all([
+      client.readContract({
+        abi: registryAbi,
+        address: ABSTRACT_MAINNET_ADDRESSES.registry,
+        functionName: 'isActive',
+        args: [account.address],
+      }),
+      client.readContract({
+        abi: forumAbi,
+        address: ABSTRACT_MAINNET_ADDRESSES.forum,
+        functionName: 'threadCount',
+      }),
+      client.readContract({
+        abi: forumAbi,
+        address: ABSTRACT_MAINNET_ADDRESSES.forum,
+        functionName: 'commentCount',
+      }),
+    ])) as [boolean, bigint, bigint];
+
+    if (!activeMember) {
+      return c.error({
+        code: 'NOT_ACTIVE_MEMBER',
+        message: `Address ${toChecksum(account.address)} is not an active Assembly member.`,
+        retryable: false,
+      });
+    }
+
+    if (c.args.id > Number(threadCount)) {
+      return c.error({
+        code: 'OUT_OF_RANGE',
+        message: `Thread id ${c.args.id} does not exist (threadCount: ${threadCount})`,
+        retryable: false,
+      });
+    }
+
+    if (c.options['parent-id'] > Number(commentCount)) {
+      return c.error({
+        code: 'OUT_OF_RANGE',
+        message: `Parent comment id ${c.options['parent-id']} does not exist (commentCount: ${commentCount})`,
+        retryable: false,
+      });
+    }
+
+    const expectedCommentId = Number(commentCount) + 1;
+
+    try {
+      const txResult = await assemblyWriteTx({
+        env: {
+          PRIVATE_KEY: c.env.PRIVATE_KEY,
+          ABSTRACT_RPC_URL: c.env.ABSTRACT_RPC_URL,
+        },
+        options: c.options,
+        address: ABSTRACT_MAINNET_ADDRESSES.forum,
+        abi: forumAbi,
+        functionName: 'postComment',
+        args: [BigInt(c.args.id), BigInt(c.options['parent-id']), c.options.body],
+      });
+
+      return c.ok({
+        author: toChecksum(account.address),
+        threadId: c.args.id,
+        parentId: c.options['parent-id'],
+        expectedCommentId,
+        tx: txResult as FormattedTxResult | FormattedDryRunResult,
+      });
+    } catch (error) {
+      if (error instanceof TxError) {
+        return c.error({
+          code: error.code,
+          message: error.message,
+          retryable: error.code === 'NONCE_CONFLICT',
+        });
+      }
+      throw error;
+    }
+  },
+});
+
+forum.command('post', {
+  description: 'Create a new discussion thread in the forum.',
+  hint: 'Requires PRIVATE_KEY environment variable for signing.',
+  options: writeOptions.extend({
+    category: z.string().min(1).describe('Thread category label (e.g., general, governance)'),
+    title: z.string().min(1).describe('Thread title'),
+    body: z.string().min(1).describe('Thread body'),
+  }),
+  env: writeEnv,
+  output: z.object({
+    author: z.string(),
+    category: z.string(),
+    title: z.string(),
+    expectedThreadId: z.number(),
+    tx: txResultOutput,
+  }),
+  examples: [
+    {
+      options: {
+        category: 'general',
+        title: 'Roadmap discussion',
+        body: 'Should we prioritize treasury automation in Q2?',
+      },
+      description: 'Post a new discussion thread',
+    },
+  ],
+  async run(c) {
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
+    const account = resolveAccount(c.env);
+
+    const [activeMember, threadCountBefore] = (await Promise.all([
+      client.readContract({
+        abi: registryAbi,
+        address: ABSTRACT_MAINNET_ADDRESSES.registry,
+        functionName: 'isActive',
+        args: [account.address],
+      }),
+      client.readContract({
+        abi: forumAbi,
+        address: ABSTRACT_MAINNET_ADDRESSES.forum,
+        functionName: 'threadCount',
+      }),
+    ])) as [boolean, bigint];
+
+    if (!activeMember) {
+      return c.error({
+        code: 'NOT_ACTIVE_MEMBER',
+        message: `Address ${toChecksum(account.address)} is not an active Assembly member.`,
+        retryable: false,
+      });
+    }
+
+    const expectedThreadId = Number(threadCountBefore) + 1;
+
+    try {
+      const txResult = await assemblyWriteTx({
+        env: c.env,
+        options: c.options,
+        address: ABSTRACT_MAINNET_ADDRESSES.forum,
+        abi: forumAbi,
+        functionName: 'postDiscussionThread',
+        args: [c.options.category, c.options.title, c.options.body],
+      });
+
+      return c.ok({
+        author: toChecksum(account.address),
+        category: c.options.category,
+        title: c.options.title,
+        expectedThreadId,
+        tx: txResult as FormattedTxResult | FormattedDryRunResult,
+      });
+    } catch (error) {
+      if (error instanceof TxError) {
+        return c.error({
+          code: error.code,
+          message: error.message,
+          retryable: error.code === 'NONCE_CONFLICT',
+        });
+      }
+      throw error;
+    }
+  },
+});
+
+forum.command('post-comment', {
+  description: 'Post a comment to a forum thread.',
+  hint: 'Requires PRIVATE_KEY environment variable for signing.',
+  args: z.object({
+    threadId: z.coerce.number().int().positive().describe('Thread id to comment on'),
+  }),
+  options: writeOptions.extend({
+    body: z.string().min(1).describe('Comment body'),
+    'parent-id': z.coerce
+      .number()
+      .int()
+      .nonnegative()
+      .default(0)
+      .describe('Optional parent comment id for threaded replies'),
+  }),
+  env: writeEnv,
+  output: z.object({
+    author: z.string(),
+    threadId: z.number(),
+    parentId: z.number(),
+    expectedCommentId: z.number(),
+    tx: txResultOutput,
+  }),
+  examples: [
+    {
+      args: { threadId: 1 },
+      options: {
+        body: 'Appreciate the update — support from me.',
+      },
+      description: 'Post a comment on thread #1',
+    },
+  ],
+  async run(c) {
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
+    const account = resolveAccount(c.env);
+
+    const [activeMember, threadCount, commentCount] = (await Promise.all([
+      client.readContract({
+        abi: registryAbi,
+        address: ABSTRACT_MAINNET_ADDRESSES.registry,
+        functionName: 'isActive',
+        args: [account.address],
+      }),
+      client.readContract({
+        abi: forumAbi,
+        address: ABSTRACT_MAINNET_ADDRESSES.forum,
+        functionName: 'threadCount',
+      }),
+      client.readContract({
+        abi: forumAbi,
+        address: ABSTRACT_MAINNET_ADDRESSES.forum,
+        functionName: 'commentCount',
+      }),
+    ])) as [boolean, bigint, bigint];
+
+    if (!activeMember) {
+      return c.error({
+        code: 'NOT_ACTIVE_MEMBER',
+        message: `Address ${toChecksum(account.address)} is not an active Assembly member.`,
+        retryable: false,
+      });
+    }
+
+    if (c.args.threadId > Number(threadCount)) {
+      return c.error({
+        code: 'OUT_OF_RANGE',
+        message: `Thread id ${c.args.threadId} does not exist (threadCount: ${threadCount})`,
+        retryable: false,
+      });
+    }
+
+    if (c.options['parent-id'] > Number(commentCount)) {
+      return c.error({
+        code: 'OUT_OF_RANGE',
+        message: `Parent comment id ${c.options['parent-id']} does not exist (commentCount: ${commentCount})`,
+        retryable: false,
+      });
+    }
+
+    const expectedCommentId = Number(commentCount) + 1;
+
+    try {
+      const txResult = await assemblyWriteTx({
+        env: c.env,
+        options: c.options,
+        address: ABSTRACT_MAINNET_ADDRESSES.forum,
+        abi: forumAbi,
+        functionName: 'postComment',
+        args: [BigInt(c.args.threadId), BigInt(c.options['parent-id']), c.options.body],
+      });
+
+      return c.ok({
+        author: toChecksum(account.address),
+        threadId: c.args.threadId,
+        parentId: c.options['parent-id'],
+        expectedCommentId,
+        tx: txResult as FormattedTxResult | FormattedDryRunResult,
+      });
+    } catch (error) {
+      if (error instanceof TxError) {
+        return c.error({
+          code: error.code,
+          message: error.message,
+          retryable: error.code === 'NONCE_CONFLICT',
+        });
+      }
+      throw error;
+    }
+  },
+});
+
+forum.command('sign-petition', {
+  description: 'Sign an existing petition as an active member.',
+  hint: 'Requires PRIVATE_KEY environment variable for signing.',
+  args: z.object({
+    petitionId: z.coerce.number().int().positive().describe('Petition id (1-indexed)'),
+  }),
+  options: writeOptions,
+  env: writeEnv,
+  output: z.object({
+    signer: z.string(),
+    petitionId: z.number(),
+    expectedSignatures: z.number(),
+    tx: txResultOutput,
+  }),
+  examples: [{ args: { petitionId: 1 }, description: 'Sign petition #1' }],
+  async run(c) {
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
+    const account = resolveAccount(c.env);
+
+    const [activeMember, petitionCount] = (await Promise.all([
+      client.readContract({
+        abi: registryAbi,
+        address: ABSTRACT_MAINNET_ADDRESSES.registry,
+        functionName: 'isActive',
+        args: [account.address],
+      }),
+      client.readContract({
+        abi: forumAbi,
+        address: ABSTRACT_MAINNET_ADDRESSES.forum,
+        functionName: 'petitionCount',
+      }),
+    ])) as [boolean, bigint];
+
+    if (!activeMember) {
+      return c.error({
+        code: 'NOT_ACTIVE_MEMBER',
+        message: `Address ${toChecksum(account.address)} is not an active Assembly member.`,
+        retryable: false,
+      });
+    }
+
+    if (c.args.petitionId > Number(petitionCount)) {
+      return c.error({
+        code: 'OUT_OF_RANGE',
+        message: `Petition id ${c.args.petitionId} does not exist (petitionCount: ${petitionCount})`,
+        retryable: false,
+      });
+    }
+
+    const [alreadySigned, petitionTuple] = (await Promise.all([
+      client.readContract({
+        abi: forumAbi,
+        address: ABSTRACT_MAINNET_ADDRESSES.forum,
+        functionName: 'hasSignedPetition',
+        args: [BigInt(c.args.petitionId), account.address],
+      }),
+      client.readContract({
+        abi: forumAbi,
+        address: ABSTRACT_MAINNET_ADDRESSES.forum,
+        functionName: 'petitions',
+        args: [BigInt(c.args.petitionId)],
+      }),
+    ])) as [boolean, unknown];
+
+    if (alreadySigned) {
+      return c.error({
+        code: 'ALREADY_SIGNED',
+        message: `Address ${toChecksum(account.address)} has already signed petition #${c.args.petitionId}.`,
+        retryable: false,
+      });
+    }
+
+    const petition = decodePetition(petitionTuple);
+    const expectedSignatures = petition.signatures + 1;
+
+    try {
+      const txResult = await assemblyWriteTx({
+        env: c.env,
+        options: c.options,
+        address: ABSTRACT_MAINNET_ADDRESSES.forum,
+        abi: forumAbi,
+        functionName: 'signPetition',
+        args: [BigInt(c.args.petitionId)],
+      });
+
+      return c.ok({
+        signer: toChecksum(account.address),
+        petitionId: c.args.petitionId,
+        expectedSignatures,
+        tx: txResult as FormattedTxResult | FormattedDryRunResult,
+      });
+    } catch (error) {
+      if (error instanceof TxError) {
+        return c.error({
+          code: error.code,
+          message: error.message,
+          retryable: error.code === 'NONCE_CONFLICT',
+        });
+      }
+      throw error;
+    }
   },
 });
 
