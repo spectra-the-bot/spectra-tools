@@ -25,6 +25,10 @@ const WRITE_OPERATIONS = new Set([
   'posts retweet',
   'users follow',
   'users unfollow',
+  'lists create',
+  'lists delete',
+  'lists add-member',
+  'lists remove-member',
   'dm send',
 ]);
 

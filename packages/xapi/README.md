@@ -27,8 +27,8 @@ xapi-cli mcp add
 # Read-only endpoints (search, profiles, trends, list reads)
 export X_BEARER_TOKEN=your_app_bearer_token
 
-# Write endpoints (create/delete post, send DM)
-# OAuth 2.0 user context token with the required write scopes
+# Write endpoints (post/list mutations, user follow mutations, send DM)
+# OAuth 2.0 user context token with required write scopes
 export X_ACCESS_TOKEN=your_oauth2_user_access_token
 ```
 
@@ -41,7 +41,7 @@ Auth behavior:
 - `posts` — Read/search/create/delete posts and inspect social engagement
 - `users` — Profile lookup, social graph traversal, and user timelines
 - `timeline` — Home timeline and mention stream monitoring
-- `lists` — List discovery, member inspection, and list feed reads
+- `lists` — List lookup, creation/deletion, member management, and list feed reads
 - `trends` — Trend place discovery and per-location trend fetch
 - `dm` — Conversation listing and outbound direct messages
 
@@ -75,6 +75,11 @@ xapi-cli timeline mentions --max-results 50 --format json
 # 5) DM assistant loop
 xapi-cli dm conversations --max-results 20 --format json
 xapi-cli dm send 12345 --text "hello from agent" --format json
+
+# 6) List curation loop
+xapi-cli lists create --name "Core devs" --description "Builders only" --private --format json
+xapi-cli lists add-member 1234567890 jack --format json
+xapi-cli lists members 1234567890 --max-results 100 --format json
 ```
 
 ## Notes
@@ -83,4 +88,4 @@ xapi-cli dm send 12345 --text "hello from agent" --format json
 - `users followers --new-only` performs **client-side diffing** against `--seen-ids-file`; it does not use an API-native `since_id` filter for follower deltas.
 - Baseline files are read-only input (newline-delimited follower IDs) and are never mutated by the CLI.
 - `X_BEARER_TOKEN` is for read-only app auth.
-- `X_ACCESS_TOKEN` is required for write actions (`posts create`, `posts delete`, `dm send`).
+- `X_ACCESS_TOKEN` is required for write actions (`posts create|delete|like|retweet`, `users follow|unfollow`, `lists create|delete|add-member|remove-member`, `dm send`).
