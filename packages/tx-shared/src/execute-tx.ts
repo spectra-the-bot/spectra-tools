@@ -8,6 +8,12 @@ import type {
   WalletClient,
 } from 'viem';
 import { TxError } from './errors.js';
+import {
+  type PrivyPolicyPreflightResult,
+  preflightPrivyTransactionPolicy,
+  toPrivyPolicyViolationError,
+} from './signers/privy-client.js';
+import { getPrivyPolicyContext } from './signers/privy.js';
 import type { TxResult } from './types.js';
 
 /** Options for the {@link executeTx} lifecycle. */
@@ -51,6 +57,8 @@ export interface DryRunResult {
   estimatedGas: bigint;
   /** Simulated return value from `simulateContract`. */
   simulationResult: unknown;
+  /** Optional Privy policy visibility for Privy-backed accounts. */
+  privyPolicy?: PrivyPolicyPreflightResult;
 }
 
 /**
@@ -58,16 +66,18 @@ export interface DryRunResult {
  *
  * 1. **Estimate** gas via `publicClient.estimateContractGas`.
  * 2. **Simulate** contract call via `publicClient.simulateContract`.
+ * 3. **Preflight** Privy policies when a Privy-backed account is used.
  *    - If `dryRun` is `true`, return a {@link DryRunResult} without broadcasting.
- * 3. **Submit** the transaction via `walletClient.writeContract`.
- * 4. **Wait** for the receipt via `publicClient.waitForTransactionReceipt`.
- * 5. **Normalize** the receipt into a {@link TxResult}.
+ * 4. **Submit** the transaction via `walletClient.writeContract`.
+ * 5. **Wait** for the receipt via `publicClient.waitForTransactionReceipt`.
+ * 6. **Normalize** the receipt into a {@link TxResult}.
  *
  * Errors thrown by viem are mapped to structured {@link TxError} codes:
  * - `INSUFFICIENT_FUNDS` — sender lacks balance for value + gas.
  * - `NONCE_CONFLICT` — nonce already used or too low.
  * - `GAS_ESTIMATION_FAILED` — gas estimation or simulation reverted.
  * - `TX_REVERTED` — on-chain revert (includes reason when available).
+ * - `PRIVY_POLICY_BLOCKED` — Privy policy preflight determined the tx is not allowed.
  */
 export async function executeTx(options: ExecuteTxOptions): Promise<TxResult | DryRunResult> {
   const {
@@ -117,16 +127,28 @@ export async function executeTx(options: ExecuteTxOptions): Promise<TxResult | D
     throw mapError(error, 'simulation');
   }
 
+  // --- 3. Privy preflight (if applicable) ---
+  const privyPolicy = await runPrivyPolicyPreflight({
+    account,
+    address,
+    ...(value !== undefined ? { value } : {}),
+  });
+
   // --- Dry-run exit ---
   if (dryRun) {
     return {
       status: 'dry-run',
       estimatedGas,
       simulationResult,
+      ...(privyPolicy !== undefined ? { privyPolicy } : {}),
     } satisfies DryRunResult;
   }
 
-  // --- 3. Submit ---
+  if (privyPolicy?.status === 'blocked') {
+    throw toPrivyPolicyViolationError(privyPolicy);
+  }
+
+  // --- 4. Submit ---
   let hash: `0x${string}`;
   try {
     hash = await walletClient.writeContract({
@@ -145,7 +167,7 @@ export async function executeTx(options: ExecuteTxOptions): Promise<TxResult | D
     throw mapError(error, 'submit');
   }
 
-  // --- 4. Wait for receipt ---
+  // --- 5. Wait for receipt ---
   let receipt: TransactionReceipt;
   try {
     receipt = await publicClient.waitForTransactionReceipt({ hash });
@@ -153,7 +175,7 @@ export async function executeTx(options: ExecuteTxOptions): Promise<TxResult | D
     throw mapError(error, 'receipt');
   }
 
-  // --- 5. Normalize ---
+  // --- 6. Normalize ---
   if (receipt.status === 'reverted') {
     throw new TxError('TX_REVERTED', `Transaction ${hash} reverted on-chain`);
   }
@@ -178,6 +200,26 @@ function receiptToTxResult(receipt: TransactionReceipt): TxResult {
 }
 
 type Phase = 'estimation' | 'simulation' | 'submit' | 'receipt';
+
+interface PrivyPolicyPreflightRequest {
+  account: Account;
+  address: Address;
+  value?: bigint;
+}
+
+async function runPrivyPolicyPreflight(
+  request: PrivyPolicyPreflightRequest,
+): Promise<PrivyPolicyPreflightResult | undefined> {
+  const context = getPrivyPolicyContext(request.account);
+  if (context === undefined) {
+    return undefined;
+  }
+
+  return preflightPrivyTransactionPolicy(context.client, {
+    to: request.address,
+    ...(request.value !== undefined ? { value: request.value } : {}),
+  });
+}
 
 function mapError(error: unknown, phase: Phase): TxError {
   const msg = errorMessage(error);

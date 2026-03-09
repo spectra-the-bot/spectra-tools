@@ -6,7 +6,8 @@ export type TxErrorCode =
   | 'SIGNER_NOT_CONFIGURED'
   | 'KEYSTORE_DECRYPT_FAILED'
   | 'PRIVY_AUTH_FAILED'
-  | 'PRIVY_TRANSPORT_FAILED';
+  | 'PRIVY_TRANSPORT_FAILED'
+  | 'PRIVY_POLICY_BLOCKED';
 
 export class TxError extends Error {
   public readonly code: TxErrorCode;

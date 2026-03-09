@@ -11,6 +11,13 @@ export interface PrivySignerOptions {
   privyApiUrl?: string;
 }
 
+export interface PrivyPolicyContext {
+  appId: string;
+  walletId: string;
+  apiUrl: string;
+  client: PrivyClient;
+}
+
 export interface PrivySigner {
   account: PrivyAccount;
   address: Address;
@@ -31,6 +38,38 @@ const REQUIRED_FIELDS: Array<keyof PrivySignerOptions> = [
 
 const APP_ID_REGEX = /^[A-Za-z0-9_-]{8,128}$/;
 const WALLET_ID_REGEX = /^[A-Za-z0-9_-]{8,128}$/;
+
+const PRIVY_POLICY_CONTEXT_SYMBOL = Symbol.for('spectratools.tx-shared.privy.policy-context');
+
+/**
+ * Attach Privy policy context to any account-like object so executeTx can run policy preflight checks.
+ */
+export function attachPrivyPolicyContext<TAccount extends object>(
+  account: TAccount,
+  context: PrivyPolicyContext,
+): TAccount {
+  Object.defineProperty(account, PRIVY_POLICY_CONTEXT_SYMBOL, {
+    value: context,
+    configurable: false,
+    enumerable: false,
+    writable: false,
+  });
+
+  return account;
+}
+
+/** Read Privy policy context from an account when present. */
+export function getPrivyPolicyContext(account: unknown): PrivyPolicyContext | undefined {
+  if (typeof account !== 'object' || account === null) {
+    return undefined;
+  }
+
+  const withContext = account as {
+    [PRIVY_POLICY_CONTEXT_SYMBOL]?: PrivyPolicyContext;
+  };
+
+  return withContext[PRIVY_POLICY_CONTEXT_SYMBOL];
+}
 
 /**
  * Create a Privy signer envelope with reusable transport and request-signing primitives.
@@ -95,7 +134,10 @@ export async function createPrivySigner(options: PrivySignerOptions): Promise<Pr
     apiUrl,
   });
 
-  const account = await createPrivyAccount({
+  const account = attachPrivyPolicyContext(await createPrivyAccount({ client }), {
+    appId,
+    walletId,
+    apiUrl,
     client,
   });
 
