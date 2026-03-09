@@ -53,6 +53,8 @@ export default defineConfig({
           { text: '🔍 Etherscan', link: '/etherscan/' },
           { text: '📡 X API', link: '/xapi/' },
           { text: '🤖 ERC-8004', link: '/erc8004/' },
+          { text: '💱 Aborean', link: '/aborean/' },
+          { text: '🎨 Graphic Designer', link: '/graphic-designer/' },
         ],
       },
       { text: 'Agent Integration', link: '/agent-integration' },
@@ -146,6 +148,22 @@ export default defineConfig({
               { text: 'Commands', link: '/erc8004/commands' },
               { text: 'Guide: Agent Discovery', link: '/erc8004/guides/agent-discovery' },
               { text: 'Guide: Agent Integration', link: '/erc8004/guides/agent-integration' },
+            ],
+          },
+          {
+            text: '💱 Aborean',
+            collapsed: false,
+            items: [
+              { text: 'Overview', link: '/aborean/' },
+              { text: 'Commands', link: '/aborean/commands' },
+            ],
+          },
+          {
+            text: '🎨 Graphic Designer',
+            collapsed: false,
+            items: [
+              { text: 'Overview', link: '/graphic-designer/' },
+              { text: 'Commands', link: '/graphic-designer/commands' },
             ],
           },
         ],

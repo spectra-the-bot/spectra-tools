@@ -27,6 +27,17 @@ const packages = [
     cliPath: 'packages/erc8004/dist/cli.js',
     outPath: 'docs/erc8004/commands.md',
   },
+  {
+    name: 'aborean',
+    cliPath: 'packages/aborean/dist/cli.js',
+    outPath: 'docs/aborean/commands.md',
+  },
+  {
+    name: 'graphic-designer',
+    cliPath: 'packages/graphic-designer/dist/cli.js',
+    outPath: 'docs/graphic-designer/commands.md',
+    llmsFlag: '--llms',
+  },
 ];
 
 function run(command, args, options = {}) {
@@ -71,7 +82,8 @@ function main() {
   for (const pkg of packages) {
     console.log(`Generating docs for ${pkg.name}...`);
 
-    const markdown = run('node', [pkg.cliPath, '--llms-full']);
+    const flag = pkg.llmsFlag ?? '--llms-full';
+    const markdown = run('node', [pkg.cliPath, flag]);
     const normalized = normalizeMarkdown(markdown);
     const outputPath = path.resolve(rootDir, pkg.outPath);
 
