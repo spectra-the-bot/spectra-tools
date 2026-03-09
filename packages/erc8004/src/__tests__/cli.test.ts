@@ -194,6 +194,52 @@ describe('erc8004 cli', () => {
     expect(envelope.code).toBe('BURN_NOT_SUPPORTED');
   });
 
+  it('validation submit-result errors without private key', async () => {
+    let output = '';
+    await cli.serve(
+      [
+        'validation',
+        'submit-result',
+        '1',
+        '--status',
+        'pass',
+        '--result',
+        'All checks passed',
+        '--json',
+      ],
+      {
+        stdout(s) {
+          output += s;
+        },
+        exit() {},
+        env: {
+          VALIDATION_REGISTRY_ADDRESS: '0x1234567890123456789012345678901234567890',
+          PRIVATE_KEY: undefined,
+        },
+      },
+    );
+
+    const envelope = JSON.parse(output);
+    expect(envelope.code).toBe('NO_PRIVATE_KEY');
+  });
+
+  it('validation cancel errors without private key', async () => {
+    let output = '';
+    await cli.serve(['validation', 'cancel', '1', '--json'], {
+      stdout(s) {
+        output += s;
+      },
+      exit() {},
+      env: {
+        VALIDATION_REGISTRY_ADDRESS: '0x1234567890123456789012345678901234567890',
+        PRIVATE_KEY: undefined,
+      },
+    });
+
+    const envelope = JSON.parse(output);
+    expect(envelope.code).toBe('NO_PRIVATE_KEY');
+  });
+
   it('registration create --json output does not contain CTA keys', async () => {
     let output = '';
     await cli.serve(['registration', 'create', '--name', 'Test Agent', '--json'], {
