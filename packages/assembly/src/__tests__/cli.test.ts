@@ -1107,3 +1107,288 @@ describe('council write commands', () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// governance write commands
+// ---------------------------------------------------------------------------
+describe('governance write commands', () => {
+  const TEST_PK = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
+
+  function proposalTuple(overrides?: {
+    status?: bigint;
+    voteEndAt?: bigint;
+    timelockEndsAt?: bigint;
+    title?: string;
+  }) {
+    return [
+      1n,
+      0n,
+      0n,
+      overrides?.status ?? 1n,
+      addrA,
+      11n,
+      0n,
+      100n,
+      110n,
+      120n,
+      overrides?.voteEndAt ?? 130n,
+      overrides?.timelockEndsAt ?? 200n,
+      15n,
+      16n,
+      17n,
+      18n,
+      19n,
+      20n,
+      false,
+      0n,
+      0n,
+      overrides?.title ?? 'Governance proposal',
+      'Proposal description',
+    ];
+  }
+
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    process.env.PRIVATE_KEY = TEST_PK;
+    mockClient.estimateContractGas.mockResolvedValue(21000n);
+    mockClient.simulateContract.mockResolvedValue({ result: undefined });
+    mockWalletClient.writeContract.mockResolvedValue(MOCK_HASH);
+    mockClient.waitForTransactionReceipt.mockResolvedValue({
+      transactionHash: MOCK_HASH,
+      blockNumber: 42n,
+      gasUsed: 21000n,
+      status: 'success',
+      from: MOCK_FROM,
+      to: '0x4b347545f4a45f5938454afb67f6fa4c2736f3d9',
+      effectiveGasPrice: 1000000000n,
+      blockHash: '0x0000000000000000000000000000000000000000000000000000000000000000',
+      contractAddress: null,
+      cumulativeGasUsed: 21000n,
+      logs: [],
+      logsBloom: '0x',
+      transactionIndex: 0,
+      type: 'eip1559',
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    process.env.PRIVATE_KEY = undefined;
+  });
+
+  async function runWrite(argv: string[]) {
+    const { cli } = await import('../cli.js');
+    const lines: string[] = [];
+    await cli.serve([...argv, '--format', 'json', '--verbose'], {
+      stdout: (line) => lines.push(line),
+      exit: () => undefined,
+    });
+    const json = [...lines].reverse().find((x) => x.trim().startsWith('{')) ?? '{}';
+    return JSON.parse(json) as Envelope;
+  }
+
+  describe('governance vote', () => {
+    it('casts a vote during active voting period', async () => {
+      mockClient.readContract.mockResolvedValueOnce(2n);
+      mockClient.readContract.mockResolvedValueOnce(proposalTuple({ status: 1n }));
+      mockClient.readContract.mockResolvedValueOnce(false);
+
+      const out = await runWrite(['governance', 'vote', '1', 'for']);
+
+      expect(out.ok).toBe(true);
+      const data = out.data as Record<string, unknown>;
+      expect(data.proposalId).toBe(1);
+      expect(data.support).toBe('for');
+      expect(data.supportValue).toBe(1);
+      const tx = data.tx as Record<string, unknown>;
+      expect(tx.status).toBe('success');
+
+      expect(mockWalletClient.writeContract).toHaveBeenCalledWith(
+        expect.objectContaining({
+          functionName: 'castVote',
+          args: [1n, 1],
+        }),
+      );
+    });
+
+    it('rejects vote when proposal is not active', async () => {
+      mockClient.readContract.mockResolvedValueOnce(1n);
+      mockClient.readContract.mockResolvedValueOnce(proposalTuple({ status: 2n }));
+
+      const out = await runWrite(['governance', 'vote', '1', 'for']);
+
+      expect(out.ok).toBe(false);
+      expect(out.error?.code).toBe('PROPOSAL_NOT_VOTING');
+    });
+
+    it('rejects duplicate votes from the same signer', async () => {
+      mockClient.readContract.mockResolvedValueOnce(1n);
+      mockClient.readContract.mockResolvedValueOnce(proposalTuple({ status: 1n }));
+      mockClient.readContract.mockResolvedValueOnce(true);
+
+      const out = await runWrite(['governance', 'vote', '1', 'against']);
+
+      expect(out.ok).toBe(false);
+      expect(out.error?.code).toBe('ALREADY_VOTED');
+    });
+
+    it('supports --dry-run without broadcasting', async () => {
+      mockClient.readContract.mockResolvedValueOnce(1n);
+      mockClient.readContract.mockResolvedValueOnce(proposalTuple({ status: 1n }));
+      mockClient.readContract.mockResolvedValueOnce(false);
+
+      const out = await runWrite(['governance', 'vote', '1', 'abstain', '--dry-run']);
+
+      expect(out.ok).toBe(true);
+      const tx = ((out.data as Record<string, unknown>).tx ?? {}) as Record<string, unknown>;
+      expect(tx.status).toBe('dry-run');
+      expect(mockWalletClient.writeContract).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('governance propose', () => {
+    it('verifies signer is council member before proposing', async () => {
+      mockClient.readContract.mockResolvedValueOnce(false);
+
+      const out = await runWrite([
+        'governance',
+        'propose',
+        '--title',
+        'Test proposal',
+        '--description',
+        'Body',
+        '--kind',
+        '1',
+      ]);
+
+      expect(out.ok).toBe(false);
+      expect(out.error?.code).toBe('NOT_COUNCIL_MEMBER');
+    });
+
+    it('creates a council proposal and returns expected proposal id', async () => {
+      mockClient.readContract.mockResolvedValueOnce(true);
+      mockClient.readContract.mockResolvedValueOnce(5n);
+
+      const out = await runWrite([
+        'governance',
+        'propose',
+        '--title',
+        'Upgrade governance params',
+        '--description',
+        'Raise quorum threshold',
+        '--kind',
+        '3',
+      ]);
+
+      expect(out.ok).toBe(true);
+      const data = out.data as Record<string, unknown>;
+      expect(data.expectedProposalId).toBe(6);
+      expect(data.kind).toBe(3);
+      const tx = data.tx as Record<string, unknown>;
+      expect(tx.status).toBe('success');
+
+      expect(mockWalletClient.writeContract).toHaveBeenCalledWith(
+        expect.objectContaining({
+          functionName: 'createCouncilProposal',
+        }),
+      );
+    });
+
+    it('rejects unsupported transfer intent hints', async () => {
+      const out = await runWrite([
+        'governance',
+        'propose',
+        '--title',
+        'Transfer',
+        '--description',
+        'Attempt transfer intent',
+        '--kind',
+        '2',
+        '--amount',
+        '1',
+        '--recipient',
+        addrB,
+      ]);
+
+      expect(out.ok).toBe(false);
+      expect(out.error?.code).toBe('UNSUPPORTED_TRANSFER_INTENT');
+    });
+  });
+
+  describe('governance queue', () => {
+    it('queues by finalizing a completed vote', async () => {
+      mockClient.readContract.mockResolvedValueOnce(2n);
+      mockClient.readContract.mockResolvedValueOnce(proposalTuple({ status: 1n, voteEndAt: 100n }));
+      mockClient.getBlock.mockResolvedValueOnce({ timestamp: 150n });
+
+      const out = await runWrite(['governance', 'queue', '1']);
+
+      expect(out.ok).toBe(true);
+      const tx = ((out.data as Record<string, unknown>).tx ?? {}) as Record<string, unknown>;
+      expect(tx.status).toBe('success');
+      expect(mockWalletClient.writeContract).toHaveBeenCalledWith(
+        expect.objectContaining({
+          functionName: 'finalizeVote',
+          args: [1n],
+        }),
+      );
+    });
+
+    it('rejects queue when proposal is already passed/timelocked', async () => {
+      mockClient.readContract.mockResolvedValueOnce(1n);
+      mockClient.readContract.mockResolvedValueOnce(proposalTuple({ status: 2n }));
+
+      const out = await runWrite(['governance', 'queue', '1']);
+
+      expect(out.ok).toBe(false);
+      expect(out.error?.code).toBe('ALREADY_QUEUED');
+    });
+
+    it('rejects queue while voting window is still open', async () => {
+      mockClient.readContract.mockResolvedValueOnce(1n);
+      mockClient.readContract.mockResolvedValueOnce(proposalTuple({ status: 1n, voteEndAt: 200n }));
+      mockClient.getBlock.mockResolvedValueOnce({ timestamp: 100n });
+
+      const out = await runWrite(['governance', 'queue', '1']);
+
+      expect(out.ok).toBe(false);
+      expect(out.error?.code).toBe('VOTING_STILL_ACTIVE');
+    });
+  });
+
+  describe('governance execute', () => {
+    it('executes a queued proposal after timelock expiry', async () => {
+      mockClient.readContract.mockResolvedValueOnce(1n);
+      mockClient.readContract.mockResolvedValueOnce(
+        proposalTuple({ status: 2n, timelockEndsAt: 100n, title: 'Ready to execute' }),
+      );
+      mockClient.getBlock.mockResolvedValueOnce({ timestamp: 150n });
+
+      const out = await runWrite(['governance', 'execute', '1']);
+
+      expect(out.ok).toBe(true);
+      const tx = ((out.data as Record<string, unknown>).tx ?? {}) as Record<string, unknown>;
+      expect(tx.status).toBe('success');
+      expect(mockWalletClient.writeContract).toHaveBeenCalledWith(
+        expect.objectContaining({
+          functionName: 'executeProposal',
+          args: [1n],
+        }),
+      );
+    });
+
+    it('rejects execute when timelock has not expired', async () => {
+      mockClient.readContract.mockResolvedValueOnce(1n);
+      mockClient.readContract.mockResolvedValueOnce(
+        proposalTuple({ status: 2n, timelockEndsAt: 300n }),
+      );
+      mockClient.getBlock.mockResolvedValueOnce({ timestamp: 100n });
+
+      const out = await runWrite(['governance', 'execute', '1']);
+
+      expect(out.ok).toBe(false);
+      expect(out.error?.code).toBe('TIMELOCK_ACTIVE');
+    });
+  });
+});
