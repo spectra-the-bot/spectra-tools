@@ -293,13 +293,15 @@ describe('xapi cli write commands', () => {
   it('shows new write commands in group help output', async () => {
     const postsHelp = await runCli(['posts', '--help']);
     expect(postsHelp.exitCode).toBe(0);
-    expect(postsHelp.output).toContain('like');
-    expect(postsHelp.output).toContain('retweet');
+    for (const command of ['like', 'unlike', 'bookmark', 'unbookmark', 'retweet']) {
+      expect(postsHelp.output).toContain(command);
+    }
 
     const usersHelp = await runCli(['users', '--help']);
     expect(usersHelp.exitCode).toBe(0);
-    expect(usersHelp.output).toContain('follow');
-    expect(usersHelp.output).toContain('unfollow');
+    for (const command of ['follow', 'unfollow', 'block', 'unblock', 'mute', 'unmute']) {
+      expect(usersHelp.output).toContain(command);
+    }
 
     const listsHelp = await runCli(['lists', '--help']);
     expect(listsHelp.exitCode).toBe(0);
@@ -313,12 +315,35 @@ describe('xapi cli write commands', () => {
     {
       command: 'like',
       path: '/2/users/me-user/likes',
+      method: 'POST',
       responseBody: { data: { liked: true } },
       expected: { liked: true, id: 'tweet-123' },
     },
     {
+      command: 'unlike',
+      path: '/2/users/me-user/likes/tweet-123',
+      method: 'DELETE',
+      responseBody: { data: { liked: false } },
+      expected: { liked: false, id: 'tweet-123' },
+    },
+    {
+      command: 'bookmark',
+      path: '/2/users/me-user/bookmarks',
+      method: 'POST',
+      responseBody: { data: { bookmarked: true } },
+      expected: { bookmarked: true, id: 'tweet-123' },
+    },
+    {
+      command: 'unbookmark',
+      path: '/2/users/me-user/bookmarks/tweet-123',
+      method: 'DELETE',
+      responseBody: { data: { bookmarked: false } },
+      expected: { bookmarked: false, id: 'tweet-123' },
+    },
+    {
       command: 'retweet',
       path: '/2/users/me-user/retweets',
+      method: 'POST',
       responseBody: { data: { retweeted: true } },
       expected: { retweeted: true, id: 'tweet-123' },
     },
@@ -338,7 +363,7 @@ describe('xapi cli write commands', () => {
           });
         }
 
-        if (pathname === tc.path && method === 'POST') {
+        if (pathname === tc.path && method === tc.method) {
           return new Response(JSON.stringify(tc.responseBody), {
             status: 200,
             headers: { 'content-type': 'application/json' },
@@ -371,6 +396,34 @@ describe('xapi cli write commands', () => {
       method: 'DELETE',
       responseBody: { data: { following: false } },
       expected: { id: 'target-1', username: 'target', following: false },
+    },
+    {
+      command: 'block',
+      targetPath: '/2/users/me-user/blocking',
+      method: 'POST',
+      responseBody: { data: { blocking: true } },
+      expected: { id: 'target-1', username: 'target', blocking: true },
+    },
+    {
+      command: 'unblock',
+      targetPath: '/2/users/me-user/blocking/target-1',
+      method: 'DELETE',
+      responseBody: { data: { blocking: false } },
+      expected: { id: 'target-1', username: 'target', blocking: false },
+    },
+    {
+      command: 'mute',
+      targetPath: '/2/users/me-user/muting',
+      method: 'POST',
+      responseBody: { data: { muting: true } },
+      expected: { id: 'target-1', username: 'target', muting: true },
+    },
+    {
+      command: 'unmute',
+      targetPath: '/2/users/me-user/muting/target-1',
+      method: 'DELETE',
+      responseBody: { data: { muting: false } },
+      expected: { id: 'target-1', username: 'target', muting: false },
     },
   ] as const)('returns success shape for users $command', async (tc) => {
     vi.stubGlobal(
@@ -494,9 +547,16 @@ describe('xapi cli write commands', () => {
 
   it.each([
     { command: ['posts', 'like', 'tweet-1'], operation: 'posts like' },
+    { command: ['posts', 'unlike', 'tweet-1'], operation: 'posts unlike' },
+    { command: ['posts', 'bookmark', 'tweet-1'], operation: 'posts bookmark' },
+    { command: ['posts', 'unbookmark', 'tweet-1'], operation: 'posts unbookmark' },
     { command: ['posts', 'retweet', 'tweet-1'], operation: 'posts retweet' },
     { command: ['users', 'follow', 'target'], operation: 'users follow' },
     { command: ['users', 'unfollow', 'target'], operation: 'users unfollow' },
+    { command: ['users', 'block', 'target'], operation: 'users block' },
+    { command: ['users', 'unblock', 'target'], operation: 'users unblock' },
+    { command: ['users', 'mute', 'target'], operation: 'users mute' },
+    { command: ['users', 'unmute', 'target'], operation: 'users unmute' },
     { command: ['lists', 'create', '--name', 'Core devs'], operation: 'lists create' },
     { command: ['lists', 'delete', 'list-1'], operation: 'lists delete' },
     { command: ['lists', 'add-member', 'list-1', 'target'], operation: 'lists add-member' },
@@ -535,6 +595,8 @@ describe('xapi cli write commands', () => {
 
   it.each([
     ['posts', 'like', 'tweet-1'],
+    ['posts', 'bookmark', 'tweet-1'],
+    ['users', 'mute', 'target'],
     ['lists', 'delete', 'list-1'],
   ] as const)('requires X_ACCESS_TOKEN for %s %s', async (group, command, target) => {
     process.env.X_BEARER_TOKEN = 'read-token';

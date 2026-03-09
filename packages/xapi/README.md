@@ -27,7 +27,7 @@ xapi-cli mcp add
 # Read-only endpoints (search, profiles, trends, list reads)
 export X_BEARER_TOKEN=your_app_bearer_token
 
-# Write endpoints (post/list mutations, user follow mutations, send DM)
+# Write endpoints (post interactions, list mutations, user moderation, and send DM)
 # OAuth 2.0 user context token with required write scopes
 export X_ACCESS_TOKEN=your_oauth2_user_access_token
 ```
@@ -38,8 +38,8 @@ Auth behavior:
 
 ## Command Group Intent Summary
 
-- `posts` — Read/search/create/delete posts and inspect social engagement
-- `users` — Profile lookup, social graph traversal, and user timelines
+- `posts` — Read/search/create/delete posts, plus like/unlike, retweet, and bookmark workflows
+- `users` — Profile lookup, social graph traversal, timelines, and follow/block/mute moderation actions
 - `timeline` — Home timeline and mention stream monitoring
 - `lists` — List lookup, creation/deletion, member management, and list feed reads
 - `trends` — Trend place discovery and per-location trend fetch
@@ -63,10 +63,18 @@ xapi-cli users followers jack --max-results 100 --format json
 # Baseline file format: one follower ID per line
 xapi-cli users followers jack --new-only --seen-ids-file ./seen-followers.txt --format json
 
-# 3) Moderation helper flow
+# 3) Engagement + moderation helper flow
 xapi-cli posts get 1234567890 --format json
+xapi-cli posts like 1234567890 --format json
+xapi-cli posts unlike 1234567890 --format json
+xapi-cli posts bookmark 1234567890 --format json
+xapi-cli posts unbookmark 1234567890 --format json
 xapi-cli posts likes 1234567890 --max-results 100 --format json
 xapi-cli posts retweets 1234567890 --max-results 100 --format json
+xapi-cli users block spammer123 --format json
+xapi-cli users unblock spammer123 --format json
+xapi-cli users mute noisyaccount --format json
+xapi-cli users unmute noisyaccount --format json
 
 # 4) Timeline monitor
 xapi-cli timeline home --max-results 50 --format json
@@ -88,4 +96,4 @@ xapi-cli lists members 1234567890 --max-results 100 --format json
 - `users followers --new-only` performs **client-side diffing** against `--seen-ids-file`; it does not use an API-native `since_id` filter for follower deltas.
 - Baseline files are read-only input (newline-delimited follower IDs) and are never mutated by the CLI.
 - `X_BEARER_TOKEN` is for read-only app auth.
-- `X_ACCESS_TOKEN` is required for write actions (`posts create|delete|like|retweet`, `users follow|unfollow`, `lists create|delete|add-member|remove-member`, `dm send`).
+- `X_ACCESS_TOKEN` is required for write actions (`posts create|delete|like|unlike|bookmark|unbookmark|retweet`, `users follow|unfollow|block|unblock|mute|unmute`, `lists create|delete|add-member|remove-member`, `dm send`).
