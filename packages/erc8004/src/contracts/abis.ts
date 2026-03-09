@@ -299,6 +299,24 @@ export const validationRegistryAbi = [
     stateMutability: 'view',
   },
   {
+    type: 'function',
+    name: 'submitResult',
+    inputs: [
+      { name: 'requestId', type: 'uint256' },
+      { name: 'status', type: 'uint8' },
+      { name: 'result', type: 'string' },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'cancelValidation',
+    inputs: [{ name: 'requestId', type: 'uint256' }],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
     type: 'event',
     name: 'ValidationRequested',
     inputs: [

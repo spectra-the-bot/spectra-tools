@@ -1,6 +1,6 @@
 import { checksumAddress, formatTimestamp } from '@spectratools/cli-shared';
 import { Cli, z } from 'incur';
-import { readContract, writeContract } from 'viem/actions';
+import { readContract, simulateContract, writeContract } from 'viem/actions';
 import { ValidationStatus, validationRegistryAbi } from '../contracts/abis.js';
 import {
   MULTICALL_BATCH_SIZE,
@@ -11,6 +11,12 @@ import {
 } from '../contracts/client.js';
 import { validateBigIntArg } from '../utils/validate-agent-id.js';
 import { mapContractRevertError } from '../utils/viem-errors.js';
+
+/** Map user-facing status string to uint8 code for submitResult. */
+const statusStringToCode: Record<string, number> = {
+  pass: 1,
+  fail: 2,
+};
 
 const validation = Cli.create('validation', {
   description:
@@ -294,6 +300,333 @@ validation.command('history', {
     }
 
     return c.ok({ agentId: c.args.agentId, requests, total: totalNum });
+  },
+});
+
+validation.command('submit-result', {
+  description: 'Submit the result of a validation request (validator-only).',
+  hint: 'Requires PRIVATE_KEY environment variable. The caller must be the designated validator for this request. Defaults to the Abstract mainnet validation registry; override via --registry or VALIDATION_REGISTRY_ADDRESS.',
+  args: z.object({
+    requestId: z.string().describe('Validation request ID'),
+  }),
+  options: z.object({
+    status: z.enum(['pass', 'fail']).describe('Validation outcome: pass or fail'),
+    result: z.string().describe('Validation result description'),
+    registry: z.string().optional().describe('Validation registry contract address override'),
+    'dry-run': z.boolean().default(false).describe('Simulate the transaction without broadcasting'),
+  }),
+  env: z.object({
+    ABSTRACT_RPC_URL: z.string().optional().describe('Abstract RPC URL'),
+    VALIDATION_REGISTRY_ADDRESS: z
+      .string()
+      .optional()
+      .describe('Validation registry contract address override (defaults on Abstract mainnet)'),
+    PRIVATE_KEY: z.string().optional().describe('Private key for signing'),
+  }),
+  output: z.union([
+    z.object({
+      requestId: z.string(),
+      status: z.string(),
+      result: z.string(),
+      txHash: z.string(),
+    }),
+    z.object({
+      requestId: z.string(),
+      status: z.string(),
+      result: z.string(),
+      dryRun: z.literal(true),
+      simulationOk: z.boolean(),
+    }),
+  ]),
+  examples: [
+    {
+      args: { requestId: '1' },
+      options: { status: 'pass', result: 'All checks passed' },
+      description: 'Submit a passing result for request #1',
+    },
+    {
+      args: { requestId: '1' },
+      options: { status: 'fail', result: 'Endpoint unreachable', 'dry-run': true },
+      description: 'Simulate submitting a failure result',
+    },
+  ],
+  async run(c) {
+    const privateKey = c.env.PRIVATE_KEY;
+    if (!privateKey) {
+      return c.error({
+        code: 'NO_PRIVATE_KEY',
+        message: 'PRIVATE_KEY environment variable is required for write operations.',
+        retryable: false,
+      });
+    }
+
+    const publicClient = getPublicClient(c.env.ABSTRACT_RPC_URL);
+    const address = getValidationRegistryAddress(c.env, c.options.registry);
+    const reqId = validateBigIntArg(c.args.requestId, 'requestId');
+
+    // Pre-flight: verify request exists and caller is the designated validator
+    let validationData: readonly [bigint, `0x${string}`, string, number, string, bigint];
+    try {
+      validationData = await readContract(publicClient, {
+        address,
+        abi: validationRegistryAbi,
+        functionName: 'getValidationStatus',
+        args: [reqId],
+      });
+    } catch (error) {
+      return mapContractRevertError(c, error, 'getValidationStatus');
+    }
+
+    const currentStatus = validationData[3] as keyof typeof ValidationStatus;
+    if (currentStatus !== 0) {
+      return c.error({
+        code: 'VALIDATION_NOT_PENDING',
+        message: `Validation request ${c.args.requestId} is ${ValidationStatus[currentStatus] ?? 'Unknown'}, not Pending. Only pending requests can receive results.`,
+        retryable: false,
+      });
+    }
+
+    const walletClient = getWalletClient(privateKey, c.env.ABSTRACT_RPC_URL);
+    const callerAddress = walletClient.account.address.toLowerCase();
+    const validatorAddress = validationData[1].toLowerCase();
+    if (callerAddress !== validatorAddress) {
+      return c.error({
+        code: 'NOT_VALIDATOR',
+        message: `Caller ${checksumAddress(walletClient.account.address)} is not the designated validator (${checksumAddress(validationData[1])}) for request ${c.args.requestId}.`,
+        retryable: false,
+      });
+    }
+
+    const statusCode = statusStringToCode[c.options.status];
+    const statusLabel = c.options.status === 'pass' ? 'Passed' : 'Failed';
+
+    // Dry-run: simulate without broadcasting
+    if (c.options['dry-run']) {
+      try {
+        await simulateContract(publicClient, {
+          account: walletClient.account,
+          address,
+          abi: validationRegistryAbi,
+          functionName: 'submitResult',
+          args: [reqId, statusCode, c.options.result],
+        });
+      } catch (error) {
+        return c.error({
+          code: 'SIMULATION_FAILED',
+          message: `Dry-run simulation failed: ${error instanceof Error ? error.message : String(error)}`,
+          retryable: false,
+        });
+      }
+
+      return c.ok(
+        {
+          requestId: c.args.requestId,
+          status: statusLabel,
+          result: c.options.result,
+          dryRun: true as const,
+          simulationOk: true,
+        },
+        c.format === 'json' || c.format === 'jsonl'
+          ? undefined
+          : {
+              cta: {
+                description: 'Dry-run succeeded. To execute for real:',
+                commands: [
+                  {
+                    command: 'validation submit-result' as const,
+                    args: { requestId: c.args.requestId },
+                    description: 'Submit result (remove --dry-run)',
+                  },
+                ],
+              },
+            },
+      );
+    }
+
+    const hash = await writeContract(walletClient, {
+      chain: abstractMainnet,
+      address,
+      abi: validationRegistryAbi,
+      functionName: 'submitResult',
+      args: [reqId, statusCode, c.options.result],
+    });
+
+    await publicClient.waitForTransactionReceipt({ hash });
+
+    return c.ok(
+      {
+        requestId: c.args.requestId,
+        status: statusLabel,
+        result: c.options.result,
+        txHash: hash,
+      },
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Suggested commands:',
+              commands: [
+                {
+                  command: 'validation status' as const,
+                  args: { requestId: c.args.requestId },
+                  description: 'Verify updated validation status',
+                },
+              ],
+            },
+          },
+    );
+  },
+});
+
+validation.command('cancel', {
+  description: 'Cancel a pending validation request.',
+  hint: 'Requires PRIVATE_KEY environment variable. The request must be in Pending status. Defaults to the Abstract mainnet validation registry; override via --registry or VALIDATION_REGISTRY_ADDRESS.',
+  args: z.object({
+    requestId: z.string().describe('Validation request ID to cancel'),
+  }),
+  options: z.object({
+    registry: z.string().optional().describe('Validation registry contract address override'),
+    'dry-run': z.boolean().default(false).describe('Simulate the transaction without broadcasting'),
+  }),
+  env: z.object({
+    ABSTRACT_RPC_URL: z.string().optional().describe('Abstract RPC URL'),
+    VALIDATION_REGISTRY_ADDRESS: z
+      .string()
+      .optional()
+      .describe('Validation registry contract address override (defaults on Abstract mainnet)'),
+    PRIVATE_KEY: z.string().optional().describe('Private key for signing'),
+  }),
+  output: z.union([
+    z.object({
+      requestId: z.string(),
+      txHash: z.string(),
+    }),
+    z.object({
+      requestId: z.string(),
+      dryRun: z.literal(true),
+      simulationOk: z.boolean(),
+    }),
+  ]),
+  examples: [
+    {
+      args: { requestId: '1' },
+      description: 'Cancel validation request #1',
+    },
+    {
+      args: { requestId: '1' },
+      options: { 'dry-run': true },
+      description: 'Simulate cancelling request #1',
+    },
+  ],
+  async run(c) {
+    const privateKey = c.env.PRIVATE_KEY;
+    if (!privateKey) {
+      return c.error({
+        code: 'NO_PRIVATE_KEY',
+        message: 'PRIVATE_KEY environment variable is required for write operations.',
+        retryable: false,
+      });
+    }
+
+    const publicClient = getPublicClient(c.env.ABSTRACT_RPC_URL);
+    const address = getValidationRegistryAddress(c.env, c.options.registry);
+    const reqId = validateBigIntArg(c.args.requestId, 'requestId');
+
+    // Pre-flight: verify request exists and is in Pending status
+    let validationData: readonly [bigint, `0x${string}`, string, number, string, bigint];
+    try {
+      validationData = await readContract(publicClient, {
+        address,
+        abi: validationRegistryAbi,
+        functionName: 'getValidationStatus',
+        args: [reqId],
+      });
+    } catch (error) {
+      return mapContractRevertError(c, error, 'getValidationStatus');
+    }
+
+    const currentStatus = validationData[3] as keyof typeof ValidationStatus;
+    if (currentStatus !== 0) {
+      return c.error({
+        code: 'VALIDATION_NOT_PENDING',
+        message: `Validation request ${c.args.requestId} is ${ValidationStatus[currentStatus] ?? 'Unknown'}, not Pending. Only pending requests can be cancelled.`,
+        retryable: false,
+      });
+    }
+
+    const walletClient = getWalletClient(privateKey, c.env.ABSTRACT_RPC_URL);
+
+    // Dry-run: simulate without broadcasting
+    if (c.options['dry-run']) {
+      try {
+        await simulateContract(publicClient, {
+          account: walletClient.account,
+          address,
+          abi: validationRegistryAbi,
+          functionName: 'cancelValidation',
+          args: [reqId],
+        });
+      } catch (error) {
+        return c.error({
+          code: 'SIMULATION_FAILED',
+          message: `Dry-run simulation failed: ${error instanceof Error ? error.message : String(error)}`,
+          retryable: false,
+        });
+      }
+
+      return c.ok(
+        {
+          requestId: c.args.requestId,
+          dryRun: true as const,
+          simulationOk: true,
+        },
+        c.format === 'json' || c.format === 'jsonl'
+          ? undefined
+          : {
+              cta: {
+                description: 'Dry-run succeeded. To execute for real:',
+                commands: [
+                  {
+                    command: 'validation cancel' as const,
+                    args: { requestId: c.args.requestId },
+                    description: 'Cancel request (remove --dry-run)',
+                  },
+                ],
+              },
+            },
+      );
+    }
+
+    const hash = await writeContract(walletClient, {
+      chain: abstractMainnet,
+      address,
+      abi: validationRegistryAbi,
+      functionName: 'cancelValidation',
+      args: [reqId],
+    });
+
+    await publicClient.waitForTransactionReceipt({ hash });
+
+    return c.ok(
+      {
+        requestId: c.args.requestId,
+        txHash: hash,
+      },
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Suggested commands:',
+              commands: [
+                {
+                  command: 'validation status' as const,
+                  args: { requestId: c.args.requestId },
+                  description: 'Verify cancellation status',
+                },
+              ],
+            },
+          },
+    );
   },
 });
 
