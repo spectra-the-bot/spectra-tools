@@ -1,5 +1,5 @@
 ---
-"@spectratools/graphic-designer": patch
+"@spectratools/graphic-designer-cli": patch
 "@spectratools/tx-shared": patch
 ---
 
