@@ -235,6 +235,81 @@ posts.command('like', {
   },
 });
 
+posts.command('unlike', {
+  description: 'Unlike a post by ID.',
+  args: z.object({
+    id: z.string().describe('Post ID to unlike'),
+  }),
+  env: xApiWriteEnv,
+  output: z.object({
+    liked: z.boolean(),
+    id: z.string(),
+  }),
+  examples: [{ args: { id: '1234567890' }, description: 'Unlike a post' }],
+  async run(c) {
+    try {
+      const client = createXApiClient(writeAuthToken(c.env));
+      const me = await client.getMe();
+      const res = await client.unlikePost(me.data.id, c.args.id);
+      return c.ok({ liked: res.data.liked, id: c.args.id });
+    } catch (error) {
+      const authError = toWriteAuthError('posts unlike', error);
+      if (authError) return c.error(authError);
+      throw error;
+    }
+  },
+});
+
+posts.command('bookmark', {
+  description: 'Bookmark a post by ID.',
+  args: z.object({
+    id: z.string().describe('Post ID to bookmark'),
+  }),
+  env: xApiWriteEnv,
+  output: z.object({
+    bookmarked: z.boolean(),
+    id: z.string(),
+  }),
+  examples: [{ args: { id: '1234567890' }, description: 'Bookmark a post' }],
+  async run(c) {
+    try {
+      const client = createXApiClient(writeAuthToken(c.env));
+      const me = await client.getMe();
+      const res = await client.bookmarkPost(me.data.id, c.args.id);
+      return c.ok({ bookmarked: res.data.bookmarked, id: c.args.id });
+    } catch (error) {
+      const authError = toWriteAuthError('posts bookmark', error);
+      if (authError) return c.error(authError);
+      throw error;
+    }
+  },
+});
+
+posts.command('unbookmark', {
+  description: 'Remove bookmark from a post by ID.',
+  args: z.object({
+    id: z.string().describe('Post ID to unbookmark'),
+  }),
+  env: xApiWriteEnv,
+  output: z.object({
+    bookmarked: z.boolean(),
+    id: z.string(),
+  }),
+  examples: [{ args: { id: '1234567890' }, description: 'Remove a bookmark from a post' }],
+  async run(c) {
+    try {
+      const client = createXApiClient(writeAuthToken(c.env));
+      const me = await client.getMe();
+      const res = await client.unbookmarkPost(me.data.id, c.args.id);
+      return c.ok({ bookmarked: res.data.bookmarked, id: c.args.id });
+    } catch (error) {
+      const authError = toWriteAuthError('posts unbookmark', error);
+      if (authError) return c.error(authError);
+      throw error;
+    }
+  },
+});
+
 posts.command('retweet', {
   description: 'Retweet a post by ID.',
   args: z.object({

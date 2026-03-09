@@ -236,6 +236,138 @@ users.command('unfollow', {
   },
 });
 
+users.command('block', {
+  description: 'Block a user by username or ID.',
+  args: z.object({
+    username: z.string().describe('Username (with or without @) or user ID'),
+  }),
+  env: xApiWriteEnv,
+  output: z.object({
+    id: z.string(),
+    username: z.string(),
+    blocking: z.boolean(),
+  }),
+  examples: [{ args: { username: 'jack' }, description: 'Block @jack' }],
+  async run(c) {
+    try {
+      const client = createXApiClient(writeAuthToken(c.env));
+      const me = await client.getMe();
+      const targetRes = await resolveUser(client, c.args.username);
+      const target = targetRes.data;
+      const res = await client.blockUser(me.data.id, target.id);
+
+      return c.ok({
+        id: target.id,
+        username: target.username,
+        blocking: res.data.blocking,
+      });
+    } catch (error) {
+      const authError = toWriteAuthError('users block', error);
+      if (authError) return c.error(authError);
+      throw error;
+    }
+  },
+});
+
+users.command('unblock', {
+  description: 'Unblock a user by username or ID.',
+  args: z.object({
+    username: z.string().describe('Username (with or without @) or user ID'),
+  }),
+  env: xApiWriteEnv,
+  output: z.object({
+    id: z.string(),
+    username: z.string(),
+    blocking: z.boolean(),
+  }),
+  examples: [{ args: { username: 'jack' }, description: 'Unblock @jack' }],
+  async run(c) {
+    try {
+      const client = createXApiClient(writeAuthToken(c.env));
+      const me = await client.getMe();
+      const targetRes = await resolveUser(client, c.args.username);
+      const target = targetRes.data;
+      const res = await client.unblockUser(me.data.id, target.id);
+
+      return c.ok({
+        id: target.id,
+        username: target.username,
+        blocking: res.data.blocking,
+      });
+    } catch (error) {
+      const authError = toWriteAuthError('users unblock', error);
+      if (authError) return c.error(authError);
+      throw error;
+    }
+  },
+});
+
+users.command('mute', {
+  description: 'Mute a user by username or ID.',
+  args: z.object({
+    username: z.string().describe('Username (with or without @) or user ID'),
+  }),
+  env: xApiWriteEnv,
+  output: z.object({
+    id: z.string(),
+    username: z.string(),
+    muting: z.boolean(),
+  }),
+  examples: [{ args: { username: 'jack' }, description: 'Mute @jack' }],
+  async run(c) {
+    try {
+      const client = createXApiClient(writeAuthToken(c.env));
+      const me = await client.getMe();
+      const targetRes = await resolveUser(client, c.args.username);
+      const target = targetRes.data;
+      const res = await client.muteUser(me.data.id, target.id);
+
+      return c.ok({
+        id: target.id,
+        username: target.username,
+        muting: res.data.muting,
+      });
+    } catch (error) {
+      const authError = toWriteAuthError('users mute', error);
+      if (authError) return c.error(authError);
+      throw error;
+    }
+  },
+});
+
+users.command('unmute', {
+  description: 'Unmute a user by username or ID.',
+  args: z.object({
+    username: z.string().describe('Username (with or without @) or user ID'),
+  }),
+  env: xApiWriteEnv,
+  output: z.object({
+    id: z.string(),
+    username: z.string(),
+    muting: z.boolean(),
+  }),
+  examples: [{ args: { username: 'jack' }, description: 'Unmute @jack' }],
+  async run(c) {
+    try {
+      const client = createXApiClient(writeAuthToken(c.env));
+      const me = await client.getMe();
+      const targetRes = await resolveUser(client, c.args.username);
+      const target = targetRes.data;
+      const res = await client.unmuteUser(me.data.id, target.id);
+
+      return c.ok({
+        id: target.id,
+        username: target.username,
+        muting: res.data.muting,
+      });
+    } catch (error) {
+      const authError = toWriteAuthError('users unmute', error);
+      if (authError) return c.error(authError);
+      throw error;
+    }
+  },
+});
+
 users.command('followers', {
   description:
     'List followers of a user. Supports optional client-side baseline diffing for new follower detection.',
