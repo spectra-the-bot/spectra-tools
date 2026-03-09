@@ -301,6 +301,7 @@ const flowNodeElementSchema = z
     cornerRadius: z.number().min(0).max(64).optional(),
     width: z.number().int().min(40).max(800).optional(),
     height: z.number().int().min(30).max(600).optional(),
+    fillOpacity: z.number().min(0).max(1).default(1),
     opacity: z.number().min(0).max(1).default(1),
   })
   .strict();

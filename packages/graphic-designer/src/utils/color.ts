@@ -119,3 +119,30 @@ export function contrastRatio(foreground: string, background: string): number {
   const darker = Math.min(fg, bg);
   return (lighter + 0.05) / (darker + 0.05);
 }
+
+/**
+ * Blend a foreground color with a background color at the given opacity using
+ * standard alpha compositing (source-over).
+ *
+ * Returns an opaque `#RRGGBB` hex string representing the effective color a
+ * viewer would perceive when the foreground is painted at {@link opacity} over
+ * the background.
+ *
+ * @param foreground - Hex color of the semi-transparent layer (`#RRGGBB` or
+ *   `#RRGGBBAA`).
+ * @param background - Hex color of the opaque surface behind the layer.
+ * @param opacity - Alpha multiplier in the range `[0, 1]`.
+ * @returns The composited color as `#RRGGBB`.
+ */
+export function blendColorWithOpacity(
+  foreground: string,
+  background: string,
+  opacity: number,
+): string {
+  const fg = parseHexColor(foreground);
+  const bg = parseHexColor(background);
+  const r = Math.round(fg.r * opacity + bg.r * (1 - opacity));
+  const g = Math.round(fg.g * opacity + bg.g * (1 - opacity));
+  const b = Math.round(fg.b * opacity + bg.b * (1 - opacity));
+  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`.toUpperCase();
+}
