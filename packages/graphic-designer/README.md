@@ -62,9 +62,11 @@ design template flowchart \
 
 ```bash
 design template cards \
-  --items "Lint:Static analysis,Test:Unit + integration,Build:Production bundle" \
+  --cards '[{"title":"Lint","body":"Static analysis"},{"title":"Test","body":"Unit + integration"},{"title":"Build","body":"Production bundle"}]' \
   --out ./output/
 ```
+
+Options: `--title <text>`, `--subtitle <text>`, `--columns <n>`, `--theme <name>`, `--width <px>`, `--height <px>`
 
 ### Render from Spec
 
