@@ -1,5 +1,19 @@
 # @spectratools/graphic-designer-cli
 
+## 0.3.1
+
+### Patch Changes
+
+- [#242](https://github.com/spectra-the-bot/spectra-tools/pull/242) [`4e7ca4b`](https://github.com/spectra-the-bot/spectra-tools/commit/4e7ca4b27bdae5365757cd37bc7e09670e6c58f0) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Bump incur dependency from ^0.2.2 to ^0.3.0 to match all other packages.
+
+- [#254](https://github.com/spectra-the-bot/spectra-tools/pull/254) [`13a4bf4`](https://github.com/spectra-the-bot/spectra-tools/commit/13a4bf4704732e41854f2a2fd77787d97ad71b48) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Fix tsup config: restrict shebang to CLI entry only, add missing subpath build entries.
+
+- [#255](https://github.com/spectra-the-bot/spectra-tools/pull/255) [`678248c`](https://github.com/spectra-the-bot/spectra-tools/commit/678248c33ce3085c73b1736834a4215a72c8976d) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Fix README cards example to use correct --cards flag with JSON array syntax.
+
+- [#265](https://github.com/spectra-the-bot/spectra-tools/pull/265) [`aacbb08`](https://github.com/spectra-the-bot/spectra-tools/commit/aacbb082ba6f9ec5daad0ab78fa1e3ce9092ff30) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add missing 0.3.0 CHANGELOG entry.
+
+- [#251](https://github.com/spectra-the-bot/spectra-tools/pull/251) [`23d8bc7`](https://github.com/spectra-the-bot/spectra-tools/commit/23d8bc7befa7c555d3dca3305385b9d3750318b9) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Rename package from @spectratools/graphic-designer to @spectratools/graphic-designer-cli to match monorepo naming convention.
+
 ## 0.3.0
 
 ### Minor Changes

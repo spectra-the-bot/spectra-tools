@@ -1,6 +1,6 @@
 {
   "name": "@spectratools/tx-shared",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "description": "Shared transaction primitives, signer types, and chain config for spectra tools",
   "type": "module",
   "license": "MIT",
