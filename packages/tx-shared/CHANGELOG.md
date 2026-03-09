@@ -1,5 +1,11 @@
 # @spectratools/tx-shared
 
+## 0.5.3
+
+### Patch Changes
+
+- [#242](https://github.com/spectra-the-bot/spectra-tools/pull/242) [`4e7ca4b`](https://github.com/spectra-the-bot/spectra-tools/commit/4e7ca4b27bdae5365757cd37bc7e09670e6c58f0) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Bump incur dependency from ^0.2.2 to ^0.3.0 to match all other packages.
+
 ## 0.5.2
 
 ### Patch Changes

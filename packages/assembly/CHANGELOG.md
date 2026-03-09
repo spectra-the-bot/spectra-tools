@@ -1,5 +1,12 @@
 # @spectra-the-bot/assembly-cli
 
+## 0.11.1
+
+### Patch Changes
+
+- Updated dependencies [[`4e7ca4b`](https://github.com/spectra-the-bot/spectra-tools/commit/4e7ca4b27bdae5365757cd37bc7e09670e6c58f0)]:
+  - @spectratools/tx-shared@0.5.3
+
 ## 0.11.0
 
 ### Minor Changes
