@@ -1,5 +1,11 @@
 # @spectratools/tx-shared
 
+## 0.5.0
+
+### Minor Changes
+
+- [#217](https://github.com/spectra-the-bot/spectra-tools/pull/217) [`5a9f8dc`](https://github.com/spectra-the-bot/spectra-tools/commit/5a9f8dcf5966606107b98aa12a797095c532e757) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add Privy-backed personal_sign, eth_signTypedData_v4, and eth_signTransaction account support.
+
 ## 0.4.3
 
 ### Patch Changes

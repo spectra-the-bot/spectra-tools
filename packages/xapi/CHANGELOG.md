@@ -1,5 +1,15 @@
 # @spectra-the-bot/xapi-cli
 
+## 0.5.0
+
+### Minor Changes
+
+- [#215](https://github.com/spectra-the-bot/spectra-tools/pull/215) [`e39a1ae`](https://github.com/spectra-the-bot/spectra-tools/commit/e39a1aebda001785c583e52c62199e485fb44858) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add missing X API write client methods for social actions and list membership management.
+
+### Patch Changes
+
+- [#219](https://github.com/spectra-the-bot/spectra-tools/pull/219) [`65c0dde`](https://github.com/spectra-the-bot/spectra-tools/commit/65c0dded077644da4cf9b07b5a452991a8eb130b) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add --since-id resume support to timeline home and mentions commands.
+
 ## 0.4.0
 
 ### Minor Changes
