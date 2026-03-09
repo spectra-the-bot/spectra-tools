@@ -1,5 +1,6 @@
+import { readFileSync } from 'node:fs';
 import { Cli, z } from 'incur';
-import { createXApiClient, relativeTime, truncateText } from '../api.js';
+import { type XUser, createXApiClient, relativeTime, truncateText } from '../api.js';
 import { readAuthToken, xApiReadEnv } from '../auth.js';
 import { collectPaged } from '../collect-paged.js';
 
@@ -13,6 +14,101 @@ async function resolveUser(client: ReturnType<typeof createXApiClient>, username
   }
   return client.getUserByUsername(usernameOrId.replace(/^@/, ''));
 }
+
+function formatUserProfile(user: XUser, verbose?: boolean) {
+  return {
+    id: user.id,
+    name: user.name,
+    username: user.username,
+    description: user.description
+      ? verbose
+        ? user.description
+        : truncateText(user.description)
+      : undefined,
+    followers: user.public_metrics?.followers_count,
+    following: user.public_metrics?.following_count,
+    tweets: user.public_metrics?.tweet_count,
+    joined: user.created_at ? relativeTime(user.created_at) : undefined,
+  };
+}
+
+function readSeenIds(filePath: string): Set<string> {
+  const fileContents = readFileSync(filePath, 'utf8');
+  return new Set(
+    fileContents
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean),
+  );
+}
+
+const followersOptionsSchema = z
+  .object({
+    maxResults: z.number().default(100).describe('Maximum followers to return'),
+    seenIdsFile: z
+      .string()
+      .optional()
+      .describe(
+        'Path to newline-delimited follower IDs used as a baseline for client-side diffing',
+      ),
+    newOnly: z
+      .boolean()
+      .default(false)
+      .describe(
+        'Return only followers not found in --seen-ids-file (client-side baseline diff; not API-native since_id)',
+      ),
+  })
+  .refine((options) => !options.newOnly || Boolean(options.seenIdsFile), {
+    path: ['seenIdsFile'],
+    message: '--seen-ids-file is required when --new-only is set',
+  });
+
+users.command('me', {
+  description: 'Get the authenticated user profile and metrics.',
+  options: z.object({
+    verbose: z.boolean().optional().describe('Show full bio without truncation'),
+  }),
+  env: xApiReadEnv,
+  output: z.object({
+    id: z.string(),
+    name: z.string(),
+    username: z.string(),
+    description: z.string().optional(),
+    followers: z.number().optional(),
+    following: z.number().optional(),
+    tweets: z.number().optional(),
+    joined: z.string().optional(),
+  }),
+  examples: [{ description: 'Get your authenticated profile', options: {} }],
+  async run(c) {
+    const client = createXApiClient(readAuthToken(c.env));
+    const res = await client.getMe();
+    const user = res.data;
+
+    return c.ok(
+      formatUserProfile(user, c.options.verbose),
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Explore your account:',
+              commands: [
+                {
+                  command: 'users followers',
+                  args: { username: user.username },
+                  description: 'View your followers',
+                },
+                {
+                  command: 'users posts',
+                  args: { username: user.username },
+                  description: 'View your recent posts',
+                },
+              ],
+            },
+          },
+    );
+  },
+});
 
 users.command('get', {
   description: 'Get a user by username or ID.',
@@ -42,20 +138,7 @@ users.command('get', {
     const res = await resolveUser(client, c.args.username);
     const user = res.data;
     return c.ok(
-      {
-        id: user.id,
-        name: user.name,
-        username: user.username,
-        description: user.description
-          ? c.options.verbose
-            ? user.description
-            : truncateText(user.description)
-          : undefined,
-        followers: user.public_metrics?.followers_count,
-        following: user.public_metrics?.following_count,
-        tweets: user.public_metrics?.tweet_count,
-        joined: user.created_at ? relativeTime(user.created_at) : undefined,
-      },
+      formatUserProfile(user, c.options.verbose),
       c.format === 'json' || c.format === 'jsonl'
         ? undefined
         : {
@@ -80,14 +163,13 @@ users.command('get', {
 });
 
 users.command('followers', {
-  description: 'List followers of a user.',
+  description:
+    'List followers of a user. Supports optional client-side baseline diffing for new follower detection.',
   args: z.object({
     username: z.string().describe('Username or user ID'),
   }),
-  options: z.object({
-    maxResults: z.number().default(100).describe('Maximum followers to return'),
-  }),
-  alias: { maxResults: 'n' },
+  options: followersOptionsSchema,
+  alias: { maxResults: 'n', seenIdsFile: 's' },
   env: xApiReadEnv,
   output: z.object({
     users: z.array(
@@ -100,7 +182,15 @@ users.command('followers', {
     ),
     count: z.number(),
   }),
-  examples: [{ args: { username: 'jack' }, description: 'List followers of jack' }],
+  examples: [
+    { args: { username: 'jack' }, description: 'List followers of jack' },
+    {
+      args: { username: 'jack' },
+      options: { seenIdsFile: './seen-followers.txt', newOnly: true },
+      description:
+        'Show only followers not in your baseline file (client-side diffing; the X API does not support since_id here)',
+    },
+  ],
   async run(c) {
     const client = createXApiClient(readAuthToken(c.env));
     const userRes = await resolveUser(client, c.args.username);
@@ -124,7 +214,18 @@ users.command('followers', {
       1000,
     );
 
-    return c.ok({ users: allUsers, count: allUsers.length });
+    if (!c.options.newOnly) {
+      return c.ok({ users: allUsers, count: allUsers.length });
+    }
+
+    if (!c.options.seenIdsFile) {
+      throw new Error('--seen-ids-file is required when --new-only is set');
+    }
+
+    const seenIds = readSeenIds(c.options.seenIdsFile);
+    const newUsers = allUsers.filter((user) => !seenIds.has(user.id));
+
+    return c.ok({ users: newUsers, count: newUsers.length });
   },
 });
 

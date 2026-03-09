@@ -1,3 +1,6 @@
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cli } from '../cli.js';
 
@@ -35,6 +38,187 @@ describe('xapi cli command groups', () => {
       expect(output).toContain(group);
     },
   );
+});
+
+describe('xapi cli users commands', () => {
+  afterEach(() => {
+    Reflect.deleteProperty(process.env, 'X_BEARER_TOKEN');
+    Reflect.deleteProperty(process.env, 'X_ACCESS_TOKEN');
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  it('returns authenticated profile for users me', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-10T12:00:00.000Z'));
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            data: {
+              id: '12345',
+              name: 'Jack',
+              username: 'jack',
+              description: 'Building social software.',
+              public_metrics: {
+                followers_count: 10,
+                following_count: 20,
+                tweet_count: 30,
+                listed_count: 1,
+              },
+              created_at: '2026-01-09T12:00:00.000Z',
+            },
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+      ),
+    );
+
+    process.env.X_BEARER_TOKEN = 'test-token';
+
+    const { output, exitCode } = await runCli(['users', 'me', '--json']);
+
+    expect(exitCode).toBe(0);
+    expect(JSON.parse(output)).toEqual({
+      id: '12345',
+      name: 'Jack',
+      username: 'jack',
+      description: 'Building social software.',
+      followers: 10,
+      following: 20,
+      tweets: 30,
+      joined: '1d ago',
+    });
+  });
+
+  it('returns followers unchanged without new-only baseline mode', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn<typeof fetch>()
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              data: {
+                id: '12345',
+                name: 'Jack',
+                username: 'jack',
+                public_metrics: {
+                  followers_count: 10,
+                  following_count: 20,
+                  tweet_count: 30,
+                  listed_count: 1,
+                },
+              },
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          ),
+        )
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              data: [
+                { id: '1', name: 'Alice', username: 'alice' },
+                { id: '2', name: 'Bob', username: 'bob' },
+              ],
+              meta: { result_count: 2 },
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          ),
+        ),
+    );
+
+    process.env.X_BEARER_TOKEN = 'test-token';
+
+    const { output, exitCode } = await runCli([
+      'users',
+      'followers',
+      'jack',
+      '--max-results',
+      '10',
+      '--json',
+    ]);
+
+    expect(exitCode).toBe(0);
+    expect(JSON.parse(output)).toEqual({
+      users: [
+        { id: '1', name: 'Alice', username: 'alice' },
+        { id: '2', name: 'Bob', username: 'bob' },
+      ],
+      count: 2,
+    });
+  });
+
+  it('filters followers with --new-only using client-side baseline file and does not mutate file', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn<typeof fetch>()
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              data: {
+                id: '12345',
+                name: 'Jack',
+                username: 'jack',
+                public_metrics: {
+                  followers_count: 10,
+                  following_count: 20,
+                  tweet_count: 30,
+                  listed_count: 1,
+                },
+              },
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          ),
+        )
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              data: [
+                { id: '1', name: 'Alice', username: 'alice' },
+                { id: '2', name: 'Bob', username: 'bob' },
+                { id: '3', name: 'Carol', username: 'carol' },
+              ],
+              meta: { result_count: 3 },
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          ),
+        ),
+    );
+
+    process.env.X_BEARER_TOKEN = 'test-token';
+
+    const tmpDir = mkdtempSync(join(tmpdir(), 'xapi-followers-'));
+    const seenIdsFile = join(tmpDir, 'seen-ids.txt');
+    const baseline = '1\n2\n';
+    writeFileSync(seenIdsFile, baseline, 'utf8');
+
+    try {
+      const { output, exitCode } = await runCli([
+        'users',
+        'followers',
+        'jack',
+        '--max-results',
+        '10',
+        '--new-only',
+        '--seen-ids-file',
+        seenIdsFile,
+        '--json',
+      ]);
+
+      expect(exitCode).toBe(0);
+      expect(JSON.parse(output)).toEqual({
+        users: [{ id: '3', name: 'Carol', username: 'carol' }],
+        count: 1,
+      });
+      expect(readFileSync(seenIdsFile, 'utf8')).toBe(baseline);
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
 });
 
 describe('xapi cli error and empty-result paths', () => {

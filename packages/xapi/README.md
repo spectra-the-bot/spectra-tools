@@ -54,9 +54,14 @@ xapi-cli trends location 1 --format json
 xapi-cli posts search "AI agents" --sort relevancy --max-results 20 --format json
 
 # 2) User intelligence pass
+xapi-cli users me --format json
 xapi-cli users get jack --format json
 xapi-cli users posts jack --max-results 20 --format json
 xapi-cli users followers jack --max-results 100 --format json
+
+# 2b) Client-side follower delta (new followers since a known baseline)
+# Baseline file format: one follower ID per line
+xapi-cli users followers jack --new-only --seen-ids-file ./seen-followers.txt --format json
 
 # 3) Moderation helper flow
 xapi-cli posts get 1234567890 --format json
@@ -75,5 +80,7 @@ xapi-cli dm send 12345 --text "hello from agent" --format json
 ## Notes
 
 - All commands support JSON output with `--format json`.
+- `users followers --new-only` performs **client-side diffing** against `--seen-ids-file`; it does not use an API-native `since_id` filter for follower deltas.
+- Baseline files are read-only input (newline-delimited follower IDs) and are never mutated by the CLI.
 - `X_BEARER_TOKEN` is for read-only app auth.
 - `X_ACCESS_TOKEN` is required for write actions (`posts create`, `posts delete`, `dm send`).
