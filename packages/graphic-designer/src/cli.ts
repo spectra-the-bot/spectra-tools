@@ -7,7 +7,7 @@ import { publishToGist } from './publish/gist.js';
 import { publishToGitHub } from './publish/github.js';
 import { readMetadata, runQa } from './qa.js';
 import { inferSidecarPath, renderDesign, writeRenderArtifacts } from './renderer.js';
-import { parseDesignSpec, type DesignSpec } from './spec.schema.js';
+import { type DesignSpec, parseDesignSpec } from './spec.schema.js';
 import {
   buildCardsSpec,
   buildCodeSpec,
@@ -140,9 +140,7 @@ async function runRenderPipeline(
 cli.command('render', {
   description: 'Render a deterministic design artifact from a DesignSpec JSON file.',
   options: z.object({
-    spec: z
-      .string()
-      .describe('Path to DesignSpec JSON file (or "-" to read JSON from stdin)'),
+    spec: z.string().describe('Path to DesignSpec JSON file (or "-" to read JSON from stdin)'),
     out: z.string().describe('Output file path (.png) or output directory'),
     specOut: z
       .string()
@@ -189,9 +187,7 @@ template.command('flowchart', {
     nodes: z
       .string()
       .describe('Comma-separated node names, optionally with :shape (example: Decision:diamond)'),
-    edges: z
-      .string()
-      .describe('Comma-separated edges as From->To or From->To:label'),
+    edges: z.string().describe('Comma-separated edges as From->To or From->To:label'),
     title: z.string().optional().describe('Optional header title'),
     direction: z.enum(['TB', 'BT', 'LR', 'RL']).default('TB').describe('Auto-layout direction'),
     algorithm: z

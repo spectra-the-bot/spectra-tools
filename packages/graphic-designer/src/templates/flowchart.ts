@@ -1,4 +1,4 @@
-import { parseDesignSpec, type DesignSpec, type FlowNodeElement } from '../spec.schema.js';
+import { type DesignSpec, type FlowNodeElement, parseDesignSpec } from '../spec.schema.js';
 
 const FLOW_NODE_SHAPES: ReadonlySet<FlowNodeElement['shape']> = new Set([
   'box',
@@ -10,7 +10,10 @@ const FLOW_NODE_SHAPES: ReadonlySet<FlowNodeElement['shape']> = new Set([
   'parallelogram',
 ]);
 
-function parseNodeToken(token: string, fallbackShape: FlowNodeElement['shape']): {
+function parseNodeToken(
+  token: string,
+  fallbackShape: FlowNodeElement['shape'],
+): {
   name: string;
   shape: FlowNodeElement['shape'];
 } {

@@ -1,4 +1,4 @@
-import { builtInThemes, type Theme, type ThemeInput } from './builtin.js';
+import { type Theme, type ThemeInput, builtInThemes } from './builtin.js';
 
 export * from './builtin.js';
 export * from './syntax.js';

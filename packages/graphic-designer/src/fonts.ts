@@ -1,6 +1,6 @@
-import { GlobalFonts } from '@napi-rs/canvas';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { GlobalFonts } from '@napi-rs/canvas';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const fontsDir = resolve(__dirname, '../fonts');

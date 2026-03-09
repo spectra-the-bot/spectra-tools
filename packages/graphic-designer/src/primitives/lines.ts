@@ -84,14 +84,7 @@ export function drawBezier(ctx: SKRSContext2D, points: Point[], style: LineStyle
   ctx.moveTo(points[0].x, points[0].y);
 
   if (points.length === 4) {
-    ctx.bezierCurveTo(
-      points[1].x,
-      points[1].y,
-      points[2].x,
-      points[2].y,
-      points[3].x,
-      points[3].y,
-    );
+    ctx.bezierCurveTo(points[1].x, points[1].y, points[2].x, points[2].y, points[3].x, points[3].y);
     ctx.stroke();
     return;
   }

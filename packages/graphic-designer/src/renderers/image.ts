@@ -1,7 +1,7 @@
-import { loadImage, type SKRSContext2D } from '@napi-rs/canvas';
+import { type SKRSContext2D, loadImage } from '@napi-rs/canvas';
+import { applyFont, resolveFont } from '../primitives/text.js';
 import type { Rect, RenderedElement } from '../renderer.js';
 import type { ImageElement, Theme } from '../spec.schema.js';
-import { applyFont, resolveFont } from '../primitives/text.js';
 
 function roundedRectPath(ctx: SKRSContext2D, bounds: Rect, radius: number): void {
   const r = Math.max(0, Math.min(radius, Math.min(bounds.width, bounds.height) / 2));

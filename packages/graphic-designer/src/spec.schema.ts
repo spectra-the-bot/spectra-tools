@@ -254,15 +254,7 @@ const flowNodeElementSchema = z
   .object({
     type: z.literal('flow-node'),
     id: z.string().min(1).max(120),
-    shape: z.enum([
-      'box',
-      'rounded-box',
-      'diamond',
-      'circle',
-      'pill',
-      'cylinder',
-      'parallelogram',
-    ]),
+    shape: z.enum(['box', 'rounded-box', 'diamond', 'circle', 'pill', 'cylinder', 'parallelogram']),
     label: z.string().min(1).max(200),
     sublabel: z.string().min(1).max(300).optional(),
     sublabelColor: colorHexSchema.optional(),

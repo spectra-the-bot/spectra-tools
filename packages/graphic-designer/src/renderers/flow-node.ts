@@ -1,6 +1,4 @@
 import type { SKRSContext2D } from '@napi-rs/canvas';
-import type { Rect, RenderedElement } from '../renderer.js';
-import type { FlowNodeElement, Theme } from '../spec.schema.js';
 import {
   drawCircle,
   drawCylinder,
@@ -10,6 +8,8 @@ import {
   drawRoundedRect,
 } from '../primitives/shapes.js';
 import { applyFont, resolveFont } from '../primitives/text.js';
+import type { Rect, RenderedElement } from '../renderer.js';
+import type { FlowNodeElement, Theme } from '../spec.schema.js';
 
 export function renderFlowNode(
   ctx: SKRSContext2D,
@@ -66,7 +66,9 @@ export function renderFlowNode(
   const centerX = bounds.x + bounds.width / 2;
   const centerY = bounds.y + bounds.height / 2;
 
-  const labelY = node.sublabel ? centerY - Math.max(4, labelFontSize * 0.2) : centerY + labelFontSize * 0.3;
+  const labelY = node.sublabel
+    ? centerY - Math.max(4, labelFontSize * 0.2)
+    : centerY + labelFontSize * 0.3;
 
   ctx.textAlign = 'center';
   applyFont(ctx, { size: labelFontSize, weight: 700, family: headingFont });

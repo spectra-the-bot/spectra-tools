@@ -16,7 +16,11 @@ function defaultManualSize(total: number, safeFrame: Rect): Rect {
   };
 }
 
-function computeManualLayout(elements: Element[], layout: LayoutConfig, safeFrame: Rect): LayoutResult {
+function computeManualLayout(
+  elements: Element[],
+  layout: LayoutConfig,
+  safeFrame: Rect,
+): LayoutResult {
   const positions = new Map<string, Rect>();
   const placeable = elements.filter((element) => element.type !== 'connection');
 
@@ -67,6 +71,10 @@ export async function computeLayout(
     case 'manual':
       return computeManualLayout(elements, layout, safeFrame);
     default:
-      return computeGridLayout(elements, { mode: 'grid', columns: 3, gap: 24, equalHeight: false }, safeFrame);
+      return computeGridLayout(
+        elements,
+        { mode: 'grid', columns: 3, gap: 24, equalHeight: false },
+        safeFrame,
+      );
   }
 }

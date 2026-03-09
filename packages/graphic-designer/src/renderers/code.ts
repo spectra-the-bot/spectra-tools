@@ -1,11 +1,11 @@
 import type { SKRSContext2D } from '@napi-rs/canvas';
 import { resolveCodeBlockStyle } from '../code-style.js';
-import { drawWindowChrome } from '../primitives/window-chrome.js';
 import { drawRoundedRect, roundRectPath } from '../primitives/shapes.js';
 import { applyFont, resolveFont } from '../primitives/text.js';
+import { drawWindowChrome } from '../primitives/window-chrome.js';
 import type { Rect, RenderedElement } from '../renderer.js';
 import type { CodeBlockElement, Theme } from '../spec.schema.js';
-import { highlightCode, type HighlightedLine } from '../syntax/highlighter.js';
+import { type HighlightedLine, highlightCode } from '../syntax/highlighter.js';
 import { resolveShikiTheme } from '../themes/index.js';
 
 const fallbackKeywords = new Set([
@@ -219,7 +219,12 @@ export async function renderCodeBlock(
 
     if (highlighted.has(lineNumber)) {
       ctx.fillStyle = 'rgba(122, 162, 255, 0.18)';
-      ctx.fillRect(contentRect.x - 4, y - lineHeight + 4, lineNumberWidth + lineTextWidth + 12, lineHeight);
+      ctx.fillRect(
+        contentRect.x - 4,
+        y - lineHeight + 4,
+        lineNumberWidth + lineTextWidth + 12,
+        lineHeight,
+      );
     }
 
     let x = contentRect.x;

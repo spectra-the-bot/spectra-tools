@@ -244,7 +244,9 @@ describe('design spec schema v2', () => {
       expect(spec.layout.aspectRatio).toBe(1.78);
     }
 
-    const node = spec.elements.find((element) => element.type === 'flow-node' && element.id === 'n1');
+    const node = spec.elements.find(
+      (element) => element.type === 'flow-node' && element.id === 'n1',
+    );
     expect(node).toBeDefined();
     if (node?.type === 'flow-node') {
       expect(node.sublabelColor).toBe('#8899AA');
@@ -279,7 +281,9 @@ describe('design spec schema v2', () => {
     expect(spec.header?.align).toBe('center');
     expect(spec.header?.titleLetterSpacing).toBe(0);
 
-    const flow = spec.elements.find((element) => element.type === 'flow-node' && element.id === 'a');
+    const flow = spec.elements.find(
+      (element) => element.type === 'flow-node' && element.id === 'a',
+    );
     const connection = spec.elements.find((element) => element.type === 'connection');
 
     if (flow?.type === 'flow-node') {

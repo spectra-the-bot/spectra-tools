@@ -130,7 +130,14 @@ describe('layout engine', () => {
   it('respects per-node width/height hints in ELK', async () => {
     const elements = parseDesignSpec({
       elements: [
-        { type: 'flow-node', id: 'wide', shape: 'rounded-box', label: 'Wide', width: 320, height: 120 },
+        {
+          type: 'flow-node',
+          id: 'wide',
+          shape: 'rounded-box',
+          label: 'Wide',
+          width: 320,
+          height: 120,
+        },
         { type: 'flow-node', id: 'default', shape: 'rounded-box', label: 'Default' },
         { type: 'connection', from: 'wide', to: 'default' },
       ],
@@ -270,7 +277,8 @@ describe('layout engine', () => {
     );
 
     const inferredGrid = inferLayout(
-      parseDesignSpec({ elements: [{ type: 'card', id: 'c', title: 'Card', body: 'Body' }] }).elements,
+      parseDesignSpec({ elements: [{ type: 'card', id: 'c', title: 'Card', body: 'Body' }] })
+        .elements,
     );
 
     const inferredStack = inferLayout(
@@ -280,7 +288,8 @@ describe('layout engine', () => {
     );
 
     const explicit = inferLayout(
-      parseDesignSpec({ elements: [{ type: 'card', id: 'c', title: 'Card', body: 'Body' }] }).elements,
+      parseDesignSpec({ elements: [{ type: 'card', id: 'c', title: 'Card', body: 'Body' }] })
+        .elements,
       { mode: 'manual', positions: {} },
     );
 

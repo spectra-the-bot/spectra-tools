@@ -75,12 +75,25 @@ export function drawEllipse(ctx: SKRSContext2D, bounds: Rect, fill: string, stro
   const cy = bounds.y + bounds.height / 2;
 
   ctx.beginPath();
-  ctx.ellipse(cx, cy, Math.max(0, bounds.width / 2), Math.max(0, bounds.height / 2), 0, 0, Math.PI * 2);
+  ctx.ellipse(
+    cx,
+    cy,
+    Math.max(0, bounds.width / 2),
+    Math.max(0, bounds.height / 2),
+    0,
+    0,
+    Math.PI * 2,
+  );
   ctx.closePath();
   fillAndStroke(ctx, fill, stroke);
 }
 
-export function drawCylinder(ctx: SKRSContext2D, bounds: Rect, fill: string, stroke?: string): void {
+export function drawCylinder(
+  ctx: SKRSContext2D,
+  bounds: Rect,
+  fill: string,
+  stroke?: string,
+): void {
   const rx = Math.max(2, bounds.width / 2);
   const ry = Math.max(2, Math.min(bounds.height * 0.18, 16));
   const cx = bounds.x + bounds.width / 2;

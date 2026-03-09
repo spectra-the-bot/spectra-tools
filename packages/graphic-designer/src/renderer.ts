@@ -1,21 +1,26 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { basename, dirname, extname, join, resolve } from 'node:path';
-import { createCanvas, type SKRSContext2D } from '@napi-rs/canvas';
+import { type SKRSContext2D, createCanvas } from '@napi-rs/canvas';
 import { resolveRenderScale } from './code-style.js';
 import { loadFonts } from './fonts.js';
+import { type EdgeRoute, computeLayout } from './layout/index.js';
 import { drawGradientRect, drawRainbowRule, drawVignette } from './primitives/gradients.js';
-import { resolveFont, applyFont, wrapText } from './primitives/text.js';
-import { computeLayout, type EdgeRoute } from './layout/index.js';
+import { applyFont, resolveFont, wrapText } from './primitives/text.js';
 import { renderCard } from './renderers/card.js';
 import { renderCodeBlock } from './renderers/code.js';
 import { renderConnection } from './renderers/connection.js';
+import { renderDrawCommands } from './renderers/draw.js';
 import { renderFlowNode } from './renderers/flow-node.js';
 import { renderImageElement } from './renderers/image.js';
 import { renderShapeElement } from './renderers/shape.js';
 import { renderTerminal } from './renderers/terminal.js';
 import { renderTextElement } from './renderers/text.js';
-import { renderDrawCommands } from './renderers/draw.js';
-import { type DesignSafeFrame, type DesignSpec, deriveSafeFrame, parseDesignSpec } from './spec.schema.js';
+import {
+  type DesignSafeFrame,
+  type DesignSpec,
+  deriveSafeFrame,
+  parseDesignSpec,
+} from './spec.schema.js';
 import { resolveTheme } from './themes/index.js';
 import { canonicalJson, sha256Hex, shortHash } from './utils/hash.js';
 
@@ -227,7 +232,11 @@ function drawAlignedTextBlock(
     letterSpacing?: number;
   },
 ): { height: number; truncated: boolean } {
-  applyFont(ctx, { size: options.fontSize, weight: options.fontWeight, family: options.fontFamily });
+  applyFont(ctx, {
+    size: options.fontSize,
+    weight: options.fontWeight,
+    family: options.fontFamily,
+  });
   const letterSpacing = options.letterSpacing ?? 0;
   const wrapped = wrapTextWithLetterSpacing(
     ctx,
@@ -314,7 +323,8 @@ export async function renderDesign(
       }
     : undefined;
 
-  const sectionGap = spec.layout.mode === 'grid' || spec.layout.mode === 'stack' ? spec.layout.gap : 24;
+  const sectionGap =
+    spec.layout.mode === 'grid' || spec.layout.mode === 'stack' ? spec.layout.gap : 24;
   const contentTop = headerRect ? headerRect.y + headerRect.height + sectionGap : safeFrame.y;
   const contentBottom = footerRect ? footerRect.y - sectionGap : safeFrame.y + safeFrame.height;
 
@@ -423,7 +433,7 @@ export async function renderDesign(
       decorator.y === 'before-footer'
         ? defaultBeforeFooterY
         : decorator.y === 'custom'
-          ? decorator.customY ?? defaultAfterHeaderY
+          ? (decorator.customY ?? defaultAfterHeaderY)
           : defaultAfterHeaderY;
 
     const x = safeFrame.x + decorator.margin;
@@ -509,7 +519,9 @@ export async function renderDesign(
   }
 
   if (footerRect && spec.footer) {
-    const footerText = spec.footer.tagline ? `${spec.footer.text} • ${spec.footer.tagline}` : spec.footer.text;
+    const footerText = spec.footer.tagline
+      ? `${spec.footer.text} • ${spec.footer.tagline}`
+      : spec.footer.text;
     applyFont(ctx, { size: 16, weight: 600, family: monoFont });
     ctx.fillStyle = theme.textMuted;
     ctx.fillText(footerText, footerRect.x, footerRect.y + footerRect.height - 10);

@@ -52,8 +52,6 @@ function estimateFlowNodeSize(node: FlowNodeElement): { width: number; height: n
       return { width: 140, height: 92 };
     case 'parallelogram':
       return { width: 180, height: 72 };
-    case 'rounded-box':
-    case 'box':
     default:
       return { width: 170, height: 64 };
   }
@@ -69,7 +67,10 @@ function splitLayoutFrames(
   }
 
   const isHorizontal = direction === 'LR' || direction === 'RL';
-  const gap = Math.min(32, Math.max(16, Math.floor(Math.min(safeFrame.width, safeFrame.height) * 0.03)));
+  const gap = Math.min(
+    32,
+    Math.max(16, Math.floor(Math.min(safeFrame.width, safeFrame.height) * 0.03)),
+  );
 
   if (isHorizontal) {
     const flowWidth = Math.max(120, Math.floor(safeFrame.width * 0.7) - Math.floor(gap / 2));
@@ -110,7 +111,9 @@ function splitLayoutFrames(
   };
 }
 
-function computeBounds(nodes: Array<{ x: number; y: number; width: number; height: number }>): Bounds {
+function computeBounds(
+  nodes: Array<{ x: number; y: number; width: number; height: number }>,
+): Bounds {
   const minX = Math.min(...nodes.map((node) => node.x));
   const minY = Math.min(...nodes.map((node) => node.y));
   const maxX = Math.max(...nodes.map((node) => node.x + node.width));
@@ -128,15 +131,9 @@ function computeTransform(bounds: Bounds, targetFrame: Rect): LayoutTransform {
   const scale = Math.min(usableWidth / graphWidth, usableHeight / graphHeight, 1);
 
   const offsetX =
-    targetFrame.x +
-    padding +
-    (usableWidth - graphWidth * scale) / 2 -
-    bounds.minX * scale;
+    targetFrame.x + padding + (usableWidth - graphWidth * scale) / 2 - bounds.minX * scale;
   const offsetY =
-    targetFrame.y +
-    padding +
-    (usableHeight - graphHeight * scale) / 2 -
-    bounds.minY * scale;
+    targetFrame.y + padding + (usableHeight - graphHeight * scale) / 2 - bounds.minY * scale;
 
   return { scale, offsetX, offsetY };
 }
@@ -173,7 +170,6 @@ function edgeRoutingToElk(edgeRouting: AutoLayoutConfig['edgeRouting']): string 
       return 'ORTHOGONAL';
     case 'spline':
       return 'SPLINES';
-    case 'polyline':
     default:
       return 'POLYLINE';
   }
@@ -189,7 +185,6 @@ function algorithmToElk(algorithm: AutoLayoutConfig['algorithm']): string {
       return 'radial';
     case 'box':
       return 'rectpacking';
-    case 'layered':
     default:
       return 'layered';
   }
@@ -203,7 +198,6 @@ function directionToElk(direction: AutoLayoutConfig['direction']): string {
       return 'RIGHT';
     case 'RL':
       return 'LEFT';
-    case 'TB':
     default:
       return 'DOWN';
   }
@@ -227,7 +221,9 @@ export async function computeElkLayout(
   const positions = new Map<string, Rect>();
   const edgeRoutes = new Map<string, EdgeRoute>();
 
-  const flowNodes = elements.filter((element): element is FlowNodeElement => element.type === 'flow-node');
+  const flowNodes = elements.filter(
+    (element): element is FlowNodeElement => element.type === 'flow-node',
+  );
   const connections = elements.filter(
     (element): element is ConnectionElement => element.type === 'connection',
   );
@@ -239,7 +235,11 @@ export async function computeElkLayout(
     return fallbackForNoFlowNodes(nonFlow, safeFrame);
   }
 
-  const { flowFrame, auxiliaryFrame } = splitLayoutFrames(safeFrame, config.direction, nonFlow.length > 0);
+  const { flowFrame, auxiliaryFrame } = splitLayoutFrames(
+    safeFrame,
+    config.direction,
+    nonFlow.length > 0,
+  );
 
   const flowNodeIds = new Set(flowNodes.map((node) => node.id));
   const elkNodeSizes = new Map<string, { width: number; height: number }>();

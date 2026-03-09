@@ -226,7 +226,9 @@ export async function runQa(options: {
 
     if (spec.footer) {
       const footer = layoutElements.find((element) => element.id === 'footer');
-      const nonFooter = topLevelElements(layoutElements).filter((element) => element.id !== 'footer');
+      const nonFooter = topLevelElements(layoutElements).filter(
+        (element) => element.id !== 'footer',
+      );
       if (footer && nonFooter.length > 0) {
         const highestBottom = Math.max(
           ...nonFooter.map((element) => element.bounds.y + element.bounds.height),
@@ -249,7 +251,7 @@ export async function runQa(options: {
 
     if (spec.header) {
       const header = layoutElements.find((element) => element.id === 'header');
-      if (header && header.foregroundColor && header.backgroundColor) {
+      if (header?.foregroundColor && header.backgroundColor) {
         const ratio = contrastRatio(header.foregroundColor, header.backgroundColor);
         if (ratio < spec.constraints.minContrastRatio) {
           issues.push({

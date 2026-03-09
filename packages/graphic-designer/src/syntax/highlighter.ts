@@ -1,4 +1,4 @@
-import { createHighlighter, type Highlighter, type ThemedToken } from 'shiki';
+import { type Highlighter, type ThemedToken, createHighlighter } from 'shiki';
 
 let highlighterInstance: Highlighter | null = null;
 
@@ -40,6 +40,9 @@ const languageAliases: Record<string, string> = {
   txt: 'plaintext',
 };
 
+type LoadedTheme = (typeof loadedThemes)[number];
+type LoadedLanguage = (typeof loadedLanguages)[number];
+
 export async function initHighlighter(): Promise<Highlighter> {
   if (highlighterInstance) {
     return highlighterInstance;
@@ -57,9 +60,22 @@ export type HighlightedLine = {
   tokens: Array<{ text: string; color: string }>;
 };
 
-function normalizeLanguage(language: string): string {
-  const normalized = language.trim().toLowerCase();
-  return languageAliases[normalized] ?? normalized;
+function isLoadedTheme(theme: string): theme is LoadedTheme {
+  return loadedThemes.includes(theme as LoadedTheme);
+}
+
+function isLoadedLanguage(language: string): language is LoadedLanguage {
+  return loadedLanguages.includes(language as LoadedLanguage);
+}
+
+function resolveLanguage(language: string): LoadedLanguage {
+  const normalized =
+    languageAliases[language.trim().toLowerCase()] ?? language.trim().toLowerCase();
+  return isLoadedLanguage(normalized) ? normalized : 'plaintext';
+}
+
+function resolveTheme(themeName: string): LoadedTheme {
+  return isLoadedTheme(themeName) ? themeName : 'github-dark-default';
 }
 
 function normalizeTokenColor(token: ThemedToken): string {
@@ -72,11 +88,10 @@ export async function highlightCode(
   themeName: string,
 ): Promise<HighlightedLine[]> {
   const highlighter = await initHighlighter();
-  const normalizedLanguage = normalizeLanguage(language);
 
   const tokens = highlighter.codeToTokensBase(code, {
-    lang: normalizedLanguage as any,
-    theme: themeName as any,
+    lang: resolveLanguage(language),
+    theme: resolveTheme(themeName),
   });
 
   return tokens.map((line) => ({

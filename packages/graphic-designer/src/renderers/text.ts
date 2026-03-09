@@ -1,7 +1,7 @@
 import type { SKRSContext2D } from '@napi-rs/canvas';
+import { applyFont, resolveFont, wrapText } from '../primitives/text.js';
 import type { Rect, RenderedElement } from '../renderer.js';
 import type { TextElement, Theme } from '../spec.schema.js';
-import { applyFont, resolveFont, wrapText } from '../primitives/text.js';
 
 type TextStyleDef = {
   fontSize: number;
@@ -35,7 +35,11 @@ export function renderTextElement(
   ctx.textAlign = textEl.align;
 
   const x =
-    textEl.align === 'center' ? bounds.x + bounds.width / 2 : textEl.align === 'right' ? bounds.x + bounds.width : bounds.x;
+    textEl.align === 'center'
+      ? bounds.x + bounds.width / 2
+      : textEl.align === 'right'
+        ? bounds.x + bounds.width
+        : bounds.x;
 
   for (const [index, line] of wrapped.lines.entries()) {
     ctx.fillText(line, x, bounds.y + style.fontSize + index * style.lineHeight);

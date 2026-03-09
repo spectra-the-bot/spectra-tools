@@ -1,7 +1,5 @@
 import type { SKRSContext2D } from '@napi-rs/canvas';
 import type { EdgeRoute } from '../layout/types.js';
-import type { Rect, RenderedElement } from '../renderer.js';
-import type { ConnectionElement, Theme } from '../spec.schema.js';
 import {
   type ArrowStyle,
   type LineStyle,
@@ -10,6 +8,8 @@ import {
   drawOrthogonalPath,
 } from '../primitives/lines.js';
 import { drawTextLabel, resolveFont } from '../primitives/text.js';
+import type { Rect, RenderedElement } from '../renderer.js';
+import type { ConnectionElement, Theme } from '../spec.schema.js';
 
 function center(rect: Rect): Point {
   return {
@@ -158,12 +158,7 @@ export function renderConnection(
   const points =
     edgeRoute && edgeRoute.points.length >= 2
       ? edgeRoute.points
-      : [
-          from,
-          { x: (from.x + to.x) / 2, y: from.y },
-          { x: (from.x + to.x) / 2, y: to.y },
-          to,
-        ];
+      : [from, { x: (from.x + to.x) / 2, y: from.y }, { x: (from.x + to.x) / 2, y: to.y }, to];
 
   const startSegment = points[1] ?? points[0];
   const endStart = points[points.length - 2] ?? points[0];

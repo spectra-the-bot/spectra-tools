@@ -1,4 +1,4 @@
-import { parseDesignSpec, type DesignSpec } from '../spec.schema.js';
+import { type DesignSpec, parseDesignSpec } from '../spec.schema.js';
 
 function inferColumns(cardCount: number): number {
   if (cardCount <= 1) {

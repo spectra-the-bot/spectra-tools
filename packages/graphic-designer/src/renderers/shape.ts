@@ -1,8 +1,8 @@
 import type { SKRSContext2D } from '@napi-rs/canvas';
-import type { Rect, RenderedElement } from '../renderer.js';
-import type { ShapeElement, Theme } from '../spec.schema.js';
 import { drawArrow, drawLine } from '../primitives/lines.js';
 import { drawCircle, drawEllipse, drawRoundedRect } from '../primitives/shapes.js';
+import type { Rect, RenderedElement } from '../renderer.js';
+import type { ShapeElement, Theme } from '../spec.schema.js';
 
 export function renderShapeElement(
   ctx: SKRSContext2D,

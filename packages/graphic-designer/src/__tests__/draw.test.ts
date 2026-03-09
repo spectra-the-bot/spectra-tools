@@ -17,7 +17,9 @@ describe('freestyle draw layer', () => {
     });
 
     const renderedA = await renderDesign(withoutDraw, { generatorVersion: 'test-draw-backcompat' });
-    const renderedB = await renderDesign(withEmptyDraw, { generatorVersion: 'test-draw-backcompat' });
+    const renderedB = await renderDesign(withEmptyDraw, {
+      generatorVersion: 'test-draw-backcompat',
+    });
 
     expect(renderedA.metadata.artifactHash).toBe(renderedB.metadata.artifactHash);
     expect(renderedA.png.equals(renderedB.png)).toBe(true);
@@ -145,7 +147,9 @@ describe('freestyle draw layer', () => {
     });
 
     const rendered = await renderDesign(spec, { generatorVersion: 'test-draw-all' });
-    const drawElements = rendered.metadata.layout.elements.filter((element) => element.kind === 'draw');
+    const drawElements = rendered.metadata.layout.elements.filter(
+      (element) => element.kind === 'draw',
+    );
 
     expect(rendered.png.byteLength).toBeGreaterThan(1024);
     expect(drawElements).toHaveLength(8);
@@ -173,7 +177,9 @@ describe('freestyle draw layer', () => {
     const rendered = await renderDesign(spec, { generatorVersion: 'test-draw-order' });
     const ids = rendered.metadata.layout.elements.map((element) => element.id);
 
-    expect(ids.indexOf('draw-0')).toBeGreaterThan(ids.findIndex((id) => id.startsWith('card-card-1')));
+    expect(ids.indexOf('draw-0')).toBeGreaterThan(
+      ids.findIndex((id) => id.startsWith('card-card-1')),
+    );
     expect(ids.indexOf('draw-0')).toBeLessThan(ids.indexOf('decorator-vignette-0'));
   });
 
@@ -219,9 +225,9 @@ describe('freestyle draw layer', () => {
     expect(normal).toBeTruthy();
     expect(spaced).toBeTruthy();
     expect(badge).toBeTruthy();
-    expect((spaced?.bounds.width ?? 0)).toBeGreaterThan(normal?.bounds.width ?? 0);
-    expect((badge?.bounds.width ?? 0)).toBeGreaterThan(32);
-    expect((badge?.bounds.height ?? 0)).toBeGreaterThan(20);
+    expect(spaced?.bounds.width ?? 0).toBeGreaterThan(normal?.bounds.width ?? 0);
+    expect(badge?.bounds.width ?? 0).toBeGreaterThan(32);
+    expect(badge?.bounds.height ?? 0).toBeGreaterThan(20);
   });
 
   it('reports out-of-bounds draw commands as warnings in QA', async () => {
@@ -246,8 +252,10 @@ describe('freestyle draw layer', () => {
     });
 
     expect(report.issues.some((issue) => issue.code === 'DRAW_OUT_OF_BOUNDS')).toBe(true);
-    expect(report.issues.some((issue) => issue.code === 'DRAW_OUT_OF_BOUNDS' && issue.severity === 'warning')).toBe(
-      true,
-    );
+    expect(
+      report.issues.some(
+        (issue) => issue.code === 'DRAW_OUT_OF_BOUNDS' && issue.severity === 'warning',
+      ),
+    ).toBe(true);
   });
 });

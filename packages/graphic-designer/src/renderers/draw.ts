@@ -1,11 +1,11 @@
 import type { SKRSContext2D } from '@napi-rs/canvas';
 import { drawGradientRect } from '../primitives/gradients.js';
-import { drawArrowhead, drawBezier, drawLine, type Point } from '../primitives/lines.js';
-import { applyFont, resolveFont } from '../primitives/text.js';
+import { type Point, drawArrowhead, drawBezier, drawLine } from '../primitives/lines.js';
 import { roundRectPath } from '../primitives/shapes.js';
+import { applyFont, resolveFont } from '../primitives/text.js';
 import type { Rect, RenderedElement } from '../renderer.js';
 import type { DrawCommand, DrawFontFamily, Theme } from '../spec.schema.js';
-import { parseSvgPath, type SvgPathOperation } from '../utils/svg-path.js';
+import { type SvgPathOperation, parseSvgPath } from '../utils/svg-path.js';
 
 function withOpacity(ctx: SKRSContext2D, opacity: number, draw: () => void): void {
   ctx.save();
@@ -119,7 +119,11 @@ function measureTextBounds(
   const height = Math.max(1, ascent + descent || Math.ceil((ascent || 0) * 1.35) || 1);
 
   const leftX =
-    options.align === 'center' ? options.x - width / 2 : options.align === 'right' ? options.x - width : options.x;
+    options.align === 'center'
+      ? options.x - width / 2
+      : options.align === 'right'
+        ? options.x - width
+        : options.x;
 
   let topY = options.y - ascent;
   if (options.baseline === 'top') {
@@ -413,7 +417,13 @@ export function renderDrawCommands(
               : 0;
 
           if (command.arrow === 'end' || command.arrow === 'both') {
-            drawArrowhead(ctx, points[points.length - 1], endAngle, command.arrowSize, command.color);
+            drawArrowhead(
+              ctx,
+              points[points.length - 1],
+              endAngle,
+              command.arrowSize,
+              command.color,
+            );
           }
           if (command.arrow === 'start' || command.arrow === 'both') {
             drawArrowhead(ctx, points[0], startAngle + Math.PI, command.arrowSize, command.color);

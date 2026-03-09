@@ -1,5 +1,5 @@
 import { CARBON_SURROUND_COLOR, type WindowControls } from '../code-style.js';
-import { parseDesignSpec, type DesignSpec } from '../spec.schema.js';
+import { type DesignSpec, parseDesignSpec } from '../spec.schema.js';
 
 function resolveTerminalContent(options: {
   command?: string;

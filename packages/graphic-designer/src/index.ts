@@ -18,7 +18,7 @@ export {
   type RenderedElement,
   type WrittenArtifacts,
 } from './renderer.js';
-export { type EdgeRoute, type ElkLayoutResult, type LayoutResult } from './layout/index.js';
+export type { EdgeRoute, ElkLayoutResult, LayoutResult } from './layout/index.js';
 export { renderDrawCommands } from './renderers/draw.js';
 export {
   readMetadata,

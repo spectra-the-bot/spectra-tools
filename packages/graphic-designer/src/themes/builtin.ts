@@ -1,5 +1,5 @@
-import type { GradientSpec as PrimitiveGradientSpec } from '../primitives/gradients.js';
 import { z } from 'zod';
+import type { GradientSpec as PrimitiveGradientSpec } from '../primitives/gradients.js';
 
 const colorHexSchema = z
   .string()
@@ -51,7 +51,14 @@ export const themeSchema = z
   })
   .strict();
 
-export const builtInThemeSchema = z.enum(['dark', 'light', 'dracula', 'github-dark', 'one-dark', 'nord']);
+export const builtInThemeSchema = z.enum([
+  'dark',
+  'light',
+  'dracula',
+  'github-dark',
+  'one-dark',
+  'nord',
+]);
 
 export type Theme = z.infer<typeof themeSchema>;
 export type BuiltInTheme = z.infer<typeof builtInThemeSchema>;

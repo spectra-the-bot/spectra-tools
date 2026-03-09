@@ -115,7 +115,14 @@ describe('renderer', () => {
         { type: 'card', id: 'card1', title: 'Card', body: 'Body' },
         { type: 'flow-node', id: 'fn1', shape: 'rounded-box', label: 'Start' },
         { type: 'flow-node', id: 'fn2', shape: 'diamond', label: 'Decision', sublabel: 'yes/no' },
-        { type: 'connection', from: 'fn1', to: 'fn2', style: 'dashed', arrow: 'end', label: 'path' },
+        {
+          type: 'connection',
+          from: 'fn1',
+          to: 'fn2',
+          style: 'dashed',
+          arrow: 'end',
+          label: 'path',
+        },
         {
           type: 'terminal',
           id: 'term1',
@@ -192,7 +199,9 @@ describe('renderer', () => {
     });
 
     const solid = await renderDesign(solidSpec, { generatorVersion: 'test-background-solid' });
-    const gradient = await renderDesign(gradientSpec, { generatorVersion: 'test-background-gradient' });
+    const gradient = await renderDesign(gradientSpec, {
+      generatorVersion: 'test-background-gradient',
+    });
 
     const solidRaw = await sharp(solid.png)
       .ensureAlpha()
@@ -204,9 +213,9 @@ describe('renderer', () => {
       .toBuffer({ resolveWithObject: true });
 
     const solidTopLeft = solidRaw.data[0] + solidRaw.data[1] + solidRaw.data[2];
-    const gradientTop =
-      gradientRaw.data[0] + gradientRaw.data[1] + gradientRaw.data[2];
-    const bottomIndex = (gradientRaw.info.width * (gradientRaw.info.height - 1)) * gradientRaw.info.channels;
+    const gradientTop = gradientRaw.data[0] + gradientRaw.data[1] + gradientRaw.data[2];
+    const bottomIndex =
+      gradientRaw.info.width * (gradientRaw.info.height - 1) * gradientRaw.info.channels;
     const gradientBottom =
       gradientRaw.data[bottomIndex] +
       gradientRaw.data[bottomIndex + 1] +
@@ -229,10 +238,17 @@ describe('renderer', () => {
         },
       },
       decorators: [
-        { type: 'gradient-overlay', opacity: 0.25, gradient: { type: 'radial', stops: [
-          { offset: 0, color: '#FFFFFF' },
-          { offset: 1, color: '#000000' },
-        ] } },
+        {
+          type: 'gradient-overlay',
+          opacity: 0.25,
+          gradient: {
+            type: 'radial',
+            stops: [
+              { offset: 0, color: '#FFFFFF' },
+              { offset: 1, color: '#000000' },
+            ],
+          },
+        },
         { type: 'rainbow-rule', y: 'after-header', thickness: 4, margin: 24 },
         { type: 'vignette', intensity: 0.4, color: '#000000' },
       ],

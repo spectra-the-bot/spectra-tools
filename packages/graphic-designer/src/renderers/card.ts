@@ -1,8 +1,8 @@
 import type { SKRSContext2D } from '@napi-rs/canvas';
-import type { Rect, RenderedElement } from '../renderer.js';
-import type { CardElement, Theme } from '../spec.schema.js';
 import { drawRoundedRect } from '../primitives/shapes.js';
 import { applyFont, drawTextBlock, resolveFont } from '../primitives/text.js';
+import type { Rect, RenderedElement } from '../renderer.js';
+import type { CardElement, Theme } from '../spec.schema.js';
 
 const TONE_BADGE_COLORS: Record<NonNullable<CardElement['tone']>, string> = {
   neutral: '#334B83',

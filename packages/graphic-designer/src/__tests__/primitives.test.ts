@@ -1,6 +1,5 @@
 import { createCanvas } from '@napi-rs/canvas';
 import { describe, expect, it } from 'vitest';
-import { drawWindowChrome } from '../primitives/window-chrome.js';
 import { drawGradientRect, drawRainbowRule, drawVignette } from '../primitives/gradients.js';
 import { drawArrow, drawBezier, drawLine, drawOrthogonalPath } from '../primitives/lines.js';
 import {
@@ -13,6 +12,7 @@ import {
   drawRoundedRect,
 } from '../primitives/shapes.js';
 import { drawMonoText, drawTextBlock, drawTextLabel } from '../primitives/text.js';
+import { drawWindowChrome } from '../primitives/window-chrome.js';
 
 describe('primitive drawing smoke tests', () => {
   it('draws shape primitives without throwing', async () => {
@@ -62,12 +62,16 @@ describe('primitive drawing smoke tests', () => {
     const canvas = createCanvas(420, 220);
     const ctx = canvas.getContext('2d');
 
-    const chrome = drawWindowChrome(ctx, { x: 10, y: 10, width: 400, height: 180 }, {
-      style: 'macos',
-      title: 'Demo',
-      backgroundColor: '#1A2547',
-      fontFamily: 'Inter',
-    });
+    const chrome = drawWindowChrome(
+      ctx,
+      { x: 10, y: 10, width: 400, height: 180 },
+      {
+        style: 'macos',
+        title: 'Demo',
+        backgroundColor: '#1A2547',
+        fontFamily: 'Inter',
+      },
+    );
 
     const textBlock = drawTextBlock(ctx, {
       x: 20,
@@ -82,14 +86,19 @@ describe('primitive drawing smoke tests', () => {
       family: 'Inter',
     });
 
-    const labelRect = drawTextLabel(ctx, 'edge label', { x: 200, y: 180 }, {
-      fontSize: 12,
-      fontFamily: 'Inter',
-      color: '#E8EEFF',
-      backgroundColor: '#0B1020',
-      padding: 6,
-      borderRadius: 8,
-    });
+    const labelRect = drawTextLabel(
+      ctx,
+      'edge label',
+      { x: 200, y: 180 },
+      {
+        fontSize: 12,
+        fontFamily: 'Inter',
+        color: '#E8EEFF',
+        backgroundColor: '#0B1020',
+        padding: 6,
+        borderRadius: 8,
+      },
+    );
 
     const mono = drawMonoText(ctx, ['const x = 1;', 'console.log(x);'], {
       x: 24,
@@ -112,19 +121,27 @@ describe('primitive drawing smoke tests', () => {
     const canvas = createCanvas(320, 160);
     const ctx = canvas.getContext('2d');
 
-    const bwChrome = drawWindowChrome(ctx, { x: 10, y: 10, width: 300, height: 140 }, {
-      style: 'bw',
-      title: 'BW',
-      backgroundColor: '#E5E7EB',
-      fontFamily: 'Inter',
-    });
+    const bwChrome = drawWindowChrome(
+      ctx,
+      { x: 10, y: 10, width: 300, height: 140 },
+      {
+        style: 'bw',
+        title: 'BW',
+        backgroundColor: '#E5E7EB',
+        fontFamily: 'Inter',
+      },
+    );
 
-    const noneChrome = drawWindowChrome(ctx, { x: 10, y: 10, width: 300, height: 140 }, {
-      style: 'none',
-      title: 'Hidden',
-      backgroundColor: '#111827',
-      fontFamily: 'Inter',
-    });
+    const noneChrome = drawWindowChrome(
+      ctx,
+      { x: 10, y: 10, width: 300, height: 140 },
+      {
+        style: 'none',
+        title: 'Hidden',
+        backgroundColor: '#111827',
+        fontFamily: 'Inter',
+      },
+    );
 
     expect(bwChrome.hasChrome).toBe(true);
     expect(bwChrome.contentTop).toBe(44);

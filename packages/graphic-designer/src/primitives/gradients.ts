@@ -94,7 +94,8 @@ function parseHexColor(color: string): { r: number; g: number; b: number; a: num
     throw new Error(`Expected #RRGGBB or #RRGGBBAA color, received ${color}`);
   }
 
-  const parseChannel = (offset: number): number => Number.parseInt(normalized.slice(offset, offset + 2), 16);
+  const parseChannel = (offset: number): number =>
+    Number.parseInt(normalized.slice(offset, offset + 2), 16);
 
   return {
     r: parseChannel(0),

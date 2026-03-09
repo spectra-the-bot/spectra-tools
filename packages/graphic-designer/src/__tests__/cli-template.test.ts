@@ -33,9 +33,12 @@ describe('design template cli', () => {
 
     await writeFile(
       sourcePath,
-      ['const one = 1;', 'const two = 2;', 'const three = 3;', 'console.log(one, two, three);'].join(
-        '\n',
-      ),
+      [
+        'const one = 1;',
+        'const two = 2;',
+        'const three = 3;',
+        'console.log(one, two, three);',
+      ].join('\n'),
       'utf8',
     );
 

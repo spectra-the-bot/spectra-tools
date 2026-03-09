@@ -43,7 +43,11 @@ describe('code block renderer', () => {
       theme,
     );
 
-    expect(mockedHighlightCode).toHaveBeenCalledWith('alpha beta', 'typescript', 'github-dark-default');
+    expect(mockedHighlightCode).toHaveBeenCalledWith(
+      'alpha beta',
+      'typescript',
+      'github-dark-default',
+    );
     const drawnText = fillSpy.mock.calls.map(([text]) => String(text));
     expect(drawnText).toContain('alpha');
     expect(drawnText).toContain('beta');

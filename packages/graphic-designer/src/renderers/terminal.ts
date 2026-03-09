@@ -1,8 +1,8 @@
 import type { SKRSContext2D } from '@napi-rs/canvas';
 import { resolveCodeBlockStyle } from '../code-style.js';
-import { drawWindowChrome } from '../primitives/window-chrome.js';
 import { drawRoundedRect, roundRectPath } from '../primitives/shapes.js';
 import { applyFont, resolveFont } from '../primitives/text.js';
+import { drawWindowChrome } from '../primitives/window-chrome.js';
 import type { Rect, RenderedElement } from '../renderer.js';
 import type { TerminalElement, Theme } from '../spec.schema.js';
 

@@ -3,7 +3,9 @@ import { parseSvgPath } from '../utils/svg-path.js';
 
 describe('svg path parser', () => {
   it('parses absolute commands (M, L, H, V, C, Q, Z)', () => {
-    const operations = parseSvgPath('M 10 10 L 40 10 H 60 V 40 C 70 50 80 60 90 70 Q 100 80 110 90 Z');
+    const operations = parseSvgPath(
+      'M 10 10 L 40 10 H 60 V 40 C 70 50 80 60 90 70 Q 100 80 110 90 Z',
+    );
 
     expect(operations).toEqual([
       { type: 'M', x: 10, y: 10 },
@@ -32,6 +34,8 @@ describe('svg path parser', () => {
   });
 
   it('throws on unsupported commands', () => {
-    expect(() => parseSvgPath('M 0 0 A 10 10 0 0 1 20 20')).toThrow(/Unsupported SVG path command/u);
+    expect(() => parseSvgPath('M 0 0 A 10 10 0 0 1 20 20')).toThrow(
+      /Unsupported SVG path command/u,
+    );
   });
 });

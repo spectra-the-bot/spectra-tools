@@ -1,4 +1,4 @@
-import { builtInThemes, type BuiltInTheme, type Theme, type ThemeInput } from './builtin.js';
+import { type BuiltInTheme, type Theme, type ThemeInput, builtInThemes } from './builtin.js';
 
 export const themeToShikiMap: Record<string, string> = {
   dark: 'github-dark-default',
@@ -26,7 +26,9 @@ function isLightTheme(background: string): boolean {
 }
 
 function matchBuiltInTheme(theme: Theme): BuiltInTheme | undefined {
-  for (const [name, builtInTheme] of Object.entries(builtInThemes) as Array<[BuiltInTheme, Theme]>) {
+  for (const [name, builtInTheme] of Object.entries(builtInThemes) as Array<
+    [BuiltInTheme, Theme]
+  >) {
     if (builtInTheme === theme) {
       return name;
     }
