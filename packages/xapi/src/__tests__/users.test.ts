@@ -39,6 +39,17 @@ describe('users API shape', () => {
     expect(res.data.public_metrics.followers_count).toBe(7_000_000);
   });
 
+  it('fetches authenticated user profile', async () => {
+    server.addRoute('GET', '/2/users/me', {
+      body: { data: MOCK_USER },
+    });
+
+    const http = createHttpClient({ baseUrl: server.url });
+    const res = await http.request<{ data: typeof MOCK_USER }>('/2/users/me');
+    expect(res.data.id).toBe('12345');
+    expect(res.data.username).toBe('jack');
+  });
+
   it('fetches user followers', async () => {
     server.addRoute('GET', '/2/users/12345/followers', {
       body: {

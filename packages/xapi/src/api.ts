@@ -178,6 +178,8 @@ export function createXApiClient(bearerToken: string) {
     });
   }
 
+  // X's followers endpoint has no API-native since_id filter.
+  // Follower delta workflows should diff IDs client-side against a provided baseline.
   function getUserFollowers(id: string, maxResults: number, nextToken?: string) {
     return get<XPagedResponse<XUser>>(`/users/${id}/followers`, {
       max_results: maxResults,
