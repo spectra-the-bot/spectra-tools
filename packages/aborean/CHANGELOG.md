@@ -1,5 +1,11 @@
 # @spectratools/aborean-cli
 
+## 0.7.0
+
+### Minor Changes
+
+- [#239](https://github.com/spectra-the-bot/spectra-tools/pull/239) [`1adeaef`](https://github.com/spectra-the-bot/spectra-tools/commit/1adeaeff7afff3ce6a30d2450ab9419b59d7d2ae) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add CTA hints to all aborean command responses for better agent workflow chaining.
+
 ## 0.6.0
 
 ### Minor Changes

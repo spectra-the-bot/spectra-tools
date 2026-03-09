@@ -1,5 +1,11 @@
 # @spectra-the-bot/erc8004-cli
 
+## 0.3.0
+
+### Minor Changes
+
+- [#238](https://github.com/spectra-the-bot/spectra-tools/pull/238) [`bf23923`](https://github.com/spectra-the-bot/spectra-tools/commit/bf23923477240bbcd562399c9d425b0021ea9dc7) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add identity burn command for permanently destroying agent identity tokens. Currently returns BURN_NOT_SUPPORTED as the IdentityRegistry contract does not expose a public burn function.
+
 ## 0.2.0
 
 ### Minor Changes
