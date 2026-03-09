@@ -1,4 +1,4 @@
-# @spectratools/graphic-designer
+# @spectratools/graphic-designer-cli
 
 Deterministic visual content generator for code screenshots, terminal shots, flowcharts, infographics, and hero graphics. No browser dependency — renders directly to PNG via [@napi-rs/canvas](https://github.com/nicolo-ribaudo/napi-rs-canvas).
 
@@ -16,9 +16,9 @@ Deterministic visual content generator for code screenshots, terminal shots, flo
 ## Install
 
 ```bash
-pnpm add @spectratools/graphic-designer
+pnpm add @spectratools/graphic-designer-cli
 # or global CLI
-pnpm add -g @spectratools/graphic-designer
+pnpm add -g @spectratools/graphic-designer-cli
 ```
 
 ## CLI
@@ -120,7 +120,7 @@ import {
   renderDesign,
   runQa,
   writeRenderArtifacts,
-} from '@spectratools/graphic-designer';
+} from '@spectratools/graphic-designer-cli';
 
 const spec = parseDesignSpec({
   version: 2,

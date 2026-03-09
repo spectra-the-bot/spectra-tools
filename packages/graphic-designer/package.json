@@ -1,5 +1,5 @@
 {
-  "name": "@spectratools/graphic-designer",
+  "name": "@spectratools/graphic-designer-cli",
   "version": "0.3.0",
   "description": "Deterministic visual content generator — code screenshots, terminal shots, flowcharts, and infographics. No browser dependency.",
   "type": "module",
