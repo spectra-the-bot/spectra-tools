@@ -642,6 +642,132 @@ forum.command('post-comment', {
   },
 });
 
+forum.command('create-petition', {
+  description: 'Create a new petition for community-initiated proposals.',
+  hint: 'Requires PRIVATE_KEY environment variable for signing.',
+  options: writeOptions.extend({
+    title: z.string().min(1).describe('Petition title'),
+    description: z.string().min(1).describe('Petition description'),
+    kind: z.coerce.number().int().nonnegative().max(255).describe('Proposal kind enum value'),
+    category: z.string().default('governance').describe('Forum category label for the petition'),
+  }),
+  env: writeEnv,
+  output: z.object({
+    proposer: z.string(),
+    category: z.string(),
+    kind: z.number(),
+    title: z.string(),
+    description: z.string(),
+    expectedPetitionId: z.number(),
+    expectedThreadId: z.number(),
+    tx: txResultOutput,
+  }),
+  examples: [
+    {
+      options: {
+        title: 'Expand treasury diversification',
+        description: 'Propose allocating 5% of treasury to stablecoin reserves.',
+        kind: 1,
+        category: 'treasury',
+      },
+      description: 'Create a petition as an active Assembly member',
+    },
+  ],
+  async run(c) {
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
+    const account = resolveAccount(c.env);
+
+    const [activeMember, petitionCountBefore, threadCountBefore] = (await Promise.all([
+      client.readContract({
+        abi: registryAbi,
+        address: ABSTRACT_MAINNET_ADDRESSES.registry,
+        functionName: 'isActive',
+        args: [account.address],
+      }),
+      client.readContract({
+        abi: forumAbi,
+        address: ABSTRACT_MAINNET_ADDRESSES.forum,
+        functionName: 'petitionCount',
+      }),
+      client.readContract({
+        abi: forumAbi,
+        address: ABSTRACT_MAINNET_ADDRESSES.forum,
+        functionName: 'threadCount',
+      }),
+    ])) as [boolean, bigint, bigint];
+
+    if (!activeMember) {
+      return c.error({
+        code: 'NOT_ACTIVE_MEMBER',
+        message: `Address ${toChecksum(account.address)} is not an active Assembly member.`,
+        retryable: false,
+      });
+    }
+
+    const expectedPetitionId = Number(petitionCountBefore) + 1;
+    const expectedThreadId = Number(threadCountBefore) + 1;
+
+    const proposalInput = {
+      kind: c.options.kind,
+      title: c.options.title,
+      description: c.options.description,
+      intentSteps: [],
+      intentConstraints: {
+        deadline: 0,
+        maxAllowedRiskTier: 0,
+      },
+      configUpdates: [],
+    };
+
+    try {
+      const txResult = await assemblyWriteTx({
+        env: c.env,
+        options: c.options,
+        address: ABSTRACT_MAINNET_ADDRESSES.forum,
+        abi: forumAbi,
+        functionName: 'createPetition',
+        args: [c.options.category, proposalInput],
+      });
+
+      return c.ok(
+        {
+          proposer: toChecksum(account.address),
+          category: c.options.category,
+          kind: c.options.kind,
+          title: c.options.title,
+          description: c.options.description,
+          expectedPetitionId,
+          expectedThreadId,
+          tx: txResult as FormattedTxResult | FormattedDryRunResult,
+        },
+        c.format === 'json' || c.format === 'jsonl'
+          ? undefined
+          : {
+              cta: {
+                description: 'Next steps:',
+                commands: [
+                  { command: 'forum petition', args: { id: String(expectedPetitionId) } },
+                  {
+                    command: 'forum sign-petition',
+                    args: { petitionId: String(expectedPetitionId) },
+                  },
+                ],
+              },
+            },
+      );
+    } catch (error) {
+      if (error instanceof TxError) {
+        return c.error({
+          code: error.code,
+          message: error.message,
+          retryable: error.code === 'NONCE_CONFLICT',
+        });
+      }
+      throw error;
+    }
+  },
+});
+
 forum.command('sign-petition', {
   description: 'Sign an existing petition as an active member.',
   hint: 'Requires PRIVATE_KEY environment variable for signing.',
