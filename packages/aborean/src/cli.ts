@@ -5,6 +5,7 @@ import { Cli, z } from 'incur';
 
 import { cl } from './commands/cl.js';
 import { gauges } from './commands/gauges.js';
+import { pools } from './commands/pools.js';
 import { ve } from './commands/ve.js';
 import { voter } from './commands/voter.js';
 import { clFactoryAbi, poolFactoryAbi, voterAbi, votingEscrowAbi } from './contracts/abis.js';
@@ -21,6 +22,7 @@ const cli = Cli.create('aborean', {
 });
 
 cli.command(gauges);
+cli.command(pools);
 cli.command(ve);
 cli.command(voter);
 

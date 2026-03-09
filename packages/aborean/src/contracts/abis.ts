@@ -10,6 +10,8 @@ import poolFactoryAbiJson from './abis/PoolFactory.abi.json' with { type: 'json'
 import quoterV2AbiJson from './abis/QuoterV2.abi.json' with { type: 'json' };
 import rewardsDistributorAbiJson from './abis/RewardsDistributor.abi.json' with { type: 'json' };
 import swapRouterAbiJson from './abis/SwapRouter.abi.json' with { type: 'json' };
+import v2PoolAbiJson from './abis/V2Pool.abi.json' with { type: 'json' };
+import v2RouterAbiJson from './abis/V2Router.abi.json' with { type: 'json' };
 import voterAbiJson from './abis/Voter.abi.json' with { type: 'json' };
 import votingEscrowAbiJson from './abis/VotingEscrow.abi.json' with { type: 'json' };
 import votingRewardAbiJson from './abis/VotingReward.abi.json' with { type: 'json' };
@@ -23,6 +25,8 @@ export const poolFactoryAbi = poolFactoryAbiJson as Abi;
 export const quoterV2Abi = quoterV2AbiJson as Abi;
 export const rewardsDistributorAbi = rewardsDistributorAbiJson as Abi;
 export const swapRouterAbi = swapRouterAbiJson as Abi;
+export const v2PoolAbi = v2PoolAbiJson as Abi;
+export const v2RouterAbi = v2RouterAbiJson as Abi;
 export const voterAbi = voterAbiJson as Abi;
 export const votingEscrowAbi = votingEscrowAbiJson as Abi;
 export const votingRewardAbi = votingRewardAbiJson as Abi;
