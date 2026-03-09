@@ -138,34 +138,110 @@ describe('createXApiClient', () => {
     });
   });
 
-  it('builds social growth write requests correctly', async () => {
+  it('builds social + user write requests correctly', async () => {
     mocks.request.mockResolvedValueOnce({ data: { liked: true } });
+    mocks.request.mockResolvedValueOnce({ data: { liked: false } });
+    mocks.request.mockResolvedValueOnce({ data: { bookmarked: true } });
+    mocks.request.mockResolvedValueOnce({ data: { bookmarked: false } });
     mocks.request.mockResolvedValueOnce({ data: { retweeted: true } });
     mocks.request.mockResolvedValueOnce({ data: { following: true, pending_follow: false } });
     mocks.request.mockResolvedValueOnce({ data: { following: false } });
+    mocks.request.mockResolvedValueOnce({ data: { blocking: true } });
+    mocks.request.mockResolvedValueOnce({ data: { blocking: false } });
+    mocks.request.mockResolvedValueOnce({ data: { muting: true } });
+    mocks.request.mockResolvedValueOnce({ data: { muting: false } });
     const client = createXApiClient('token');
 
     await client.likePost('user-1', 'tweet-1');
+    await client.unlikePost('user-1', 'tweet-1');
+    await client.bookmarkPost('user-1', 'tweet-1');
+    await client.unbookmarkPost('user-1', 'tweet-1');
     await client.retweetPost('user-1', 'tweet-1');
     await client.followUser('source-1', 'target-1');
     await client.unfollowUser('source-1', 'target-1');
+    await client.blockUser('source-1', 'target-1');
+    await client.unblockUser('source-1', 'target-1');
+    await client.muteUser('source-1', 'target-1');
+    await client.unmuteUser('source-1', 'target-1');
 
     expect(mocks.request).toHaveBeenNthCalledWith(1, '/users/user-1/likes', {
       method: 'POST',
       body: { tweet_id: 'tweet-1' },
     });
 
-    expect(mocks.request).toHaveBeenNthCalledWith(2, '/users/user-1/retweets', {
+    expect(mocks.request).toHaveBeenNthCalledWith(2, '/users/user-1/likes/tweet-1', {
+      method: 'DELETE',
+    });
+
+    expect(mocks.request).toHaveBeenNthCalledWith(3, '/users/user-1/bookmarks', {
       method: 'POST',
       body: { tweet_id: 'tweet-1' },
     });
 
-    expect(mocks.request).toHaveBeenNthCalledWith(3, '/users/source-1/following', {
+    expect(mocks.request).toHaveBeenNthCalledWith(4, '/users/user-1/bookmarks/tweet-1', {
+      method: 'DELETE',
+    });
+
+    expect(mocks.request).toHaveBeenNthCalledWith(5, '/users/user-1/retweets', {
+      method: 'POST',
+      body: { tweet_id: 'tweet-1' },
+    });
+
+    expect(mocks.request).toHaveBeenNthCalledWith(6, '/users/source-1/following', {
       method: 'POST',
       body: { target_user_id: 'target-1' },
     });
 
-    expect(mocks.request).toHaveBeenNthCalledWith(4, '/users/source-1/following/target-1', {
+    expect(mocks.request).toHaveBeenNthCalledWith(7, '/users/source-1/following/target-1', {
+      method: 'DELETE',
+    });
+
+    expect(mocks.request).toHaveBeenNthCalledWith(8, '/users/source-1/blocking', {
+      method: 'POST',
+      body: { target_user_id: 'target-1' },
+    });
+
+    expect(mocks.request).toHaveBeenNthCalledWith(9, '/users/source-1/blocking/target-1', {
+      method: 'DELETE',
+    });
+
+    expect(mocks.request).toHaveBeenNthCalledWith(10, '/users/source-1/muting', {
+      method: 'POST',
+      body: { target_user_id: 'target-1' },
+    });
+
+    expect(mocks.request).toHaveBeenNthCalledWith(11, '/users/source-1/muting/target-1', {
+      method: 'DELETE',
+    });
+  });
+
+  it('builds list write requests correctly', async () => {
+    mocks.request.mockResolvedValueOnce({ data: { id: 'list-1', name: 'Core devs' } });
+    mocks.request.mockResolvedValueOnce({ data: { deleted: true } });
+    mocks.request.mockResolvedValueOnce({ data: { is_member: true } });
+    mocks.request.mockResolvedValueOnce({ data: { is_member: false } });
+    const client = createXApiClient('token');
+
+    await client.createList('Core devs', 'Builders only', true);
+    await client.deleteList('list-1');
+    await client.addListMember('list-1', 'user-1');
+    await client.removeListMember('list-1', 'user-1');
+
+    expect(mocks.request).toHaveBeenNthCalledWith(1, '/lists', {
+      method: 'POST',
+      body: { name: 'Core devs', description: 'Builders only', private: true },
+    });
+
+    expect(mocks.request).toHaveBeenNthCalledWith(2, '/lists/list-1', {
+      method: 'DELETE',
+    });
+
+    expect(mocks.request).toHaveBeenNthCalledWith(3, '/lists/list-1/members', {
+      method: 'POST',
+      body: { user_id: 'user-1' },
+    });
+
+    expect(mocks.request).toHaveBeenNthCalledWith(4, '/lists/list-1/members/user-1', {
       method: 'DELETE',
     });
   });
