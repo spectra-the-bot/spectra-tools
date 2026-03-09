@@ -67,6 +67,22 @@ assembly-cli governance proposal 42 --format json --filter-output id,status,vote
 assembly-cli status --format json --filter-output activeMemberCount,proposalCount
 ```
 
+## Write signer providers (for CLI integrators)
+
+`assembly-cli` write commands currently use `PRIVATE_KEY` signing.
+
+If you are building your own write-capable consumer around Assembly contracts, follow the shared tx integration docs in `@spectratools/tx-shared`:
+
+- `resolveSigner()` provider precedence (private key → keystore → Privy)
+- `executeTx()` lifecycle and `dryRun` behavior
+- structured `TxError` troubleshooting
+
+See:
+
+- [packages/tx-shared/README.md](https://github.com/spectra-the-bot/spectra-tools/tree/main/packages/tx-shared#readme)
+- [packages/assembly/src/examples/tx-shared-register.ts](https://github.com/spectra-the-bot/spectra-tools/blob/main/packages/assembly/src/examples/tx-shared-register.ts)
+- [packages/tx-shared/src/examples/assembly-write.ts](https://github.com/spectra-the-bot/spectra-tools/blob/main/packages/tx-shared/src/examples/assembly-write.ts)
+
 ## Related docs
 
 - [Assembly overview](/assembly/)
