@@ -248,6 +248,96 @@ describe('assembly onchain commands', () => {
     expect(setTimeoutSpy).toHaveBeenCalledTimes(1);
   });
 
+  it('members info resolves a unique partial address match', async () => {
+    const mockFetch = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify([addrA, addrB]), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    vi.stubGlobal('fetch', mockFetch);
+
+    mockClient.readContract
+      .mockResolvedValueOnce({ activeUntil: 100n, lastHeartbeatAt: 90n })
+      .mockResolvedValueOnce(true);
+
+    const out = await run(['members', 'info', '00bb']);
+
+    expect(out.ok).toBe(true);
+    expect(mockClient.readContract).toHaveBeenCalledWith(
+      expect.objectContaining({
+        functionName: 'members',
+        args: [addrB],
+      }),
+    );
+    expect(mockClient.readContract).toHaveBeenCalledWith(
+      expect.objectContaining({
+        functionName: 'isActive',
+        args: [addrB],
+      }),
+    );
+  });
+
+  it('members info returns AMBIGUOUS_MEMBER_QUERY for non-unique partial matches', async () => {
+    const mockFetch = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify([addrA, addrB]), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    vi.stubGlobal('fetch', mockFetch);
+
+    const out = await run(['members', 'info', '00000000000000000000000000000000000000']);
+
+    expect(out.ok).toBe(false);
+    expect(out.error).toMatchObject({ code: 'AMBIGUOUS_MEMBER_QUERY' });
+  });
+
+  it('members info can match ENS/name metadata from member snapshot payload', async () => {
+    const mockFetch = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify([
+          { address: addrA, ens: 'alice.eth', name: 'Alice' },
+          { address: addrB, ens: 'bob.eth', name: 'Bob' },
+        ]),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        },
+      ),
+    );
+    vi.stubGlobal('fetch', mockFetch);
+
+    mockClient.readContract
+      .mockResolvedValueOnce({ activeUntil: 100n, lastHeartbeatAt: 90n })
+      .mockResolvedValueOnce(true);
+
+    const out = await run(['members', 'info', 'alice.eth']);
+
+    expect(out.ok).toBe(true);
+    expect(mockClient.readContract).toHaveBeenCalledWith(
+      expect.objectContaining({
+        functionName: 'members',
+        args: [addrA],
+      }),
+    );
+  });
+
+  it('members info returns MEMBER_NOT_FOUND when fuzzy lookup misses', async () => {
+    const mockFetch = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify([addrA]), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    vi.stubGlobal('fetch', mockFetch);
+
+    const out = await run(['members', 'info', 'not-a-member']);
+
+    expect(out.ok).toBe(false);
+    expect(out.error).toMatchObject({ code: 'MEMBER_NOT_FOUND' });
+  });
+
   it('council is-member', async () => {
     mockClient.readContract.mockResolvedValueOnce(true);
     const out = await run(['council', 'is-member', '0x0000000000000000000000000000000000000000']);
