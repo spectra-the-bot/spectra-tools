@@ -381,34 +381,47 @@ describe('assembly onchain commands', () => {
     expect(mockClient.readContract).toHaveBeenCalledTimes(1);
   });
 
-  it('council auctions includes window metadata and derives bidding/closed status', async () => {
+  it('council auctions distinguishes open_now, upcoming, and closed_unsettled execution states', async () => {
     mockClient.readContract
       .mockResolvedValueOnce(0n)
       .mockResolvedValueOnce(0n)
-      .mockResolvedValueOnce(2n);
+      .mockResolvedValueOnce(3n);
     mockClient.multicall
       .mockResolvedValueOnce([
         [addrA, 123n, false],
         [addrB, 456n, false],
+        [addrA, 789n, false],
       ])
-      .mockResolvedValueOnce([200n, 100n]);
+      .mockResolvedValueOnce([300n, 400n, 100n]);
     mockClient.getBlock.mockResolvedValueOnce({ timestamp: 150n });
 
     const out = await run(['council', 'auctions']);
     expect(out.ok).toBe(true);
 
     const data = out.data as { auctions: Array<Record<string, unknown>> };
-    expect(data.auctions).toHaveLength(2);
+    expect(data.auctions).toHaveLength(3);
     expect(data.auctions[0]).toMatchObject({
-      windowEnd: iso(200),
-      status: 'bidding',
+      windowEnd: iso(300),
+      executionStatus: 'open_now',
+      status: 'open_now',
+      bidExecutableNow: true,
       settled: false,
     });
     expect(data.auctions[1]).toMatchObject({
-      windowEnd: iso(100),
-      status: 'closed',
+      windowEnd: iso(400),
+      executionStatus: 'upcoming',
+      status: 'upcoming',
+      bidExecutableNow: false,
       settled: false,
     });
+    expect(data.auctions[2]).toMatchObject({
+      windowEnd: iso(100),
+      executionStatus: 'closed_unsettled',
+      status: 'closed_unsettled',
+      bidExecutableNow: false,
+      settled: false,
+    });
+    expect(data.auctions.filter((auction) => auction.bidExecutableNow === true)).toHaveLength(1);
     expect(typeof data.auctions[0]?.windowEndRelative).toBe('string');
   });
 
@@ -430,11 +443,13 @@ describe('assembly onchain commands', () => {
     expect(out).not.toHaveProperty('cta');
   });
 
-  it('council auction includes window metadata and settled status', async () => {
+  it('council auction includes executionStatus and bidExecutableNow fields', async () => {
     mockClient.readContract
       .mockResolvedValueOnce(4n) // AUCTION_SLOTS_PER_DAY
       .mockResolvedValueOnce([addrA, 123n, true])
-      .mockResolvedValueOnce(999n);
+      .mockResolvedValueOnce(999n)
+      .mockResolvedValueOnce(0n)
+      .mockResolvedValueOnce(0n);
     mockClient.getBlock.mockResolvedValueOnce({ timestamp: 150n });
 
     const out = await run(['council', 'auction', '0', '0']);
@@ -444,7 +459,9 @@ describe('assembly onchain commands', () => {
     expect(data).toMatchObject({
       settled: true,
       windowEnd: iso(999),
+      executionStatus: 'settled',
       status: 'settled',
+      bidExecutableNow: false,
     });
     expect(typeof data.highestBidder).toBe('string');
     expect(typeof data.highestBid).toBe('string');
@@ -897,10 +914,12 @@ describe('council write commands', () => {
   }
 
   describe('council bid', () => {
-    it('places a bid on a bidding auction', async () => {
+    it('places a bid on the open_now auction slot', async () => {
       mockClient.readContract.mockResolvedValueOnce(4n);
       mockClient.readContract.mockResolvedValueOnce([addrA, 50000000000000000n, false]);
       mockClient.readContract.mockResolvedValueOnce(9999999999n);
+      mockClient.readContract.mockResolvedValueOnce(0n);
+      mockClient.readContract.mockResolvedValueOnce(0n);
       mockClient.getBlock.mockResolvedValueOnce({ timestamp: 100n });
 
       const out = await runWrite(['council', 'bid', '0', '0', '--amount', '0.1']);
@@ -919,6 +938,8 @@ describe('council write commands', () => {
       mockClient.readContract.mockResolvedValueOnce(4n);
       mockClient.readContract.mockResolvedValueOnce([addrA, 100n, true]);
       mockClient.readContract.mockResolvedValueOnce(200n);
+      mockClient.readContract.mockResolvedValueOnce(0n);
+      mockClient.readContract.mockResolvedValueOnce(0n);
       mockClient.getBlock.mockResolvedValueOnce({ timestamp: 300n });
 
       const out = await runWrite(['council', 'bid', '0', '0', '--amount', '0.1']);
@@ -931,6 +952,8 @@ describe('council write commands', () => {
       mockClient.readContract.mockResolvedValueOnce(4n);
       mockClient.readContract.mockResolvedValueOnce([addrA, 100n, false]);
       mockClient.readContract.mockResolvedValueOnce(200n);
+      mockClient.readContract.mockResolvedValueOnce(0n);
+      mockClient.readContract.mockResolvedValueOnce(0n);
       mockClient.getBlock.mockResolvedValueOnce({ timestamp: 300n });
 
       const out = await runWrite(['council', 'bid', '0', '0', '--amount', '0.1']);
@@ -939,10 +962,26 @@ describe('council write commands', () => {
       expect(out.error?.code).toBe('AUCTION_CLOSED');
     });
 
+    it('rejects bid on upcoming auction slot', async () => {
+      mockClient.readContract.mockResolvedValueOnce(4n);
+      mockClient.readContract.mockResolvedValueOnce([addrA, 100n, false]);
+      mockClient.readContract.mockResolvedValueOnce(9999999999n);
+      mockClient.readContract.mockResolvedValueOnce(0n);
+      mockClient.readContract.mockResolvedValueOnce(0n);
+      mockClient.getBlock.mockResolvedValueOnce({ timestamp: 100n });
+
+      const out = await runWrite(['council', 'bid', '0', '1', '--amount', '0.1']);
+
+      expect(out.ok).toBe(false);
+      expect(out.error?.code).toBe('AUCTION_NOT_ACTIVE');
+    });
+
     it('rejects bid lower than current highest', async () => {
       mockClient.readContract.mockResolvedValueOnce(4n);
       mockClient.readContract.mockResolvedValueOnce([addrA, 1000000000000000000n, false]);
       mockClient.readContract.mockResolvedValueOnce(9999999999n);
+      mockClient.readContract.mockResolvedValueOnce(0n);
+      mockClient.readContract.mockResolvedValueOnce(0n);
       mockClient.getBlock.mockResolvedValueOnce({ timestamp: 100n });
 
       const out = await runWrite(['council', 'bid', '0', '0', '--amount', '0.5']);
@@ -955,6 +994,8 @@ describe('council write commands', () => {
       mockClient.readContract.mockResolvedValueOnce(4n);
       mockClient.readContract.mockResolvedValueOnce([addrA, 50000000000000000n, false]);
       mockClient.readContract.mockResolvedValueOnce(9999999999n);
+      mockClient.readContract.mockResolvedValueOnce(0n);
+      mockClient.readContract.mockResolvedValueOnce(0n);
       mockClient.getBlock.mockResolvedValueOnce({ timestamp: 100n });
 
       const out = await runWrite(['council', 'bid', '0', '0', '--amount', '0.1', '--dry-run']);
@@ -981,6 +1022,8 @@ describe('council write commands', () => {
       mockClient.readContract.mockResolvedValueOnce(4n);
       mockClient.readContract.mockResolvedValueOnce([addrA, 100000000000000000n, false]);
       mockClient.readContract.mockResolvedValueOnce(200n);
+      mockClient.readContract.mockResolvedValueOnce(0n);
+      mockClient.readContract.mockResolvedValueOnce(0n);
       mockClient.getBlock.mockResolvedValueOnce({ timestamp: 300n });
 
       const out = await runWrite(['council', 'settle', '0', '0']);
@@ -997,6 +1040,8 @@ describe('council write commands', () => {
       mockClient.readContract.mockResolvedValueOnce(4n);
       mockClient.readContract.mockResolvedValueOnce([addrA, 100n, true]);
       mockClient.readContract.mockResolvedValueOnce(200n);
+      mockClient.readContract.mockResolvedValueOnce(0n);
+      mockClient.readContract.mockResolvedValueOnce(0n);
       mockClient.getBlock.mockResolvedValueOnce({ timestamp: 300n });
 
       const out = await runWrite(['council', 'settle', '0', '0']);
@@ -1009,9 +1054,25 @@ describe('council write commands', () => {
       mockClient.readContract.mockResolvedValueOnce(4n);
       mockClient.readContract.mockResolvedValueOnce([addrA, 100n, false]);
       mockClient.readContract.mockResolvedValueOnce(9999999999n);
+      mockClient.readContract.mockResolvedValueOnce(0n);
+      mockClient.readContract.mockResolvedValueOnce(0n);
       mockClient.getBlock.mockResolvedValueOnce({ timestamp: 100n });
 
       const out = await runWrite(['council', 'settle', '0', '0']);
+
+      expect(out.ok).toBe(false);
+      expect(out.error?.code).toBe('AUCTION_STILL_ACTIVE');
+    });
+
+    it('rejects settling an upcoming auction slot', async () => {
+      mockClient.readContract.mockResolvedValueOnce(4n);
+      mockClient.readContract.mockResolvedValueOnce([addrA, 100n, false]);
+      mockClient.readContract.mockResolvedValueOnce(9999999999n);
+      mockClient.readContract.mockResolvedValueOnce(0n);
+      mockClient.readContract.mockResolvedValueOnce(0n);
+      mockClient.getBlock.mockResolvedValueOnce({ timestamp: 100n });
+
+      const out = await runWrite(['council', 'settle', '0', '1']);
 
       expect(out.ok).toBe(false);
       expect(out.error?.code).toBe('AUCTION_STILL_ACTIVE');
