@@ -583,7 +583,6 @@ cli.command('publish', {
       issueCount: z.number(),
     }),
     publish: z.object({
-      attempts: z.number(),
       summary: z.string(),
       url: z.string().optional(),
     }),
@@ -642,7 +641,6 @@ cli.command('publish', {
           issueCount: qa.issues.length,
         },
         publish: {
-          attempts: gist.attempts,
           summary: `Published ${gist.files.length} files to gist ${gist.gistId}.`,
           url: gist.htmlUrl,
         },
@@ -674,7 +672,6 @@ cli.command('publish', {
         issueCount: qa.issues.length,
       },
       publish: {
-        attempts: github.attempts,
         summary: `Published ${github.files.length} files to ${github.repo}@${github.branch}.`,
         url,
       },
