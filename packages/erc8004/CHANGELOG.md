@@ -1,5 +1,11 @@
 # @spectra-the-bot/erc8004-cli
 
+## 0.4.0
+
+### Minor Changes
+
+- [#275](https://github.com/spectra-the-bot/spectra-tools/pull/275) [`1800503`](https://github.com/spectra-the-bot/spectra-tools/commit/180050375f6c5b2ea46d18818568d75167be5bdd) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add validation submit-result and cancel commands for the validator-side workflow.
+
 ## 0.3.0
 
 ### Minor Changes
