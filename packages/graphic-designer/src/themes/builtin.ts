@@ -1,9 +1,21 @@
 import { z } from 'zod';
 import type { GradientSpec as PrimitiveGradientSpec } from '../primitives/gradients.js';
+import { normalizeColor } from '../utils/color.js';
 
 const colorHexSchema = z
   .string()
-  .regex(/^#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/, 'Expected #RRGGBB or #RRGGBBAA color');
+  .refine(
+    (v) => {
+      try {
+        normalizeColor(v);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    { message: 'Expected #RRGGBB, #RRGGBBAA, rgb(), or rgba() color' },
+  )
+  .transform((v) => normalizeColor(v));
 
 const fontFamilySchema = z.string().min(1).max(120);
 
