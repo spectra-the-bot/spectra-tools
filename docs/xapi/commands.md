@@ -78,6 +78,104 @@ xapi dm send 12345 --text Hey there!
 
 Manage and browse X lists.
 
+### xapi lists add-member
+
+Add a member to an X list.
+
+#### Arguments
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `id` | `string` | yes | List ID |
+| `member` | `string` | yes | Member to target (username with or without @, or user ID) |
+
+#### Environment Variables
+
+| Name | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `X_ACCESS_TOKEN` | `string` | yes |  | X OAuth 2.0 user access token (required for write endpoints) |
+| `X_BEARER_TOKEN` | `string` | no |  |  |
+
+#### Output
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | `string` | yes |  |
+| `member_id` | `string` | yes |  |
+| `member_username` | `string` | no |  |
+| `is_member` | `boolean` | yes |  |
+
+#### Examples
+
+```sh
+# Add @jack to a list
+xapi lists add-member 1234567890 jack
+```
+
+### xapi lists create
+
+Create a new list.
+
+#### Environment Variables
+
+| Name | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `X_ACCESS_TOKEN` | `string` | yes |  | X OAuth 2.0 user access token (required for write endpoints) |
+| `X_BEARER_TOKEN` | `string` | no |  |  |
+
+#### Options
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--name` | `string` |  | List name (1-25 characters) |
+| `--description` | `string` |  | Optional list description (1-100 characters) |
+| `--private` | `boolean` | `false` | Create as a private list |
+
+#### Output
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | `string` | yes |  |
+| `name` | `string` | yes |  |
+
+#### Examples
+
+```sh
+# Create a private list
+xapi lists create --name Core devs --description Builders only --private true
+```
+
+### xapi lists delete
+
+Delete a list by ID.
+
+#### Arguments
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `id` | `string` | yes | List ID to delete |
+
+#### Environment Variables
+
+| Name | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `X_ACCESS_TOKEN` | `string` | yes |  | X OAuth 2.0 user access token (required for write endpoints) |
+| `X_BEARER_TOKEN` | `string` | no |  |  |
+
+#### Output
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `deleted` | `boolean` | yes |  |
+| `id` | `string` | yes |  |
+
+#### Examples
+
+```sh
+# Delete a list
+xapi lists delete 1234567890
+```
+
 ### xapi lists get
 
 Get a list by ID.
@@ -196,9 +294,74 @@ Get posts from an X list.
 xapi lists posts 1234567890
 ```
 
+### xapi lists remove-member
+
+Remove a member from an X list.
+
+#### Arguments
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `id` | `string` | yes | List ID |
+| `member` | `string` | yes | Member to target (username with or without @, or user ID) |
+
+#### Environment Variables
+
+| Name | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `X_ACCESS_TOKEN` | `string` | yes |  | X OAuth 2.0 user access token (required for write endpoints) |
+| `X_BEARER_TOKEN` | `string` | no |  |  |
+
+#### Output
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | `string` | yes |  |
+| `member_id` | `string` | yes |  |
+| `member_username` | `string` | no |  |
+| `is_member` | `boolean` | yes |  |
+
+#### Examples
+
+```sh
+# Remove @jack from a list
+xapi lists remove-member 1234567890 jack
+```
+
 ## xapi posts
 
 Manage and search X posts.
+
+### xapi posts bookmark
+
+Bookmark a post by ID.
+
+#### Arguments
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `id` | `string` | yes | Post ID to bookmark |
+
+#### Environment Variables
+
+| Name | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `X_ACCESS_TOKEN` | `string` | yes |  | X OAuth 2.0 user access token (required for write endpoints) |
+| `X_BEARER_TOKEN` | `string` | no |  |  |
+
+#### Output
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `bookmarked` | `boolean` | yes |  |
+| `id` | `string` | yes |  |
+
+#### Examples
+
+```sh
+# Bookmark a post
+xapi posts bookmark 1234567890
+```
 
 ### xapi posts create
 
@@ -309,6 +472,37 @@ Get a post by ID.
 xapi posts get 1234567890
 ```
 
+### xapi posts like
+
+Like a post by ID.
+
+#### Arguments
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `id` | `string` | yes | Post ID to like |
+
+#### Environment Variables
+
+| Name | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `X_ACCESS_TOKEN` | `string` | yes |  | X OAuth 2.0 user access token (required for write endpoints) |
+| `X_BEARER_TOKEN` | `string` | no |  |  |
+
+#### Output
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `liked` | `boolean` | yes |  |
+| `id` | `string` | yes |  |
+
+#### Examples
+
+```sh
+# Like a post
+xapi posts like 1234567890
+```
+
 ### xapi posts likes
 
 List users who liked a post.
@@ -348,6 +542,37 @@ List users who liked a post.
 ```sh
 # See who liked a post
 xapi posts likes 1234567890
+```
+
+### xapi posts retweet
+
+Retweet a post by ID.
+
+#### Arguments
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `id` | `string` | yes | Post ID to retweet |
+
+#### Environment Variables
+
+| Name | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `X_ACCESS_TOKEN` | `string` | yes |  | X OAuth 2.0 user access token (required for write endpoints) |
+| `X_BEARER_TOKEN` | `string` | no |  |  |
+
+#### Output
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `retweeted` | `boolean` | yes |  |
+| `id` | `string` | yes |  |
+
+#### Examples
+
+```sh
+# Retweet a post
+xapi posts retweet 1234567890
 ```
 
 ### xapi posts retweets
@@ -438,6 +663,68 @@ xapi posts search TypeScript
 xapi posts search AI --sort relevancy --maxResults 20
 ```
 
+### xapi posts unbookmark
+
+Remove bookmark from a post by ID.
+
+#### Arguments
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `id` | `string` | yes | Post ID to unbookmark |
+
+#### Environment Variables
+
+| Name | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `X_ACCESS_TOKEN` | `string` | yes |  | X OAuth 2.0 user access token (required for write endpoints) |
+| `X_BEARER_TOKEN` | `string` | no |  |  |
+
+#### Output
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `bookmarked` | `boolean` | yes |  |
+| `id` | `string` | yes |  |
+
+#### Examples
+
+```sh
+# Remove a bookmark from a post
+xapi posts unbookmark 1234567890
+```
+
+### xapi posts unlike
+
+Unlike a post by ID.
+
+#### Arguments
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `id` | `string` | yes | Post ID to unlike |
+
+#### Environment Variables
+
+| Name | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `X_ACCESS_TOKEN` | `string` | yes |  | X OAuth 2.0 user access token (required for write endpoints) |
+| `X_BEARER_TOKEN` | `string` | no |  |  |
+
+#### Output
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `liked` | `boolean` | yes |  |
+| `id` | `string` | yes |  |
+
+#### Examples
+
+```sh
+# Unlike a post
+xapi posts unlike 1234567890
+```
+
 ## xapi timeline
 
 View your X timeline.
@@ -458,6 +745,7 @@ View your home timeline.
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
 | `--maxResults` | `number` | `25` | Maximum posts to return (5–100) |
+| `--sinceId` | `string` |  | Only return posts newer than this post ID |
 | `--verbose` | `boolean` |  | Show full text without truncation |
 
 #### Output
@@ -481,6 +769,9 @@ xapi timeline home
 
 # View 50 posts
 xapi timeline home --maxResults 50
+
+# Resume from last-seen post ID
+xapi timeline home --sinceId 1900123456789012345
 ```
 
 ### xapi timeline mentions
@@ -499,6 +790,7 @@ View your recent mentions.
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
 | `--maxResults` | `number` | `25` | Maximum mentions to return |
+| `--sinceId` | `string` |  | Only return mentions newer than this post ID |
 | `--verbose` | `boolean` |  | Show full text without truncation |
 
 #### Output
@@ -517,6 +809,9 @@ View your recent mentions.
 ```sh
 # View your recent mentions
 xapi timeline mentions
+
+# Resume mentions from last-seen post ID
+xapi timeline mentions --sinceId 1900123456789012345
 ```
 
 ## xapi trends
@@ -592,9 +887,74 @@ xapi trends places
 
 Look up X users.
 
+### xapi users block
+
+Block a user by username or ID.
+
+#### Arguments
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `username` | `string` | yes | Username (with or without @) or user ID |
+
+#### Environment Variables
+
+| Name | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `X_ACCESS_TOKEN` | `string` | yes |  | X OAuth 2.0 user access token (required for write endpoints) |
+| `X_BEARER_TOKEN` | `string` | no |  |  |
+
+#### Output
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | `string` | yes |  |
+| `username` | `string` | yes |  |
+| `blocking` | `boolean` | yes |  |
+
+#### Examples
+
+```sh
+# Block @jack
+xapi users block jack
+```
+
+### xapi users follow
+
+Follow a user by username or ID.
+
+#### Arguments
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `username` | `string` | yes | Username (with or without @) or user ID |
+
+#### Environment Variables
+
+| Name | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `X_ACCESS_TOKEN` | `string` | yes |  | X OAuth 2.0 user access token (required for write endpoints) |
+| `X_BEARER_TOKEN` | `string` | no |  |  |
+
+#### Output
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | `string` | yes |  |
+| `username` | `string` | yes |  |
+| `following` | `boolean` | yes |  |
+| `pending_follow` | `boolean` | no |  |
+
+#### Examples
+
+```sh
+# Follow @jack
+xapi users follow jack
+```
+
 ### xapi users followers
 
-List followers of a user.
+List followers of a user. Supports optional client-side baseline diffing for new follower detection.
 
 #### Arguments
 
@@ -614,6 +974,8 @@ List followers of a user.
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
 | `--maxResults` | `number` | `100` | Maximum followers to return |
+| `--seenIdsFile` | `string` |  | Path to newline-delimited follower IDs used as a baseline for client-side diffing |
+| `--newOnly` | `boolean` | `false` | Return only followers not found in --seen-ids-file (client-side baseline diff; not API-native since_id) |
 
 #### Output
 
@@ -631,6 +993,9 @@ List followers of a user.
 ```sh
 # List followers of jack
 xapi users followers jack
+
+# Show only followers not in your baseline file (client-side diffing; the X API does not support since_id here)
+xapi users followers jack --seenIdsFile ./seen-followers.txt --newOnly true
 ```
 
 ### xapi users following
@@ -720,6 +1085,43 @@ xapi users get jack
 xapi users get 12345
 ```
 
+### xapi users me
+
+Get the authenticated user profile and metrics.
+
+#### Environment Variables
+
+| Name | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `X_BEARER_TOKEN` | `string` | no |  |  |
+| `X_ACCESS_TOKEN` | `string` | no |  |  |
+
+#### Options
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--verbose` | `boolean` |  | Show full bio without truncation |
+
+#### Output
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | `string` | yes |  |
+| `name` | `string` | yes |  |
+| `username` | `string` | yes |  |
+| `description` | `string` | no |  |
+| `followers` | `number` | no |  |
+| `following` | `number` | no |  |
+| `tweets` | `number` | no |  |
+| `joined` | `string` | no |  |
+
+#### Examples
+
+```sh
+# Get your authenticated profile
+xapi users me
+```
+
 ### xapi users mentions
 
 List recent mentions of a user.
@@ -759,6 +1161,38 @@ List recent mentions of a user.
 ```sh
 # Get mentions of jack
 xapi users mentions jack
+```
+
+### xapi users mute
+
+Mute a user by username or ID.
+
+#### Arguments
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `username` | `string` | yes | Username (with or without @) or user ID |
+
+#### Environment Variables
+
+| Name | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `X_ACCESS_TOKEN` | `string` | yes |  | X OAuth 2.0 user access token (required for write endpoints) |
+| `X_BEARER_TOKEN` | `string` | no |  |  |
+
+#### Output
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | `string` | yes |  |
+| `username` | `string` | yes |  |
+| `muting` | `boolean` | yes |  |
+
+#### Examples
+
+```sh
+# Mute @jack
+xapi users mute jack
 ```
 
 ### xapi users posts
@@ -837,4 +1271,100 @@ Search for users by keyword.
 ```sh
 # Search for users about TypeScript
 xapi users search TypeScript
+```
+
+### xapi users unblock
+
+Unblock a user by username or ID.
+
+#### Arguments
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `username` | `string` | yes | Username (with or without @) or user ID |
+
+#### Environment Variables
+
+| Name | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `X_ACCESS_TOKEN` | `string` | yes |  | X OAuth 2.0 user access token (required for write endpoints) |
+| `X_BEARER_TOKEN` | `string` | no |  |  |
+
+#### Output
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | `string` | yes |  |
+| `username` | `string` | yes |  |
+| `blocking` | `boolean` | yes |  |
+
+#### Examples
+
+```sh
+# Unblock @jack
+xapi users unblock jack
+```
+
+### xapi users unfollow
+
+Unfollow a user by username or ID.
+
+#### Arguments
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `username` | `string` | yes | Username (with or without @) or user ID |
+
+#### Environment Variables
+
+| Name | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `X_ACCESS_TOKEN` | `string` | yes |  | X OAuth 2.0 user access token (required for write endpoints) |
+| `X_BEARER_TOKEN` | `string` | no |  |  |
+
+#### Output
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | `string` | yes |  |
+| `username` | `string` | yes |  |
+| `following` | `boolean` | yes |  |
+
+#### Examples
+
+```sh
+# Unfollow @jack
+xapi users unfollow jack
+```
+
+### xapi users unmute
+
+Unmute a user by username or ID.
+
+#### Arguments
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `username` | `string` | yes | Username (with or without @) or user ID |
+
+#### Environment Variables
+
+| Name | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `X_ACCESS_TOKEN` | `string` | yes |  | X OAuth 2.0 user access token (required for write endpoints) |
+| `X_BEARER_TOKEN` | `string` | no |  |  |
+
+#### Output
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | `string` | yes |  |
+| `username` | `string` | yes |  |
+| `muting` | `boolean` | yes |  |
+
+#### Examples
+
+```sh
+# Unmute @jack
+xapi users unmute jack
 ```

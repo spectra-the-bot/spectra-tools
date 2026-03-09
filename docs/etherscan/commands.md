@@ -24,7 +24,7 @@ Get the native-token balance of an address.
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
-| `--chain` | `string` | `abstract` | Chain name (abstract, ethereum, base, arbitrum, ...) |
+| `--chain` | `string` | `abstract` | Chain name (default: abstract). Options: ethereum, base, arbitrum, optimism, polygon, ... |
 
 #### Output
 
@@ -40,6 +40,165 @@ Get the native-token balance of an address.
 ```sh
 # Get ETH balance on Abstract
 etherscan account balance 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --chain abstract
+```
+
+### etherscan account erc1155tx
+
+List ERC-1155 token transfers for an address.
+
+#### Arguments
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `address` | `string` | yes | Wallet address |
+
+#### Environment Variables
+
+| Name | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `ETHERSCAN_API_KEY` | `string` | yes |  | Etherscan V2 API key |
+
+#### Options
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--contractaddress` | `string` |  | Filter by ERC-1155 contract address |
+| `--startblock` | `number` | `0` | Start block number |
+| `--endblock` | `string` | `latest` | End block number |
+| `--page` | `number` | `1` | Page number |
+| `--offset` | `number` | `20` | Results per page |
+| `--sort` | `string` | `asc` | Sort order (asc or desc) |
+| `--chain` | `string` | `abstract` | Chain name (default: abstract). Options: ethereum, base, arbitrum, optimism, polygon, ... |
+
+#### Output
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `address` | `string` | yes |  |
+| `chain` | `string` | yes |  |
+| `count` | `number` | yes |  |
+| `transfers` | `array` | yes |  |
+| `transfers[].hash` | `string` | yes |  |
+| `transfers[].from` | `string` | yes |  |
+| `transfers[].to` | `string` | yes |  |
+| `transfers[].tokenId` | `string` | yes |  |
+| `transfers[].amount` | `string` | yes |  |
+| `transfers[].tokenName` | `string` | yes |  |
+| `transfers[].tokenSymbol` | `string` | yes |  |
+| `transfers[].timestamp` | `string` | yes |  |
+| `transfers[].contract` | `string` | yes |  |
+
+#### Examples
+
+```sh
+# List recent ERC-1155 transfers for an address
+etherscan account erc1155tx 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --chain ethereum --offset 10 --sort desc
+```
+
+### etherscan account internaltx
+
+List internal transactions for an address.
+
+#### Arguments
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `address` | `string` | yes | Wallet address |
+
+#### Environment Variables
+
+| Name | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `ETHERSCAN_API_KEY` | `string` | yes |  | Etherscan V2 API key |
+
+#### Options
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--startblock` | `number` | `0` | Start block number |
+| `--endblock` | `string` | `latest` | End block number |
+| `--page` | `number` | `1` | Page number |
+| `--offset` | `number` | `10` | Number of results per page |
+| `--sort` | `string` | `asc` | Sort order (asc or desc) |
+| `--chain` | `string` | `abstract` | Chain name (default: abstract). Options: ethereum, base, arbitrum, optimism, polygon, ... |
+
+#### Output
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `address` | `string` | yes |  |
+| `chain` | `string` | yes |  |
+| `count` | `number` | yes |  |
+| `transactions` | `array` | yes |  |
+| `transactions[].hash` | `string` | yes |  |
+| `transactions[].from` | `string` | yes |  |
+| `transactions[].to` | `string` | yes |  |
+| `transactions[].value` | `string` | yes |  |
+| `transactions[].eth` | `string` | yes |  |
+| `transactions[].timestamp` | `string` | yes |  |
+| `transactions[].block` | `string` | yes |  |
+| `transactions[].type` | `string` | no |  |
+| `transactions[].traceId` | `string` | no |  |
+| `transactions[].status` | `string` | yes |  |
+| `transactions[].gasUsed` | `string` | yes |  |
+
+#### Examples
+
+```sh
+# List recent internal transactions for an address
+etherscan account internaltx 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --chain ethereum --sort desc --offset 5
+```
+
+### etherscan account nfttx
+
+List ERC-721 NFT transfers for an address.
+
+#### Arguments
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `address` | `string` | yes | Wallet address |
+
+#### Environment Variables
+
+| Name | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `ETHERSCAN_API_KEY` | `string` | yes |  | Etherscan V2 API key |
+
+#### Options
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--contractaddress` | `string` |  | Filter by NFT contract address |
+| `--startblock` | `number` | `0` | Start block number |
+| `--endblock` | `string` | `latest` | End block number |
+| `--page` | `number` | `1` | Page number |
+| `--offset` | `number` | `20` | Results per page |
+| `--sort` | `string` | `asc` | Sort order (asc or desc) |
+| `--chain` | `string` | `abstract` | Chain name (default: abstract). Options: ethereum, base, arbitrum, optimism, polygon, ... |
+
+#### Output
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `address` | `string` | yes |  |
+| `chain` | `string` | yes |  |
+| `count` | `number` | yes |  |
+| `transfers` | `array` | yes |  |
+| `transfers[].hash` | `string` | yes |  |
+| `transfers[].from` | `string` | yes |  |
+| `transfers[].to` | `string` | yes |  |
+| `transfers[].tokenId` | `string` | yes |  |
+| `transfers[].tokenName` | `string` | yes |  |
+| `transfers[].tokenSymbol` | `string` | yes |  |
+| `transfers[].timestamp` | `string` | yes |  |
+| `transfers[].contract` | `string` | yes |  |
+
+#### Examples
+
+```sh
+# List recent ERC-721 transfers for an address
+etherscan account nfttx 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --chain ethereum --offset 10 --sort desc
 ```
 
 ### etherscan account tokenbalance
@@ -63,7 +222,7 @@ Get ERC-20 token balance for an address.
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
 | `--contractaddress` | `string` |  | Token contract address |
-| `--chain` | `string` | `abstract` | Chain name (abstract, ethereum, base, arbitrum, ...) |
+| `--chain` | `string` | `abstract` | Chain name (default: abstract). Options: ethereum, base, arbitrum, optimism, polygon, ... |
 
 #### Output
 
@@ -104,7 +263,7 @@ List ERC-20 token transfers for an address.
 | `--contractaddress` | `string` |  | Filter by token contract address |
 | `--page` | `number` | `1` | Page number |
 | `--offset` | `number` | `20` | Results per page |
-| `--chain` | `string` | `abstract` | Chain name (abstract, ethereum, base, arbitrum, ...) |
+| `--chain` | `string` | `abstract` | Chain name (default: abstract). Options: ethereum, base, arbitrum, optimism, polygon, ... |
 
 #### Output
 
@@ -156,7 +315,7 @@ List normal transactions for an address.
 | `--page` | `number` | `1` | Page number |
 | `--offset` | `number` | `10` | Number of results per page |
 | `--sort` | `string` | `asc` | Sort order (asc or desc) |
-| `--chain` | `string` | `abstract` | Chain name (abstract, ethereum, base, arbitrum, ...) |
+| `--chain` | `string` | `abstract` | Chain name (default: abstract). Options: ethereum, base, arbitrum, optimism, polygon, ... |
 
 #### Output
 
@@ -207,7 +366,7 @@ Get the ABI for a verified contract.
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
-| `--chain` | `string` | `abstract` | Chain name (abstract, ethereum, base, arbitrum, ...) |
+| `--chain` | `string` | `abstract` | Chain name (default: abstract). Options: ethereum, base, arbitrum, optimism, polygon, ... |
 
 #### Output
 
@@ -244,7 +403,7 @@ Get the deployment transaction and creator for a contract.
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
-| `--chain` | `string` | `abstract` | Chain name (abstract, ethereum, base, arbitrum, ...) |
+| `--chain` | `string` | `abstract` | Chain name (default: abstract). Options: ethereum, base, arbitrum, optimism, polygon, ... |
 
 #### Output
 
@@ -282,7 +441,7 @@ Get verified source code for a contract.
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
-| `--chain` | `string` | `abstract` | Chain name (abstract, ethereum, base, arbitrum, ...) |
+| `--chain` | `string` | `abstract` | Chain name (default: abstract). Options: ethereum, base, arbitrum, optimism, polygon, ... |
 
 #### Output
 
@@ -326,7 +485,7 @@ Estimate confirmation time in seconds for a gas price (wei).
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
 | `--gasprice` | `string` |  | Gas price in wei |
-| `--chain` | `string` | `abstract` | Chain name (abstract, ethereum, base, arbitrum, ...) |
+| `--chain` | `string` | `abstract` | Chain name (default: abstract). Options: ethereum, base, arbitrum, optimism, polygon, ... |
 
 #### Output
 
@@ -357,7 +516,7 @@ Get current gas price recommendations.
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
-| `--chain` | `string` | `abstract` | Chain name (abstract, ethereum, base, arbitrum, ...) |
+| `--chain` | `string` | `abstract` | Chain name (default: abstract). Options: ethereum, base, arbitrum, optimism, polygon, ... |
 
 #### Output
 
@@ -378,6 +537,72 @@ Get current gas price recommendations.
 etherscan gas oracle --chain abstract
 ```
 
+## etherscan logs
+
+Query event logs with topic, address, and block-range filters.
+
+### etherscan logs get
+
+Get event logs from Etherscan logs.getLogs.
+
+#### Arguments
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+
+
+#### Environment Variables
+
+| Name | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `ETHERSCAN_API_KEY` | `string` | yes |  | Etherscan V2 API key |
+
+#### Options
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--fromblock` | `string` | `0` | Start block number |
+| `--toblock` | `string` | `latest` | End block number |
+| `--address` | `string` |  | Filter by contract address |
+| `--topic0` | `string` |  | First indexed topic |
+| `--topic1` | `string` |  | Second indexed topic |
+| `--topic2` | `string` |  | Third indexed topic |
+| `--topic3` | `string` |  | Fourth indexed topic |
+| `--topic0_1_opr` | `string` |  | Operator between topic0 and topic1 |
+| `--topic1_2_opr` | `string` |  | Operator between topic1 and topic2 |
+| `--topic2_3_opr` | `string` |  | Operator between topic2 and topic3 |
+| `--page` | `number` | `1` | Page number |
+| `--offset` | `number` | `100` | Results per page |
+| `--chain` | `string` | `abstract` | Chain name (default: abstract). Options: ethereum, base, arbitrum, optimism, polygon, ... |
+
+#### Output
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `chain` | `string` | yes |  |
+| `fromBlock` | `string` | yes |  |
+| `toBlock` | `string` | yes |  |
+| `address` | `string` | no |  |
+| `count` | `number` | yes |  |
+| `logs` | `array` | yes |  |
+| `logs[].address` | `string` | yes |  |
+| `logs[].topics` | `array` | yes |  |
+| `logs[].data` | `string` | yes |  |
+| `logs[].block` | `string` | yes |  |
+| `logs[].timestamp` | `string` | yes |  |
+| `logs[].transactionHash` | `string` | yes |  |
+| `logs[].logIndex` | `string` | yes |  |
+| `logs[].transactionIndex` | `string` | no |  |
+| `logs[].gasPrice` | `string` | no |  |
+| `logs[].gasUsed` | `string` | no |  |
+
+#### Examples
+
+```sh
+# Query ERC-20 Transfer logs for USDC
+etherscan logs get --chain ethereum --address 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 --topic0 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55aebec6f6f3c --fromblock 20000000 --toblock latest --offset 25
+```
+
 ## etherscan stats
 
 Query ETH price and total supply statistics.
@@ -396,7 +621,7 @@ Get latest ETH price in USD and BTC.
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
-| `--chain` | `string` | `abstract` | Chain name (abstract, ethereum, base, arbitrum, ...) |
+| `--chain` | `string` | `abstract` | Chain name (default: abstract). Options: ethereum, base, arbitrum, optimism, polygon, ... |
 
 #### Output
 
@@ -429,7 +654,7 @@ Get total ETH supply in wei.
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
-| `--chain` | `string` | `abstract` | Chain name (abstract, ethereum, base, arbitrum, ...) |
+| `--chain` | `string` | `abstract` | Chain name (default: abstract). Options: ethereum, base, arbitrum, optimism, polygon, ... |
 
 #### Output
 
@@ -471,7 +696,7 @@ List top token holders.
 |------|------|---------|-------------|
 | `--page` | `number` | `1` | Page number |
 | `--offset` | `number` | `10` | Results per page |
-| `--chain` | `string` | `abstract` | Chain name (abstract, ethereum, base, arbitrum, ...) |
+| `--chain` | `string` | `abstract` | Chain name (default: abstract). Options: ethereum, base, arbitrum, optimism, polygon, ... |
 
 #### Output
 
@@ -512,7 +737,7 @@ Get metadata for a token contract.
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
-| `--chain` | `string` | `abstract` | Chain name (abstract, ethereum, base, arbitrum, ...) |
+| `--chain` | `string` | `abstract` | Chain name (default: abstract). Options: ethereum, base, arbitrum, optimism, polygon, ... |
 
 #### Output
 
@@ -556,7 +781,7 @@ Get total token supply.
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
-| `--chain` | `string` | `abstract` | Chain name (abstract, ethereum, base, arbitrum, ...) |
+| `--chain` | `string` | `abstract` | Chain name (default: abstract). Options: ethereum, base, arbitrum, optimism, polygon, ... |
 
 #### Output
 
@@ -597,7 +822,7 @@ Get transaction details by hash.
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
-| `--chain` | `string` | `abstract` | Chain name (abstract, ethereum, base, arbitrum, ...) |
+| `--chain` | `string` | `abstract` | Chain name (default: abstract). Options: ethereum, base, arbitrum, optimism, polygon, ... |
 
 #### Output
 
@@ -640,7 +865,7 @@ Get the receipt for a transaction.
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
-| `--chain` | `string` | `abstract` | Chain name (abstract, ethereum, base, arbitrum, ...) |
+| `--chain` | `string` | `abstract` | Chain name (default: abstract). Options: ethereum, base, arbitrum, optimism, polygon, ... |
 
 #### Output
 
@@ -683,7 +908,7 @@ Check whether a transaction succeeded or failed.
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
-| `--chain` | `string` | `abstract` | Chain name (abstract, ethereum, base, arbitrum, ...) |
+| `--chain` | `string` | `abstract` | Chain name (default: abstract). Options: ethereum, base, arbitrum, optimism, polygon, ... |
 
 #### Output
 

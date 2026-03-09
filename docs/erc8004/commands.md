@@ -90,6 +90,48 @@ erc8004 discovery search --name coder --service openapi --limit 5
 
 Manage ERC-8004 agent identities.
 
+### erc8004 identity burn
+
+Permanently destroy an agent identity token.
+
+#### Arguments
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `agentId` | `string` | yes | Agent token ID to burn |
+
+#### Environment Variables
+
+| Name | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `ABSTRACT_RPC_URL` | `string` | no |  | Abstract RPC URL |
+| `IDENTITY_REGISTRY_ADDRESS` | `string` | no |  | Identity registry contract address |
+| `PRIVATE_KEY` | `string` | no |  | Private key for signing |
+
+#### Options
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--confirm` | `boolean` | `false` | Confirm the irreversible burn operation (required) |
+| `--dry-run` | `boolean` | `false` | Simulate the burn without executing |
+
+#### Output
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `agentId` | `string` | yes |  |
+| `status` | `string` | yes |  |
+| `message` | `string` | yes |  |
+
+#### Examples
+
+```sh
+# Burn agent #1 (not currently supported)
+erc8004 identity burn 1 --confirm true
+```
+
+> This is a destructive, irreversible operation. The agent identity will be permanently deleted.
+
 ### erc8004 identity get
 
 Get details for a specific agent.
@@ -234,6 +276,49 @@ erc8004 identity register --uri ipfs://QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojW
 
 > Requires PRIVATE_KEY environment variable for signing.
 
+### erc8004 identity set-metadata
+
+Set a metadata key-value pair on an agent.
+
+#### Arguments
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `agentId` | `string` | yes | Agent token ID |
+
+#### Environment Variables
+
+| Name | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `ABSTRACT_RPC_URL` | `string` | no |  | Abstract RPC URL |
+| `IDENTITY_REGISTRY_ADDRESS` | `string` | no |  | Identity registry contract address |
+| `PRIVATE_KEY` | `string` | no |  | Private key for signing |
+
+#### Options
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--key` | `string` |  | Metadata key to set |
+| `--value` | `string` |  | Metadata value to set |
+
+#### Output
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `agentId` | `string` | yes |  |
+| `key` | `string` | yes |  |
+| `value` | `string` | yes |  |
+| `txHash` | `string` | yes |  |
+
+#### Examples
+
+```sh
+# Set contact metadata for agent #1
+erc8004 identity set-metadata 1 --key contact --value agent@example.com
+```
+
+> Requires PRIVATE_KEY environment variable for signing. Caller must be the token owner.
+
 ### erc8004 identity set-wallet
 
 Set an agent's associated wallet address.
@@ -275,6 +360,49 @@ erc8004 identity set-wallet 1 --wallet 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA9604
 ```
 
 > Requires PRIVATE_KEY environment variable. The signature must be from the new wallet.
+
+### erc8004 identity transfer
+
+Transfer an agent identity token to a new owner.
+
+#### Arguments
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `agentId` | `string` | yes | Agent token ID to transfer |
+
+#### Environment Variables
+
+| Name | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `ABSTRACT_RPC_URL` | `string` | no |  | Abstract RPC URL |
+| `IDENTITY_REGISTRY_ADDRESS` | `string` | no |  | Identity registry contract address |
+| `PRIVATE_KEY` | `string` | no |  | Private key for signing |
+
+#### Options
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--to` | `string` |  | Recipient address |
+| `--safe` | `boolean` | `true` | Use safeTransferFrom (checks recipient can receive ERC-721). Disable with --no-safe. |
+
+#### Output
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `agentId` | `string` | yes |  |
+| `from` | `string` | yes |  |
+| `to` | `string` | yes |  |
+| `txHash` | `string` | yes |  |
+
+#### Examples
+
+```sh
+# Transfer agent #1 to a new owner
+erc8004 identity transfer 1 --to 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
+```
+
+> Requires PRIVATE_KEY environment variable. Caller must be the token owner or approved.
 
 ### erc8004 identity update
 
