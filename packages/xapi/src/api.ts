@@ -70,6 +70,31 @@ export interface XSingleResponse<T> {
   data: T;
 }
 
+export interface XLikePostResponse {
+  data: {
+    liked: boolean;
+  };
+}
+
+export interface XRetweetPostResponse {
+  data: {
+    retweeted: boolean;
+  };
+}
+
+export interface XFollowUserResponse {
+  data: {
+    following: boolean;
+    pending_follow?: boolean;
+  };
+}
+
+export interface XUnfollowUserResponse {
+  data: {
+    following: boolean;
+  };
+}
+
 // ── Client factory ────────────────────────────────────────────────────────────
 
 export function createXApiClient(bearerToken: string) {
@@ -162,6 +187,14 @@ export function createXApiClient(bearerToken: string) {
     });
   }
 
+  function likePost(userId: string, tweetId: string) {
+    return post<XLikePostResponse>(`/users/${userId}/likes`, { tweet_id: tweetId });
+  }
+
+  function retweetPost(userId: string, tweetId: string) {
+    return post<XRetweetPostResponse>(`/users/${userId}/retweets`, { tweet_id: tweetId });
+  }
+
   // ── Users ──────────────────────────────────────────────────────────────────
 
   const USER_FIELDS = 'id,name,username,description,public_metrics,created_at';
@@ -194,6 +227,16 @@ export function createXApiClient(bearerToken: string) {
     });
   }
 
+  function followUser(sourceUserId: string, targetUserId: string) {
+    return post<XFollowUserResponse>(`/users/${sourceUserId}/following`, {
+      target_user_id: targetUserId,
+    });
+  }
+
+  function unfollowUser(sourceUserId: string, targetUserId: string) {
+    return del<XUnfollowUserResponse>(`/users/${sourceUserId}/following/${targetUserId}`);
+  }
+
   function getUserPosts(id: string, maxResults: number, nextToken?: string) {
     return get<XPagedResponse<XPost>>(`/users/${id}/tweets`, {
       max_results: maxResults,
@@ -219,19 +262,31 @@ export function createXApiClient(bearerToken: string) {
 
   // ── Timeline ───────────────────────────────────────────────────────────────
 
-  function getHomeTimeline(userId: string, maxResults: number, nextToken?: string) {
+  function getHomeTimeline(
+    userId: string,
+    maxResults: number,
+    nextToken?: string,
+    sinceId?: string,
+  ) {
     return get<XPagedResponse<XPost>>(`/users/${userId}/timelines/reverse_chronological`, {
       max_results: maxResults,
       'tweet.fields': POST_FIELDS,
       ...(nextToken ? { pagination_token: nextToken } : {}),
+      ...(sinceId ? { since_id: sinceId } : {}),
     });
   }
 
-  function getMentionsTimeline(userId: string, maxResults: number, nextToken?: string) {
+  function getMentionsTimeline(
+    userId: string,
+    maxResults: number,
+    nextToken?: string,
+    sinceId?: string,
+  ) {
     return get<XPagedResponse<XPost>>(`/users/${userId}/mentions`, {
       max_results: maxResults,
       'tweet.fields': POST_FIELDS,
       ...(nextToken ? { pagination_token: nextToken } : {}),
+      ...(sinceId ? { since_id: sinceId } : {}),
     });
   }
 
@@ -314,10 +369,14 @@ export function createXApiClient(bearerToken: string) {
     deletePost,
     getPostLikes,
     getPostRetweets,
+    likePost,
+    retweetPost,
     getUserByUsername,
     getUserById,
     getUserFollowers,
     getUserFollowing,
+    followUser,
+    unfollowUser,
     getUserPosts,
     getUserMentions,
     searchUsers,
