@@ -300,6 +300,13 @@ describe('xapi cli write commands', () => {
     expect(usersHelp.exitCode).toBe(0);
     expect(usersHelp.output).toContain('follow');
     expect(usersHelp.output).toContain('unfollow');
+
+    const listsHelp = await runCli(['lists', '--help']);
+    expect(listsHelp.exitCode).toBe(0);
+    expect(listsHelp.output).toContain('create');
+    expect(listsHelp.output).toContain('delete');
+    expect(listsHelp.output).toContain('add-member');
+    expect(listsHelp.output).toContain('remove-member');
   });
 
   it.each([
@@ -408,10 +415,95 @@ describe('xapi cli write commands', () => {
   });
 
   it.each([
+    {
+      command: ['create', '--name', 'Core devs', '--description', 'Builders only', '--private'],
+      expected: { id: 'list-1', name: 'Core devs' },
+      matches(pathname: string, method: string) {
+        return pathname === '/2/lists' && method === 'POST';
+      },
+      responseBody: { data: { id: 'list-1', name: 'Core devs' } },
+    },
+    {
+      command: ['delete', 'list-1'],
+      expected: { deleted: true, id: 'list-1' },
+      matches(pathname: string, method: string) {
+        return pathname === '/2/lists/list-1' && method === 'DELETE';
+      },
+      responseBody: { data: { deleted: true } },
+    },
+    {
+      command: ['add-member', 'list-1', 'target'],
+      expected: {
+        id: 'list-1',
+        member_id: 'target-1',
+        member_username: 'target',
+        is_member: true,
+      },
+      matches(pathname: string, method: string) {
+        return pathname === '/2/lists/list-1/members' && method === 'POST';
+      },
+      responseBody: { data: { is_member: true } },
+    },
+    {
+      command: ['remove-member', 'list-1', 'target'],
+      expected: {
+        id: 'list-1',
+        member_id: 'target-1',
+        member_username: 'target',
+        is_member: false,
+      },
+      matches(pathname: string, method: string) {
+        return pathname === '/2/lists/list-1/members/target-1' && method === 'DELETE';
+      },
+      responseBody: { data: { is_member: false } },
+    },
+  ] as const)('returns success shape for lists write command', async (tc) => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>().mockImplementation(async (input, init) => {
+        const requestUrl =
+          typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+        const { pathname } = new URL(requestUrl);
+        const method = init?.method ?? (input instanceof Request ? input.method : 'GET');
+
+        if (pathname === '/2/users/by/username/target') {
+          return new Response(JSON.stringify({ data: { id: 'target-1', username: 'target' } }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          });
+        }
+
+        if (tc.matches(pathname, method)) {
+          return new Response(JSON.stringify(tc.responseBody), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          });
+        }
+
+        return new Response('not found', { status: 404, statusText: 'Not Found' });
+      }),
+    );
+
+    process.env.X_ACCESS_TOKEN = 'write-token';
+
+    const { output, exitCode } = await runCli(['lists', ...tc.command, '--json']);
+
+    expect(exitCode).toBe(0);
+    expect(JSON.parse(output)).toEqual(tc.expected);
+  });
+
+  it.each([
     { command: ['posts', 'like', 'tweet-1'], operation: 'posts like' },
     { command: ['posts', 'retweet', 'tweet-1'], operation: 'posts retweet' },
     { command: ['users', 'follow', 'target'], operation: 'users follow' },
     { command: ['users', 'unfollow', 'target'], operation: 'users unfollow' },
+    { command: ['lists', 'create', '--name', 'Core devs'], operation: 'lists create' },
+    { command: ['lists', 'delete', 'list-1'], operation: 'lists delete' },
+    { command: ['lists', 'add-member', 'list-1', 'target'], operation: 'lists add-member' },
+    {
+      command: ['lists', 'remove-member', 'list-1', 'target'],
+      operation: 'lists remove-member',
+    },
   ] as const)('maps auth failures for $operation', async (tc) => {
     vi.stubGlobal(
       'fetch',
@@ -441,13 +533,42 @@ describe('xapi cli write commands', () => {
     expect(output).toContain('required auth: X_ACCESS_TOKEN');
   });
 
-  it('requires X_ACCESS_TOKEN for new write commands', async () => {
+  it.each([
+    ['posts', 'like', 'tweet-1'],
+    ['lists', 'delete', 'list-1'],
+  ] as const)('requires X_ACCESS_TOKEN for %s %s', async (group, command, target) => {
     process.env.X_BEARER_TOKEN = 'read-token';
 
-    const { output, exitCode } = await runCli(['posts', 'like', 'tweet-1', '--json']);
+    const { output, exitCode } = await runCli([group, command, target, '--json']);
 
     expect(exitCode).toBe(1);
     expect(output).toContain('X_ACCESS_TOKEN');
+  });
+
+  it('validates list metadata for lists create', async () => {
+    process.env.X_ACCESS_TOKEN = 'write-token';
+
+    const { output, exitCode } = await runCli([
+      'lists',
+      'create',
+      '--name',
+      'x'.repeat(26),
+      '--json',
+    ]);
+
+    expect(exitCode).toBe(1);
+    expect(output).toContain('name');
+    expect(output).toContain('expected string to have <=25 characters');
+  });
+
+  it('validates member target input for lists add-member', async () => {
+    process.env.X_ACCESS_TOKEN = 'write-token';
+
+    const { output, exitCode } = await runCli(['lists', 'add-member', 'list-1', '', '--json']);
+
+    expect(exitCode).toBe(1);
+    expect(output).toContain('member');
+    expect(output).toContain('expected string to have >=1 characters');
   });
 });
 
