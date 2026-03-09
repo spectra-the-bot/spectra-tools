@@ -1,5 +1,11 @@
 # @spectra-the-bot/assembly-cli
 
+## 0.11.0
+
+### Minor Changes
+
+- [#232](https://github.com/spectra-the-bot/spectra-tools/pull/232) [`fe23015`](https://github.com/spectra-the-bot/spectra-tools/commit/fe2301583188b383ba4ba2e5e0d1f8529b28450d) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add forum create-petition command for submitting new Assembly petitions onchain.
+
 ## 0.10.1
 
 ### Patch Changes
