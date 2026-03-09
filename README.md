@@ -74,6 +74,8 @@ Full docs, command references, and configuration guides:
 
 ## Contributing
 
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for CI guardrails, release safety checks, and PR review expectations.
+
 ### Development setup
 
 ```bash
@@ -98,6 +100,8 @@ pnpm docs:build     # production build
 1. Add a changeset: `pnpm changeset`
 2. Merge to `main` — the release workflow creates a Version Packages PR
 3. Merge the release PR to publish to npm
+
+Runbook: keep `main` branch protection `strict: true` with required status check `CI`.
 
 Required repository secret: `NPM_TOKEN` with publish access to `@spectratools`.
 

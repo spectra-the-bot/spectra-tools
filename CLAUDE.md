@@ -106,6 +106,7 @@ pnpm changeset
 - Squash merge PRs to main.
 - Branch naming: `feat/`, `fix/`, `docs/`, `refactor/`, `test/`.
 - **Every PR must include a changeset file** — see Publishing section below.
+- PR review automation must enforce the internal dependency-graph guardrail in `.github/pr-review-automation-prompt.md` (block merges that could reference unpublished internal package versions in npm-invocation CI paths).
 
 ### Publishing (Changeset-Driven)
 - **Every PR that changes package behavior MUST include a changeset file.**
