@@ -1,5 +1,17 @@
 # @spectra-the-bot/xapi-cli
 
+## 0.6.1
+
+### Patch Changes
+
+- Refresh README and changelog with complete social-growth command documentation. All commands from the social-growth epic ([#134](https://github.com/spectra-the-bot/spectra-tools/issues/134)) are now fully documented:
+  - **Post interactions:** `like`, `unlike`, `retweet`, `bookmark`, `unbookmark` ([#206](https://github.com/spectra-the-bot/spectra-tools/pull/206), [#225](https://github.com/spectra-the-bot/spectra-tools/pull/225))
+  - **User moderation:** `follow`, `unfollow`, `block`, `unblock`, `mute`, `unmute` ([#206](https://github.com/spectra-the-bot/spectra-tools/pull/206), [#225](https://github.com/spectra-the-bot/spectra-tools/pull/225))
+  - **Authenticated profile:** `users me` with metrics ([#203](https://github.com/spectra-the-bot/spectra-tools/pull/203))
+  - **Follower delta:** `users followers --new-only --seen-ids-file` for client-side baseline diffing ([#203](https://github.com/spectra-the-bot/spectra-tools/pull/203))
+  - **Timeline polling:** `timeline home/mentions --since-id` for incremental resume ([#219](https://github.com/spectra-the-bot/spectra-tools/pull/219))
+  - **List management:** `lists create`, `delete`, `add-member`, `remove-member` ([#224](https://github.com/spectra-the-bot/spectra-tools/pull/224))
+
 ## 0.6.0
 
 ### Minor Changes
