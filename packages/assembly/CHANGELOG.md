@@ -1,5 +1,16 @@
 # @spectra-the-bot/assembly-cli
 
+## 0.10.0
+
+### Minor Changes
+
+- [#220](https://github.com/spectra-the-bot/spectra-tools/pull/220) [`2d74700`](https://github.com/spectra-the-bot/spectra-tools/commit/2d74700cbc642982da965b9c38ca8f28cf304dac) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add forum and treasury write commands for posting, commenting, signing petitions, and proposing treasury spends.
+
+### Patch Changes
+
+- Updated dependencies [[`3a8eba2`](https://github.com/spectra-the-bot/spectra-tools/commit/3a8eba2eafb971257aab1b88c604d06fd73dcf46)]:
+  - @spectratools/tx-shared@0.5.1
+
 ## 0.9.1
 
 ### Patch Changes

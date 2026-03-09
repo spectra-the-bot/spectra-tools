@@ -1,5 +1,11 @@
 # @spectratools/tx-shared
 
+## 0.5.1
+
+### Patch Changes
+
+- [#221](https://github.com/spectra-the-bot/spectra-tools/pull/221) [`3a8eba2`](https://github.com/spectra-the-bot/spectra-tools/commit/3a8eba2eafb971257aab1b88c604d06fd73dcf46) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add Privy policy preflight checks before live sends and include policy visibility in dry-run results.
+
 ## 0.5.0
 
 ### Minor Changes
