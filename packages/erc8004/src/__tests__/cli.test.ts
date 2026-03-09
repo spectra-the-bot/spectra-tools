@@ -160,6 +160,40 @@ describe('erc8004 cli', () => {
     expect(envelope.message).toContain('agentId must be a numeric value');
   });
 
+  it('identity burn returns BURN_NOT_SUPPORTED error', async () => {
+    let output = '';
+    await cli.serve(['identity', 'burn', '1', '--json'], {
+      stdout(s) {
+        output += s;
+      },
+      exit() {},
+      env: {
+        IDENTITY_REGISTRY_ADDRESS: '0x1234567890123456789012345678901234567890',
+      },
+    });
+
+    const envelope = JSON.parse(output);
+    expect(envelope.code).toBe('BURN_NOT_SUPPORTED');
+    expect(envelope.message).toContain('does not support burn');
+    expect(envelope.retryable).toBe(false);
+  });
+
+  it('identity burn returns BURN_NOT_SUPPORTED even with --confirm and --dry-run', async () => {
+    let output = '';
+    await cli.serve(['identity', 'burn', '1', '--confirm', '--dry-run', '--json'], {
+      stdout(s) {
+        output += s;
+      },
+      exit() {},
+      env: {
+        IDENTITY_REGISTRY_ADDRESS: '0x1234567890123456789012345678901234567890',
+      },
+    });
+
+    const envelope = JSON.parse(output);
+    expect(envelope.code).toBe('BURN_NOT_SUPPORTED');
+  });
+
   it('registration create --json output does not contain CTA keys', async () => {
     let output = '';
     await cli.serve(['registration', 'create', '--name', 'Test Agent', '--json'], {

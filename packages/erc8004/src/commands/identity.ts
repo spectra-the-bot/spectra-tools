@@ -830,4 +830,44 @@ identity.command('set-wallet', {
   },
 });
 
+identity.command('burn', {
+  description: 'Permanently destroy an agent identity token.',
+  hint: 'This is a destructive, irreversible operation. The agent identity will be permanently deleted.',
+  args: z.object({
+    agentId: z.string().describe('Agent token ID to burn'),
+  }),
+  options: z.object({
+    confirm: z
+      .boolean()
+      .default(false)
+      .describe('Confirm the irreversible burn operation (required)'),
+    'dry-run': z.boolean().default(false).describe('Simulate the burn without executing'),
+  }),
+  env: z.object({
+    ABSTRACT_RPC_URL: z.string().optional().describe('Abstract RPC URL'),
+    IDENTITY_REGISTRY_ADDRESS: z.string().optional().describe('Identity registry contract address'),
+    PRIVATE_KEY: z.string().optional().describe('Private key for signing'),
+  }),
+  output: z.object({
+    agentId: z.string(),
+    status: z.string(),
+    message: z.string(),
+  }),
+  examples: [
+    {
+      args: { agentId: '1' },
+      options: { confirm: true },
+      description: 'Burn agent #1 (not currently supported)',
+    },
+  ],
+  run(c) {
+    return c.error({
+      code: 'BURN_NOT_SUPPORTED',
+      message:
+        'The IdentityRegistry contract does not support burn. The burn(uint256) function is not available on this contract version.',
+      retryable: false,
+    });
+  },
+});
+
 export { identity };
