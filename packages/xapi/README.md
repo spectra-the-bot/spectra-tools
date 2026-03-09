@@ -67,10 +67,13 @@ xapi-cli users followers jack --new-only --seen-ids-file ./seen-followers.txt --
 xapi-cli posts get 1234567890 --format json
 xapi-cli posts like 1234567890 --format json
 xapi-cli posts unlike 1234567890 --format json
+xapi-cli posts retweet 1234567890 --format json
 xapi-cli posts bookmark 1234567890 --format json
 xapi-cli posts unbookmark 1234567890 --format json
 xapi-cli posts likes 1234567890 --max-results 100 --format json
 xapi-cli posts retweets 1234567890 --max-results 100 --format json
+xapi-cli users follow interesting_dev --format json
+xapi-cli users unfollow inactive_account --format json
 xapi-cli users block spammer123 --format json
 xapi-cli users unblock spammer123 --format json
 xapi-cli users mute noisyaccount --format json
@@ -80,20 +83,31 @@ xapi-cli users unmute noisyaccount --format json
 xapi-cli timeline home --max-results 50 --format json
 xapi-cli timeline mentions --max-results 50 --format json
 
+# 4b) Timeline polling with --since-id (resume from last-seen post)
+# Store the newest post ID from the previous fetch, then pass it on the next call
+# to retrieve only new posts since that point.
+xapi-cli timeline home --since-id 1900123456789012345 --max-results 50 --format json
+xapi-cli timeline mentions --since-id 1900123456789012345 --max-results 50 --format json
+
 # 5) DM assistant loop
 xapi-cli dm conversations --max-results 20 --format json
 xapi-cli dm send 12345 --text "hello from agent" --format json
 
 # 6) List curation loop
 xapi-cli lists create --name "Core devs" --description "Builders only" --private --format json
+xapi-cli lists get 1234567890 --format json
 xapi-cli lists add-member 1234567890 jack --format json
+xapi-cli lists remove-member 1234567890 jack --format json
 xapi-cli lists members 1234567890 --max-results 100 --format json
+xapi-cli lists posts 1234567890 --max-results 25 --format json
+xapi-cli lists delete 1234567890 --format json
 ```
 
 ## Notes
 
 - All commands support JSON output with `--format json`.
-- `users followers --new-only` performs **client-side diffing** against `--seen-ids-file`; it does not use an API-native `since_id` filter for follower deltas.
-- Baseline files are read-only input (newline-delimited follower IDs) and are never mutated by the CLI.
+- `timeline home` and `timeline mentions` support `--since-id <post-id>` for incremental polling — only posts newer than the given ID are returned. Store the newest ID from each fetch and pass it on the next call to avoid re-processing.
+- `users followers --new-only` performs **client-side diffing** against `--seen-ids-file`; it does not use an API-native `since_id` filter for follower deltas. The baseline file is a newline-delimited list of follower IDs, one per line.
+- Baseline files are read-only input and are never mutated by the CLI. Your application is responsible for updating the baseline after processing new followers.
 - `X_BEARER_TOKEN` is for read-only app auth.
 - `X_ACCESS_TOKEN` is required for write actions (`posts create|delete|like|unlike|bookmark|unbookmark|retweet`, `users follow|unfollow|block|unblock|mute|unmute`, `lists create|delete|add-member|remove-member`, `dm send`).
