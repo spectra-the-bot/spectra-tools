@@ -1,5 +1,11 @@
 # @spectratools/tx-shared
 
+## 0.4.0
+
+### Minor Changes
+
+- [#179](https://github.com/spectra-the-bot/spectra-tools/pull/179) [`68bb9f8`](https://github.com/spectra-the-bot/spectra-tools/commit/68bb9f8dda5b69eb3ded30752128c5c7f95d9c85) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add resolveSigner provider precedence with shared signer flag/env schemas and deterministic Privy auth failures.
+
 ## 0.3.0
 
 ### Minor Changes

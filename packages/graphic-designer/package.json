@@ -1,6 +1,6 @@
 {
   "name": "@spectratools/graphic-designer",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Deterministic infographic renderer + QA/publish pipeline for GTM and ops visuals.",
   "type": "module",
   "license": "MIT",
