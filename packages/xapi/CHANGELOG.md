@@ -1,5 +1,11 @@
 # @spectra-the-bot/xapi-cli
 
+## 0.4.0
+
+### Minor Changes
+
+- [#206](https://github.com/spectra-the-bot/spectra-tools/pull/206) [`ed0e485`](https://github.com/spectra-the-bot/spectra-tools/commit/ed0e48581a1fe33d414c6c7033c77fdf18ad740a) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add xapi write commands for posts like/retweet and users follow/unfollow with write-auth error mapping and CLI coverage.
+
 ## 0.3.0
 
 ### Minor Changes

@@ -1,5 +1,11 @@
 # @spectratools/tx-shared
 
+## 0.4.3
+
+### Patch Changes
+
+- [#207](https://github.com/spectra-the-bot/spectra-tools/pull/207) [`c1a5268`](https://github.com/spectra-the-bot/spectra-tools/commit/c1a5268bfc07aab756501ba59d2899d298f937f3) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Implement a Privy-backed tx signer account that resolves wallet address and submits eth_sendTransaction intents with deterministic error mapping.
+
 ## 0.4.2
 
 ### Patch Changes
