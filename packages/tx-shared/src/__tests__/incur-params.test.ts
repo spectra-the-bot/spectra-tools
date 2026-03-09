@@ -81,4 +81,54 @@ describe('signer flag/env schemas', () => {
     expect(options.keystorePassword).toBe('flag-password');
     expect(options.privyApiUrl).toBe('https://api.flag.privy.io');
   });
+
+  it('maps privy env fields when privy flag remains false', () => {
+    const options = toSignerOptions(
+      {
+        'private-key': undefined,
+        keystore: undefined,
+        password: undefined,
+        privy: false,
+        'privy-api-url': undefined,
+      },
+      {
+        PRIVATE_KEY: undefined,
+        KEYSTORE_PASSWORD: undefined,
+        PRIVY_APP_ID: 'app-id',
+        PRIVY_WALLET_ID: 'wallet-id',
+        PRIVY_AUTHORIZATION_KEY: 'wallet-auth:base64-key',
+        PRIVY_API_URL: 'https://api.env.privy.io',
+      },
+    );
+
+    expect(options).toEqual({
+      privyAppId: 'app-id',
+      privyWalletId: 'wallet-id',
+      privyAuthorizationKey: 'wallet-auth:base64-key',
+      privyApiUrl: 'https://api.env.privy.io',
+    });
+    expect(options.privy).toBeUndefined();
+  });
+
+  it('maps explicit --privy flag even when env auth fields are unset', () => {
+    const options = toSignerOptions(
+      {
+        'private-key': undefined,
+        keystore: undefined,
+        password: undefined,
+        privy: true,
+        'privy-api-url': undefined,
+      },
+      {
+        PRIVATE_KEY: undefined,
+        KEYSTORE_PASSWORD: undefined,
+        PRIVY_APP_ID: undefined,
+        PRIVY_WALLET_ID: undefined,
+        PRIVY_AUTHORIZATION_KEY: undefined,
+        PRIVY_API_URL: undefined,
+      },
+    );
+
+    expect(options).toEqual({ privy: true });
+  });
 });

@@ -174,6 +174,20 @@ describe('resolveSigner', () => {
     expect(signer.address).toBe(PRIVY_WALLET_ADDRESS);
   });
 
+  it('resolves a privy signer when privy flag is false but env config is present', async () => {
+    mockPrivyWalletLookup();
+
+    const signer = await resolveSigner({
+      privy: false,
+      privyAppId: 'app-id-1234',
+      privyWalletId: 'wallet-id-1234',
+      privyAuthorizationKey: VALID_PRIVY_AUTHORIZATION_KEY,
+    });
+
+    expect(signer.provider).toBe('privy');
+    expect(signer.address).toBe(PRIVY_WALLET_ADDRESS);
+  });
+
   it('supports overriding privy api url', async () => {
     const fetchMock = mockPrivyWalletLookup();
 

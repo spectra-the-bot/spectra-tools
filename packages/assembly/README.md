@@ -54,7 +54,7 @@ Current `assembly-cli` write commands require `PRIVATE_KEY`, but tx-shared suppo
 
 - private key (`PRIVATE_KEY`)
 - keystore (`--keystore` + `--password` or `KEYSTORE_PASSWORD`)
-- Privy (`PRIVY_APP_ID`, `PRIVY_WALLET_ID`, `PRIVY_AUTHORIZATION_KEY`; implementation tracked in [#117](https://github.com/spectra-the-bot/spectra-tools/issues/117))
+- Privy (`--privy` and env `PRIVY_APP_ID`, `PRIVY_WALLET_ID`, `PRIVY_AUTHORIZATION_KEY`; optional `--privy-api-url` / `PRIVY_API_URL`)
 
 ## Command Group Intent Summary
 

@@ -1,5 +1,11 @@
 # @spectratools/tx-shared
 
+## Release Notes Addendum
+
+- Privy provider support is fully available in `resolveSigner` and `executeTx` (not a stub): tx sends (`eth_sendTransaction`), message signing (`personal_sign`), typed data signing (`eth_signTypedData_v4`), and raw tx signing (`eth_signTransaction`) are supported when `PRIVY_APP_ID`, `PRIVY_WALLET_ID`, and `PRIVY_AUTHORIZATION_KEY` are configured.
+- Optional API URL override is supported through `--privy-api-url` / `PRIVY_API_URL` (default `https://api.privy.io`).
+- Live transaction sends are constrained by active Privy wallet policies; `executeTx` runs policy preflight and can return/throw `PRIVY_POLICY_BLOCKED` before broadcast.
+
 ## 0.5.1
 
 ### Patch Changes
