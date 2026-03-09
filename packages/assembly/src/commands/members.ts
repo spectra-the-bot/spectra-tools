@@ -12,8 +12,10 @@ import { assemblyWriteTx, writeEnv, writeOptions } from './_write-utils.js';
 const DEFAULT_MEMBER_SNAPSHOT_URL = 'https://www.theaiassembly.org/api/indexer/members';
 const REGISTERED_EVENT_SCAN_STEP = 100_000n;
 const REGISTERED_EVENT_SCAN_TIMEOUT_MS = 20_000;
+const MAX_MEMBER_LOOKUP_SUGGESTIONS = 5;
 
 type AssemblyClient = ReturnType<typeof createAssemblyPublicClient>;
+type MemberIdentity = { address: string; ens?: string; name?: string };
 
 const env = z.object({
   ABSTRACT_RPC_URL: z.string().optional().describe('Abstract RPC URL override'),
@@ -24,7 +26,15 @@ const env = z.object({
 });
 
 const timestampOutput = z.union([z.number(), z.string()]);
-const memberSnapshotSchema = z.array(z.string());
+const memberSnapshotEntrySchema = z.union([
+  z.string(),
+  z.object({
+    address: z.string(),
+    ens: z.string().optional(),
+    name: z.string().optional(),
+  }),
+]);
+const memberSnapshotSchema = z.array(memberSnapshotEntrySchema);
 
 class AssemblyApiValidationError extends Error {
   constructor(
@@ -55,7 +65,62 @@ class AssemblyIndexerUnavailableError extends Error {
   }
 }
 
-async function memberSnapshot(url: string): Promise<string[]> {
+function mergeMemberIdentities(entries: MemberIdentity[]): MemberIdentity[] {
+  const byAddress = new Map<string, MemberIdentity>();
+  for (const entry of entries) {
+    const key = entry.address.toLowerCase();
+    const existing = byAddress.get(key);
+    if (!existing) {
+      byAddress.set(key, entry);
+      continue;
+    }
+    const merged: MemberIdentity = { address: existing.address };
+    const ens = existing.ens ?? entry.ens;
+    const name = existing.name ?? entry.name;
+    if (ens !== undefined) merged.ens = ens;
+    if (name !== undefined) merged.name = name;
+    byAddress.set(key, merged);
+  }
+  return [...byAddress.values()];
+}
+
+function memberSnapshotEntryToIdentity(
+  entry: z.infer<typeof memberSnapshotEntrySchema>,
+): MemberIdentity {
+  if (typeof entry === 'string') return { address: entry };
+  const identity: MemberIdentity = { address: entry.address };
+  if (entry.ens !== undefined) identity.ens = entry.ens;
+  if (entry.name !== undefined) identity.name = entry.name;
+  return identity;
+}
+
+function matchableAddressInput(query: string): boolean {
+  return query.startsWith('0x') && query.length === 42;
+}
+
+function searchMemberIdentities(query: string, members: MemberIdentity[]): MemberIdentity[] {
+  const needle = query.trim().toLowerCase();
+  if (needle.length === 0) return [];
+
+  const exactMatches = members.filter((member) => {
+    return (
+      member.address.toLowerCase() === needle ||
+      member.ens?.toLowerCase() === needle ||
+      member.name?.toLowerCase() === needle
+    );
+  });
+  if (exactMatches.length > 0) return exactMatches;
+
+  return members.filter((member) => {
+    return (
+      member.address.toLowerCase().includes(needle) ||
+      member.ens?.toLowerCase().includes(needle) ||
+      member.name?.toLowerCase().includes(needle)
+    );
+  });
+}
+
+async function memberSnapshot(url: string): Promise<MemberIdentity[]> {
   let res: Response;
   try {
     res = await fetch(url);
@@ -79,7 +144,7 @@ async function memberSnapshot(url: string): Promise<string[]> {
   const json = (await res.json()) as unknown;
   const parsed = memberSnapshotSchema.safeParse(json);
   if (parsed.success) {
-    return parsed.data;
+    return mergeMemberIdentities(parsed.data.map(memberSnapshotEntryToIdentity));
   }
 
   throw new AssemblyApiValidationError({
@@ -110,7 +175,7 @@ async function withTimeout<T>(
   }
 }
 
-async function membersFromRegisteredEvents(client: AssemblyClient): Promise<string[]> {
+async function membersFromRegisteredEvents(client: AssemblyClient): Promise<MemberIdentity[]> {
   const latestBlock = await client.getBlockNumber();
   const addresses = new Set<string>();
 
@@ -140,7 +205,37 @@ async function membersFromRegisteredEvents(client: AssemblyClient): Promise<stri
     }
   }
 
-  return [...addresses];
+  return [...addresses].map((address) => ({ address }));
+}
+
+async function loadMemberIdentities(
+  client: AssemblyClient,
+  snapshotUrl: string,
+): Promise<{
+  members: MemberIdentity[];
+  fallbackReason?: AssemblyIndexerUnavailableError['details'];
+}> {
+  try {
+    return { members: await memberSnapshot(snapshotUrl) };
+  } catch (error) {
+    if (error instanceof AssemblyApiValidationError) {
+      throw error;
+    }
+    if (!(error instanceof AssemblyIndexerUnavailableError)) {
+      throw error;
+    }
+
+    const fallbackMembers = await withTimeout(
+      membersFromRegisteredEvents(client),
+      REGISTERED_EVENT_SCAN_TIMEOUT_MS,
+      `Registered event fallback scan timed out after ${REGISTERED_EVENT_SCAN_TIMEOUT_MS}ms`,
+    );
+
+    return {
+      members: mergeMemberIdentities(fallbackMembers),
+      fallbackReason: error.details,
+    };
+  }
 }
 
 function indexerIssue(details: AssemblyIndexerUnavailableError['details']): string {
@@ -162,6 +257,13 @@ function emitIndexerFallbackWarning(details: AssemblyIndexerUnavailableError['de
       issue: indexerIssue(details),
     })}\n`,
   );
+}
+
+function describeMember(member: MemberIdentity): string {
+  const parts = [toChecksum(member.address)];
+  if (member.ens) parts.push(`ens=${member.ens}`);
+  if (member.name) parts.push(`name=${member.name}`);
+  return parts.join(' ');
 }
 
 export const members = Cli.create('members', {
@@ -194,10 +296,12 @@ members.command('list', {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const snapshotUrl = c.env.ASSEMBLY_INDEXER_URL ?? DEFAULT_MEMBER_SNAPSHOT_URL;
 
-    let addresses: string[];
+    let memberIdentities: MemberIdentity[];
     let fallbackReason: AssemblyIndexerUnavailableError['details'] | undefined;
     try {
-      addresses = await memberSnapshot(snapshotUrl);
+      const loaded = await loadMemberIdentities(client, snapshotUrl);
+      memberIdentities = loaded.members;
+      fallbackReason = loaded.fallbackReason;
     } catch (error) {
       if (error instanceof AssemblyApiValidationError) {
         return c.error({
@@ -206,30 +310,22 @@ members.command('list', {
           retryable: false,
         });
       }
-      if (!(error instanceof AssemblyIndexerUnavailableError)) {
+      if (!(error instanceof Error)) {
         throw error;
       }
 
-      fallbackReason = error.details;
-      try {
-        addresses = await withTimeout(
-          membersFromRegisteredEvents(client),
-          REGISTERED_EVENT_SCAN_TIMEOUT_MS,
-          `Registered event fallback scan timed out after ${REGISTERED_EVENT_SCAN_TIMEOUT_MS}ms`,
-        );
-      } catch (fallbackError) {
-        return c.error({
-          code: 'MEMBER_LIST_SOURCE_UNAVAILABLE',
-          message: `Member indexer unavailable (${indexerIssue(error.details)} at ${error.details.url}) and on-chain Registered event fallback failed: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`,
-          retryable: true,
-        });
-      }
+      return c.error({
+        code: 'MEMBER_LIST_SOURCE_UNAVAILABLE',
+        message: `Unable to load member list from indexer (${snapshotUrl}) or on-chain fallback: ${error.message}`,
+        retryable: true,
+      });
     }
 
     if (fallbackReason) {
       emitIndexerFallbackWarning(fallbackReason);
     }
 
+    const addresses = memberIdentities.map((member) => member.address);
     const calls = addresses.flatMap((address) => [
       {
         abi: registryAbi,
@@ -271,9 +367,12 @@ members.command('list', {
 });
 
 members.command('info', {
-  description: 'Get registry record and active status for a member address.',
+  description:
+    'Get member registry record and active status by full address, partial address, ENS, or name.',
   args: z.object({
-    address: z.string().describe('Member wallet address'),
+    address: z
+      .string()
+      .describe('Member lookup query (full/partial address, ENS, or name metadata)'),
   }),
   env,
   output: z.object({
@@ -289,25 +388,85 @@ members.command('info', {
       args: { address: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' },
       description: 'Inspect one member address',
     },
+    {
+      args: { address: 'a96045' },
+      description: 'Lookup a member by partial address',
+    },
   ],
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
+    const snapshotUrl = c.env.ASSEMBLY_INDEXER_URL ?? DEFAULT_MEMBER_SNAPSHOT_URL;
+
+    let lookupAddress = c.args.address;
+    if (!matchableAddressInput(c.args.address)) {
+      let loadedMembers: MemberIdentity[];
+      let fallbackReason: AssemblyIndexerUnavailableError['details'] | undefined;
+      try {
+        const loaded = await loadMemberIdentities(client, snapshotUrl);
+        loadedMembers = loaded.members;
+        fallbackReason = loaded.fallbackReason;
+      } catch (error) {
+        if (error instanceof AssemblyApiValidationError) {
+          return c.error({
+            code: error.details.code,
+            message: `Member snapshot response failed validation. url=${error.details.url}; issues=${JSON.stringify(error.details.issues)}; response=${JSON.stringify(error.details.response)}`,
+            retryable: false,
+          });
+        }
+        return c.error({
+          code: 'MEMBER_LOOKUP_SOURCE_UNAVAILABLE',
+          message:
+            error instanceof Error
+              ? `Unable to resolve member query from indexer (${snapshotUrl}) or on-chain fallback: ${error.message}`
+              : `Unable to resolve member query from indexer (${snapshotUrl}) or on-chain fallback.`,
+          retryable: true,
+        });
+      }
+
+      if (fallbackReason) {
+        emitIndexerFallbackWarning(fallbackReason);
+      }
+
+      const matches = searchMemberIdentities(c.args.address, loadedMembers);
+      if (matches.length === 0) {
+        return c.error({
+          code: 'MEMBER_NOT_FOUND',
+          message: `No Assembly member matched "${c.args.address}". Try a longer query or run \`assembly members list\` first.`,
+          retryable: false,
+        });
+      }
+
+      if (matches.length > 1) {
+        const suggestions = matches
+          .slice(0, MAX_MEMBER_LOOKUP_SUGGESTIONS)
+          .map(describeMember)
+          .join('; ');
+        return c.error({
+          code: 'AMBIGUOUS_MEMBER_QUERY',
+          message: `Member query "${c.args.address}" matched ${matches.length} members. Be more specific. Matches: ${suggestions}`,
+          retryable: false,
+        });
+      }
+
+      lookupAddress = matches[0].address;
+    }
+
     const [member, active] = (await Promise.all([
       client.readContract({
         abi: registryAbi,
         address: ABSTRACT_MAINNET_ADDRESSES.registry,
         functionName: 'members',
-        args: [c.args.address],
+        args: [lookupAddress],
       }),
       client.readContract({
         abi: registryAbi,
         address: ABSTRACT_MAINNET_ADDRESSES.registry,
         functionName: 'isActive',
-        args: [c.args.address],
+        args: [lookupAddress],
       }),
     ])) as [{ activeUntil: bigint; lastHeartbeatAt: bigint }, boolean];
     return c.ok({
-      address: toChecksum(c.args.address),
+      address: toChecksum(lookupAddress),
       active,
       activeUntil: timeValue(member.activeUntil, c.format),
       lastHeartbeatAt: timeValue(member.lastHeartbeatAt, c.format),
