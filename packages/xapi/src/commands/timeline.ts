@@ -11,6 +11,7 @@ timeline.command('home', {
   description: 'View your home timeline.',
   options: z.object({
     maxResults: z.number().default(25).describe('Maximum posts to return (5–100)'),
+    sinceId: z.string().optional().describe('Only return posts newer than this post ID'),
     verbose: z.boolean().optional().describe('Show full text without truncation'),
   }),
   alias: { maxResults: 'n' },
@@ -31,13 +32,17 @@ timeline.command('home', {
   examples: [
     { description: 'View your home timeline' },
     { options: { maxResults: 50 }, description: 'View 50 posts' },
+    {
+      options: { sinceId: '1900123456789012345' },
+      description: 'Resume from last-seen post ID',
+    },
   ],
   async run(c) {
     const client = createXApiClient(readAuthToken(c.env));
     const meRes = await client.getMe();
     const userId = meRes.data.id;
     const allPosts = await collectPaged(
-      (limit, cursor) => client.getHomeTimeline(userId, limit, cursor),
+      (limit, cursor) => client.getHomeTimeline(userId, limit, cursor, c.options.sinceId),
       (
         post,
       ): {
@@ -85,6 +90,7 @@ timeline.command('mentions', {
   description: 'View your recent mentions.',
   options: z.object({
     maxResults: z.number().default(25).describe('Maximum mentions to return'),
+    sinceId: z.string().optional().describe('Only return mentions newer than this post ID'),
     verbose: z.boolean().optional().describe('Show full text without truncation'),
   }),
   alias: { maxResults: 'n' },
@@ -100,13 +106,19 @@ timeline.command('mentions', {
     ),
     count: z.number(),
   }),
-  examples: [{ description: 'View your recent mentions' }],
+  examples: [
+    { description: 'View your recent mentions' },
+    {
+      options: { sinceId: '1900123456789012345' },
+      description: 'Resume mentions from last-seen post ID',
+    },
+  ],
   async run(c) {
     const client = createXApiClient(readAuthToken(c.env));
     const meRes = await client.getMe();
     const userId = meRes.data.id;
     const allPosts = await collectPaged(
-      (limit, cursor) => client.getMentionsTimeline(userId, limit, cursor),
+      (limit, cursor) => client.getMentionsTimeline(userId, limit, cursor, c.options.sinceId),
       (
         post,
       ): {
