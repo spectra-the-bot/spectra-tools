@@ -1,3 +1,4 @@
+import { TxError } from '@spectratools/tx-shared';
 import { Cli, z } from 'incur';
 import { registryAbi } from '../contracts/abis.js';
 import {
@@ -6,6 +7,7 @@ import {
 } from '../contracts/addresses.js';
 import { createAssemblyPublicClient } from '../contracts/client.js';
 import { asNum, eth, relTime, timeValue, toChecksum } from './_common.js';
+import { assemblyWriteTx, writeEnv, writeOptions } from './_write-utils.js';
 
 const DEFAULT_MEMBER_SNAPSHOT_URL = 'https://www.theaiassembly.org/api/indexer/members';
 const REGISTERED_EVENT_SCAN_STEP = 100_000n;
@@ -378,5 +380,198 @@ members.command('fees', {
       heartbeatFee: eth(heartbeatFee),
       heartbeatGracePeriodSeconds: asNum(heartbeatGracePeriod),
     });
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Write commands
+// ---------------------------------------------------------------------------
+
+const txOutputSchema = z.union([
+  z.object({
+    status: z.enum(['success', 'reverted']),
+    hash: z.string(),
+    blockNumber: z.number(),
+    gasUsed: z.string(),
+    from: z.string(),
+    to: z.string().nullable(),
+    effectiveGasPrice: z.string().optional(),
+    fee: z.string(),
+    feeEth: z.string(),
+  }),
+  z.object({
+    status: z.literal('dry-run'),
+    estimatedGas: z.string(),
+    simulationResult: z.unknown(),
+    fee: z.string(),
+    feeEth: z.string(),
+  }),
+]);
+
+members.command('register', {
+  description: 'Register as a new Assembly member (pays the registration fee).',
+  hint: 'Requires PRIVATE_KEY environment variable for signing.',
+  env: writeEnv,
+  options: writeOptions,
+  output: txOutputSchema,
+  examples: [
+    { description: 'Register as a member' },
+    { options: { 'dry-run': true }, description: 'Simulate registration without broadcasting' },
+  ],
+  async run(c) {
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
+    const fee = (await client.readContract({
+      abi: registryAbi,
+      address: ABSTRACT_MAINNET_ADDRESSES.registry,
+      functionName: 'registrationFee',
+    })) as bigint;
+
+    process.stderr.write(
+      `${JSON.stringify({ level: 'info', message: `Registration fee: ${eth(fee)} (${fee} wei)` })}\n`,
+    );
+
+    try {
+      const result = await assemblyWriteTx({
+        env: c.env,
+        options: c.options,
+        address: ABSTRACT_MAINNET_ADDRESSES.registry,
+        abi: registryAbi,
+        functionName: 'register',
+        value: fee,
+      });
+
+      return c.ok(
+        { ...result, fee: fee.toString(), feeEth: eth(fee) },
+        result.status === 'success'
+          ? {
+              cta: {
+                description: 'Check your membership:',
+                commands: [{ command: 'members info', args: { address: result.from } }],
+              },
+            }
+          : undefined,
+      );
+    } catch (error) {
+      if (error instanceof TxError && error.code === 'INSUFFICIENT_FUNDS') {
+        return c.error({
+          code: 'INSUFFICIENT_FUNDS',
+          message: `Insufficient funds to register. Required fee: ${eth(fee)} (${fee} wei). ${error.message}`,
+          retryable: false,
+        });
+      }
+      throw error;
+    }
+  },
+});
+
+members.command('heartbeat', {
+  description: 'Send a heartbeat to extend active membership (pays the heartbeat fee).',
+  hint: 'Requires PRIVATE_KEY environment variable for signing.',
+  env: writeEnv,
+  options: writeOptions,
+  output: txOutputSchema,
+  examples: [
+    { description: 'Send a heartbeat' },
+    { options: { 'dry-run': true }, description: 'Simulate heartbeat without broadcasting' },
+  ],
+  async run(c) {
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
+    const fee = (await client.readContract({
+      abi: registryAbi,
+      address: ABSTRACT_MAINNET_ADDRESSES.registry,
+      functionName: 'heartbeatFee',
+    })) as bigint;
+
+    process.stderr.write(
+      `${JSON.stringify({ level: 'info', message: `Heartbeat fee: ${eth(fee)} (${fee} wei)` })}\n`,
+    );
+
+    try {
+      const result = await assemblyWriteTx({
+        env: c.env,
+        options: c.options,
+        address: ABSTRACT_MAINNET_ADDRESSES.registry,
+        abi: registryAbi,
+        functionName: 'heartbeat',
+        value: fee,
+      });
+
+      return c.ok(
+        { ...result, fee: fee.toString(), feeEth: eth(fee) },
+        result.status === 'success'
+          ? {
+              cta: {
+                description: 'Check your membership:',
+                commands: [{ command: 'members info', args: { address: result.from } }],
+              },
+            }
+          : undefined,
+      );
+    } catch (error) {
+      if (error instanceof TxError && error.code === 'INSUFFICIENT_FUNDS') {
+        return c.error({
+          code: 'INSUFFICIENT_FUNDS',
+          message: `Insufficient funds for heartbeat. Required fee: ${eth(fee)} (${fee} wei). ${error.message}`,
+          retryable: false,
+        });
+      }
+      throw error;
+    }
+  },
+});
+
+members.command('renew', {
+  description: 'Renew an expired membership (pays the registration fee).',
+  hint: 'Requires PRIVATE_KEY environment variable for signing. Calls register() to re-activate expired membership.',
+  env: writeEnv,
+  options: writeOptions,
+  output: txOutputSchema,
+  examples: [
+    { description: 'Renew expired membership' },
+    { options: { 'dry-run': true }, description: 'Simulate renewal without broadcasting' },
+  ],
+  async run(c) {
+    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
+    const fee = (await client.readContract({
+      abi: registryAbi,
+      address: ABSTRACT_MAINNET_ADDRESSES.registry,
+      functionName: 'registrationFee',
+    })) as bigint;
+
+    process.stderr.write(
+      `${JSON.stringify({ level: 'info', message: `Renewal fee: ${eth(fee)} (${fee} wei)` })}\n`,
+    );
+
+    try {
+      const result = await assemblyWriteTx({
+        env: c.env,
+        options: c.options,
+        address: ABSTRACT_MAINNET_ADDRESSES.registry,
+        abi: registryAbi,
+        functionName: 'register',
+        value: fee,
+      });
+
+      return c.ok(
+        { ...result, fee: fee.toString(), feeEth: eth(fee) },
+        result.status === 'success'
+          ? {
+              cta: {
+                description: 'Check your membership:',
+                commands: [{ command: 'members info', args: { address: result.from } }],
+              },
+            }
+          : undefined,
+      );
+    } catch (error) {
+      if (error instanceof TxError && error.code === 'INSUFFICIENT_FUNDS') {
+        return c.error({
+          code: 'INSUFFICIENT_FUNDS',
+          message: `Insufficient funds to renew. Required fee: ${eth(fee)} (${fee} wei). ${error.message}`,
+          retryable: false,
+        });
+      }
+      throw error;
+    }
   },
 });
