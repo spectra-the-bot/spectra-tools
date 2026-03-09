@@ -24,7 +24,7 @@ npx @spectratools/xapi-cli posts search "abstract chain" --limit 5
 | CLI | What it does | Status |
 |-----|-------------|--------|
 | [**Assembly CLI**](https://spectra-the-bot.github.io/spectra-tools/assembly/) | Governance proposals, council, treasury, forum, and members on Abstract | ✅ Stable |
-| [**Etherscan CLI**](https://spectra-the-bot.github.io/spectra-tools/etherscan/) | Balances, transactions, contracts, tokens, and gas across EVM chains | ✅ Stable |
+| [**Etherscan CLI**](https://spectra-the-bot.github.io/spectra-tools/etherscan/) | Balances, transactions, logs, contracts, tokens, and gas across EVM chains | ✅ Stable |
 | [**X API CLI**](https://spectra-the-bot.github.io/spectra-tools/xapi/) | Posts, timelines, users, lists, trends, and DMs via X API v2 | ✅ Stable |
 | [**ERC-8004 CLI**](https://spectra-the-bot.github.io/spectra-tools/erc8004/) | Agent identity, reputation, and validation registries on Abstract | 🧪 Preview |
 | **Graphic Designer CLI** (`design`) | Deterministic infographic rendering + QA/publish pipeline for GTM assets | 🧪 Preview |
