@@ -56,7 +56,7 @@ export PRIVY_WALLET_ID="..."
 export PRIVY_AUTHORIZATION_KEY="..."
 ```
 
-> Privy signer execution is intentionally stubbed right now and throws `PRIVY_AUTH_FAILED` with a deterministic message. Full implementation is tracked in [issue #117](https://github.com/spectra-the-bot/spectra-tools/issues/117).
+> Privy signer resolution now performs wallet address lookup and exposes a Privy-backed account helper for `eth_sendTransaction` intents. Additional signing methods (for example `personal_sign` and typed-data) are tracked in [issue #117](https://github.com/spectra-the-bot/spectra-tools/issues/117).
 
 ## `resolveSigner()` usage
 
@@ -185,7 +185,7 @@ try {
   - ensure keystore is valid V3 JSON
 - **`PRIVY_AUTH_FAILED`**
   - verify all `PRIVY_*` variables are set
-  - note: provider is not live yet (see #117)
+  - check signer/owner policy constraints for the Privy wallet
 - **`GAS_ESTIMATION_FAILED` / `TX_REVERTED`**
   - validate function args and `value`
   - run with `dryRun: true` first

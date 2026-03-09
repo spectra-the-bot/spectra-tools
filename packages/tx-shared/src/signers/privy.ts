@@ -1,7 +1,6 @@
-import type { Account } from 'viem';
-import { zeroAddress } from 'viem';
 import { TxError } from '../errors.js';
 import type { TxSigner } from '../types.js';
+import { type PrivyAccount, createPrivyAccount } from './privy-account.js';
 import { type PrivyClient, createPrivyClient } from './privy-client.js';
 import { normalizePrivyApiUrl, parsePrivyAuthorizationKey } from './privy-signature.js';
 
@@ -13,6 +12,7 @@ export interface PrivySignerOptions {
 }
 
 export interface PrivySigner extends TxSigner {
+  account: PrivyAccount;
   provider: 'privy';
   privy: {
     appId: string;
@@ -34,8 +34,8 @@ const WALLET_ID_REGEX = /^[A-Za-z0-9_-]{8,128}$/;
 /**
  * Create a Privy signer envelope with reusable transport and request-signing primitives.
  *
- * This initializes the shared client utilities used by tx-shared Privy integrations.
- * Transaction account execution is implemented in follow-up work for issue #191.
+ * The resolved account is backed by Privy RPC intents and includes a `sendTransaction`
+ * helper that submits `eth_sendTransaction` intents and returns the resulting tx hash.
  */
 export async function createPrivySigner(options: PrivySignerOptions): Promise<PrivySigner> {
   const missing = REQUIRED_FIELDS.filter((field) => {
@@ -91,10 +91,9 @@ export async function createPrivySigner(options: PrivySignerOptions): Promise<Pr
     apiUrl,
   });
 
-  const account: Account = {
-    address: zeroAddress,
-    type: 'json-rpc',
-  };
+  const account = await createPrivyAccount({
+    client,
+  });
 
   return {
     provider: 'privy',
