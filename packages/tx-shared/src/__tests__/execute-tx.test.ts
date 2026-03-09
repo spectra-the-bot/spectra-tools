@@ -2,6 +2,7 @@ import type { Account, Address, PublicClient, TransactionReceipt, WalletClient }
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TxError } from '../errors.js';
 import { type DryRunResult, type ExecuteTxOptions, executeTx } from '../execute-tx.js';
+import { attachPrivyPolicyContext } from '../signers/privy.js';
 import type { TxResult } from '../types.js';
 
 // ---------------------------------------------------------------------------
@@ -76,6 +77,41 @@ function baseOptions(
     args: [MOCK_ADDRESS, 1000n],
     ...overrides,
   };
+}
+
+function createPrivyAccountWithPolicy(policyPayload: unknown): {
+  account: Account;
+  getWallet: ReturnType<typeof vi.fn>;
+  getPolicy: ReturnType<typeof vi.fn>;
+} {
+  const getWallet = vi.fn(async () => ({
+    id: 'wallet-id-1234',
+    address: MOCK_ADDRESS,
+    owner_id: null,
+    policy_ids: ['policy-1'],
+  }));
+
+  const getPolicy = vi.fn(async (_policyId: string) => ({
+    id: 'policy-1',
+    owner_id: null,
+    rules: [policyPayload],
+  }));
+
+  const account = attachPrivyPolicyContext({ address: MOCK_ADDRESS, type: 'json-rpc' } as Account, {
+    appId: 'app-id-1234',
+    walletId: 'wallet-id-1234',
+    apiUrl: 'https://api.privy.io',
+    client: {
+      appId: 'app-id-1234',
+      walletId: 'wallet-id-1234',
+      apiUrl: 'https://api.privy.io',
+      createRpcIntent: vi.fn(),
+      getWallet,
+      getPolicy,
+    },
+  });
+
+  return { account, getWallet, getPolicy };
 }
 
 // ---------------------------------------------------------------------------
@@ -170,6 +206,54 @@ describe('executeTx', () => {
 
       expect(clients.walletClient.writeContract).not.toHaveBeenCalled();
       expect(clients.publicClient.waitForTransactionReceipt).not.toHaveBeenCalled();
+    });
+  });
+
+  // ---- Privy policy preflight ---------------------------------------------
+  describe('privy policy preflight', () => {
+    it('blocks live submission before writeContract when policy denies contract target', async () => {
+      const { account, getWallet, getPolicy } = createPrivyAccountWithPolicy({
+        action: 'eth_sendTransaction',
+        constraints: {
+          contract_allowlist: ['0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'],
+        },
+      });
+
+      await expect(executeTx(baseOptions(clients, { account }))).rejects.toMatchObject({
+        code: 'PRIVY_POLICY_BLOCKED',
+      });
+
+      expect(getWallet).toHaveBeenCalledTimes(1);
+      expect(getPolicy).toHaveBeenCalledWith('policy-1');
+      expect(clients.walletClient.writeContract).not.toHaveBeenCalled();
+    });
+
+    it('includes privy policy visibility in dry-run output', async () => {
+      const { account } = createPrivyAccountWithPolicy({
+        action: 'eth_sendTransaction',
+        constraints: {
+          allowed_contracts: [MOCK_ADDRESS],
+          max_value_wei: '1000',
+        },
+      });
+
+      const result = await executeTx(baseOptions(clients, { account, dryRun: true, value: 99n }));
+
+      expect(result).toMatchObject({
+        status: 'dry-run',
+        estimatedGas: 21000n,
+        simulationResult: true,
+        privyPolicy: {
+          status: 'allowed',
+          visibility: {
+            walletId: 'wallet-id-1234',
+            policyIds: ['policy-1'],
+            contractAllowlist: [MOCK_ADDRESS],
+            maxValueWei: 1000n,
+          },
+          violations: [],
+        },
+      });
     });
   });
 
