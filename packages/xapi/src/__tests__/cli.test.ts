@@ -221,6 +221,68 @@ describe('xapi cli users commands', () => {
   });
 });
 
+describe('xapi cli timeline option parsing', () => {
+  afterEach(() => {
+    Reflect.deleteProperty(process.env, 'X_BEARER_TOKEN');
+    Reflect.deleteProperty(process.env, 'X_ACCESS_TOKEN');
+    vi.unstubAllGlobals();
+  });
+
+  it.each([
+    {
+      command: 'home',
+      path: '/2/users/me-user/timelines/reverse_chronological',
+    },
+    {
+      command: 'mentions',
+      path: '/2/users/me-user/mentions',
+    },
+  ] as const)('accepts --since-id for timeline $command', async ({ command, path }) => {
+    const timelineRequests: URL[] = [];
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>().mockImplementation(async (input) => {
+        const requestUrl =
+          typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+        const url = new URL(requestUrl);
+
+        if (url.pathname === '/2/users/me') {
+          return new Response(JSON.stringify({ data: { id: 'me-user', username: 'me' } }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          });
+        }
+
+        if (url.pathname === path) {
+          timelineRequests.push(url);
+          return new Response(JSON.stringify({ data: [], meta: { result_count: 0 } }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          });
+        }
+
+        return new Response('not found', { status: 404, statusText: 'Not Found' });
+      }),
+    );
+
+    process.env.X_BEARER_TOKEN = 'test-token';
+
+    const { output, exitCode } = await runCli([
+      'timeline',
+      command,
+      '--since-id',
+      '1900',
+      '--json',
+    ]);
+
+    expect(exitCode).toBe(0);
+    expect(JSON.parse(output)).toEqual({ posts: [], count: 0 });
+    expect(timelineRequests).toHaveLength(1);
+    expect(timelineRequests[0]?.searchParams.get('since_id')).toBe('1900');
+  });
+});
+
 describe('xapi cli write commands', () => {
   afterEach(() => {
     Reflect.deleteProperty(process.env, 'X_BEARER_TOKEN');
