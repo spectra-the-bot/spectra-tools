@@ -210,6 +210,56 @@ posts.command('delete', {
   },
 });
 
+posts.command('like', {
+  description: 'Like a post by ID.',
+  args: z.object({
+    id: z.string().describe('Post ID to like'),
+  }),
+  env: xApiWriteEnv,
+  output: z.object({
+    liked: z.boolean(),
+    id: z.string(),
+  }),
+  examples: [{ args: { id: '1234567890' }, description: 'Like a post' }],
+  async run(c) {
+    try {
+      const client = createXApiClient(writeAuthToken(c.env));
+      const me = await client.getMe();
+      const res = await client.likePost(me.data.id, c.args.id);
+      return c.ok({ liked: res.data.liked, id: c.args.id });
+    } catch (error) {
+      const authError = toWriteAuthError('posts like', error);
+      if (authError) return c.error(authError);
+      throw error;
+    }
+  },
+});
+
+posts.command('retweet', {
+  description: 'Retweet a post by ID.',
+  args: z.object({
+    id: z.string().describe('Post ID to retweet'),
+  }),
+  env: xApiWriteEnv,
+  output: z.object({
+    retweeted: z.boolean(),
+    id: z.string(),
+  }),
+  examples: [{ args: { id: '1234567890' }, description: 'Retweet a post' }],
+  async run(c) {
+    try {
+      const client = createXApiClient(writeAuthToken(c.env));
+      const me = await client.getMe();
+      const res = await client.retweetPost(me.data.id, c.args.id);
+      return c.ok({ retweeted: res.data.retweeted, id: c.args.id });
+    } catch (error) {
+      const authError = toWriteAuthError('posts retweet', error);
+      if (authError) return c.error(authError);
+      throw error;
+    }
+  },
+});
+
 posts.command('likes', {
   description: 'List users who liked a post.',
   args: z.object({
