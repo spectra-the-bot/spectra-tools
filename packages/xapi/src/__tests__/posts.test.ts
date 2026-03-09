@@ -81,6 +81,9 @@ describe('createXApiClient - posts', () => {
     expect(typeof client.getPostLikes).toBe('function');
     expect(typeof client.getPostRetweets).toBe('function');
     expect(typeof client.likePost).toBe('function');
+    expect(typeof client.unlikePost).toBe('function');
+    expect(typeof client.bookmarkPost).toBe('function');
+    expect(typeof client.unbookmarkPost).toBe('function');
     expect(typeof client.retweetPost).toBe('function');
   });
 
@@ -91,6 +94,10 @@ describe('createXApiClient - posts', () => {
     expect(typeof client.getUserFollowing).toBe('function');
     expect(typeof client.followUser).toBe('function');
     expect(typeof client.unfollowUser).toBe('function');
+    expect(typeof client.blockUser).toBe('function');
+    expect(typeof client.unblockUser).toBe('function');
+    expect(typeof client.muteUser).toBe('function');
+    expect(typeof client.unmuteUser).toBe('function');
     expect(typeof client.getUserPosts).toBe('function');
     expect(typeof client.getUserMentions).toBe('function');
     expect(typeof client.searchUsers).toBe('function');
@@ -105,6 +112,10 @@ describe('createXApiClient - posts', () => {
     expect(typeof client.getList).toBe('function');
     expect(typeof client.getListMembers).toBe('function');
     expect(typeof client.getListPosts).toBe('function');
+    expect(typeof client.createList).toBe('function');
+    expect(typeof client.deleteList).toBe('function');
+    expect(typeof client.addListMember).toBe('function');
+    expect(typeof client.removeListMember).toBe('function');
   });
 
   it('has all expected trends methods', () => {
