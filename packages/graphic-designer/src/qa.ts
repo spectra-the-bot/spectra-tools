@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import sharp from 'sharp';
+import { resolveRenderScale } from './code-style.js';
 import type { Rect, RenderMetadata, RenderedElement } from './renderer.js';
 import { type DesignSpec, deriveSafeFrame, parseDesignSpec } from './spec.schema.js';
 import { contrastRatio } from './utils/color.js';
@@ -15,7 +16,8 @@ export type QaIssue = {
     | 'LOW_CONTRAST'
     | 'FOOTER_SPACING'
     | 'TEXT_TRUNCATED'
-    | 'MISSING_LAYOUT';
+    | 'MISSING_LAYOUT'
+    | 'DRAW_OUT_OF_BOUNDS';
   severity: QaSeverity;
   message: string;
   elementId?: string;
@@ -29,8 +31,9 @@ export type QaReport = {
   expected: {
     width: number;
     height: number;
+    scale: number;
     minContrastRatio: number;
-    minFooterSpacingPx: number;
+    minFooterSpacing: number;
   };
   measured: {
     width?: number;
@@ -71,6 +74,22 @@ function topLevelElements(elements: RenderedElement[]): RenderedElement[] {
   return elements.filter((element) => ['header', 'card', 'footer'].includes(element.kind));
 }
 
+function overlapCandidates(elements: RenderedElement[]): RenderedElement[] {
+  return elements.filter((element) =>
+    [
+      'header',
+      'card',
+      'footer',
+      'flow-node',
+      'terminal',
+      'code-block',
+      'shape',
+      'image',
+      'draw',
+    ].includes(element.kind),
+  );
+}
+
 function loadMetadataFromString(raw: string): RenderMetadata {
   return JSON.parse(raw) as RenderMetadata;
 }
@@ -90,19 +109,23 @@ export async function runQa(options: {
   const expectedSafeFrame = deriveSafeFrame(spec);
   const expectedCanvas = canvasRect(spec);
 
-  const metadata = await sharp(imagePath).metadata();
+  const imageMetadata = await sharp(imagePath).metadata();
   const issues: QaIssue[] = [];
 
-  if (metadata.width !== spec.canvas.width || metadata.height !== spec.canvas.height) {
+  const expectedScale = options.metadata?.canvas.scale ?? resolveRenderScale(spec);
+  const expectedWidth = spec.canvas.width * expectedScale;
+  const expectedHeight = spec.canvas.height * expectedScale;
+
+  if (imageMetadata.width !== expectedWidth || imageMetadata.height !== expectedHeight) {
     issues.push({
       code: 'DIMENSIONS_MISMATCH',
       severity: 'error',
-      message: `Image dimensions ${metadata.width ?? '?'}x${metadata.height ?? '?'} do not match expected ${spec.canvas.width}x${spec.canvas.height}.`,
+      message: `Image dimensions ${imageMetadata.width ?? '?'}x${imageMetadata.height ?? '?'} do not match expected ${expectedWidth}x${expectedHeight}.`,
       details: {
-        expectedWidth: spec.canvas.width,
-        expectedHeight: spec.canvas.height,
-        actualWidth: metadata.width ?? -1,
-        actualHeight: metadata.height ?? -1,
+        expectedWidth,
+        expectedHeight,
+        actualWidth: imageMetadata.width ?? -1,
+        actualHeight: imageMetadata.height ?? -1,
       },
     });
   }
@@ -125,12 +148,25 @@ export async function runQa(options: {
         });
       }
 
-      if (
-        !rectWithin(expectedCanvas, element.bounds) ||
-        !rectWithin(expectedSafeFrame, element.bounds)
-      ) {
-        const inCanvas = rectWithin(expectedCanvas, element.bounds);
-        const inSafe = rectWithin(expectedSafeFrame, element.bounds);
+      const inCanvas = rectWithin(expectedCanvas, element.bounds);
+      const inSafe = rectWithin(expectedSafeFrame, element.bounds);
+      const requiresSafeFrameContainment = !element.allowOverlap && element.kind !== 'draw';
+
+      if (element.kind === 'draw' && !inCanvas) {
+        issues.push({
+          code: 'DRAW_OUT_OF_BOUNDS',
+          severity: 'warning',
+          message: `Draw command ${element.id} extends beyond canvas bounds.`,
+          elementId: element.id,
+          details: {
+            inCanvas,
+            x: element.bounds.x,
+            y: element.bounds.y,
+            width: element.bounds.width,
+            height: element.bounds.height,
+          },
+        });
+      } else if (!inCanvas || (requiresSafeFrameContainment && !inSafe)) {
         issues.push({
           code: 'ELEMENT_CLIPPED',
           severity: 'error',
@@ -165,7 +201,7 @@ export async function runQa(options: {
     }
 
     if (spec.constraints.checkOverlaps) {
-      const blocks = topLevelElements(layoutElements);
+      const blocks = overlapCandidates(layoutElements);
       for (let i = 0; i < blocks.length; i += 1) {
         for (let j = i + 1; j < blocks.length; j += 1) {
           const first = blocks[i];
@@ -174,10 +210,13 @@ export async function runQa(options: {
             continue;
           }
           if (intersects(first.bounds, second.bounds)) {
+            const relaxed = first.kind === 'draw' || second.kind === 'draw';
             issues.push({
               code: 'ELEMENT_OVERLAP',
-              severity: 'error',
-              message: `Elements ${first.id} and ${second.id} overlap.`,
+              severity: relaxed ? 'warning' : 'error',
+              message: `Elements ${first.id} and ${second.id} overlap.${
+                relaxed ? ' (Draw overlap is informational.)' : ''
+              }`,
               elementId: `${first.id}|${second.id}`,
             });
           }
@@ -185,25 +224,50 @@ export async function runQa(options: {
       }
     }
 
-    const footer = layoutElements.find((element) => element.id === 'footer');
-    const nonFooter = topLevelElements(layoutElements).filter((element) => element.id !== 'footer');
-    if (footer && nonFooter.length > 0) {
-      const highestBottom = Math.max(
-        ...nonFooter.map((element) => element.bounds.y + element.bounds.height),
-      );
-      const spacing = footer.bounds.y - highestBottom;
-      if (spacing < spec.constraints.minFooterSpacingPx) {
-        issues.push({
-          code: 'FOOTER_SPACING',
-          severity: 'error',
-          message: `Footer spacing ${spacing}px is below minimum ${spec.constraints.minFooterSpacingPx}px.`,
-          elementId: 'footer',
-          details: {
-            spacing,
-            min: spec.constraints.minFooterSpacingPx,
-          },
-        });
+    if (spec.footer) {
+      const footer = layoutElements.find((element) => element.id === 'footer');
+      const nonFooter = topLevelElements(layoutElements).filter((element) => element.id !== 'footer');
+      if (footer && nonFooter.length > 0) {
+        const highestBottom = Math.max(
+          ...nonFooter.map((element) => element.bounds.y + element.bounds.height),
+        );
+        const spacing = footer.bounds.y - highestBottom;
+        if (spacing < spec.constraints.minFooterSpacing) {
+          issues.push({
+            code: 'FOOTER_SPACING',
+            severity: 'error',
+            message: `Footer spacing ${spacing}px is below minimum ${spec.constraints.minFooterSpacing}px.`,
+            elementId: 'footer',
+            details: {
+              spacing,
+              min: spec.constraints.minFooterSpacing,
+            },
+          });
+        }
       }
+    }
+
+    if (spec.header) {
+      const header = layoutElements.find((element) => element.id === 'header');
+      if (header && header.foregroundColor && header.backgroundColor) {
+        const ratio = contrastRatio(header.foregroundColor, header.backgroundColor);
+        if (ratio < spec.constraints.minContrastRatio) {
+          issues.push({
+            code: 'LOW_CONTRAST',
+            severity: 'error',
+            message: `Header contrast ratio ${ratio.toFixed(2)} is below threshold ${spec.constraints.minContrastRatio}.`,
+            elementId: 'header',
+          });
+        }
+      }
+    }
+
+    if (!spec.footer && layoutElements.some((element) => element.id === 'footer')) {
+      issues.push({
+        code: 'FOOTER_SPACING',
+        severity: 'warning',
+        message: 'Metadata includes a footer element but the spec has no footer.',
+      });
     }
   }
 
@@ -231,14 +295,15 @@ export async function runQa(options: {
     checkedAt: new Date().toISOString(),
     imagePath,
     expected: {
-      width: spec.canvas.width,
-      height: spec.canvas.height,
+      width: expectedWidth,
+      height: expectedHeight,
+      scale: expectedScale,
       minContrastRatio: spec.constraints.minContrastRatio,
-      minFooterSpacingPx: spec.constraints.minFooterSpacingPx,
+      minFooterSpacing: spec.constraints.minFooterSpacing,
     },
     measured: {
-      ...(metadata.width !== undefined ? { width: metadata.width } : {}),
-      ...(metadata.height !== undefined ? { height: metadata.height } : {}),
+      ...(imageMetadata.width !== undefined ? { width: imageMetadata.width } : {}),
+      ...(imageMetadata.height !== undefined ? { height: imageMetadata.height } : {}),
       ...(footerSpacingPx !== undefined ? { footerSpacingPx } : {}),
     },
     issues,

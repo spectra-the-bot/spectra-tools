@@ -1,60 +1,148 @@
 import { readFileSync, realpathSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
+import { basename, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Cli, z } from 'incur';
 import { publishToGist } from './publish/gist.js';
 import { publishToGitHub } from './publish/github.js';
 import { readMetadata, runQa } from './qa.js';
 import { inferSidecarPath, renderDesign, writeRenderArtifacts } from './renderer.js';
-import type { DesignSpec } from './spec.schema.js';
-import { parseDesignSpec } from './spec.schema.js';
-import { buildGtmPipelineSpec } from './templates/gtm-pipeline.js';
-import { buildGtmStatsSpec } from './templates/gtm-stats.js';
-import { buildScoutDispatchSpec } from './templates/scout-dispatch.js';
+import { parseDesignSpec, type DesignSpec } from './spec.schema.js';
+import {
+  buildCardsSpec,
+  buildCodeSpec,
+  buildFlowchartSpec,
+  buildTerminalSpec,
+} from './templates/index.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(resolve(__dirname, '../package.json'), 'utf8')) as {
   version: string;
 };
 
-const templateSchema = z.enum(['gtm-pipeline', 'gtm-stats', 'scout-dispatch']);
-
 const cli = Cli.create('design', {
   version: pkg.version,
-  description: 'Deterministic graphic designer agent pipeline: render → QA → publish.',
+  description: 'Deterministic graphic designer pipeline: render → QA → publish.',
 });
 
+const renderOutputSchema = z.object({
+  imagePath: z.string(),
+  metadataPath: z.string(),
+  specPath: z.string(),
+  artifactHash: z.string(),
+  specHash: z.string(),
+  layoutMode: z.string(),
+  qa: z.object({
+    pass: z.boolean(),
+    issueCount: z.number(),
+    issues: z.array(
+      z.object({
+        code: z.string(),
+        severity: z.string(),
+        message: z.string(),
+        elementId: z.string().optional(),
+      }),
+    ),
+  }),
+});
+
+type RenderOutput = z.infer<typeof renderOutputSchema>;
+
 async function readJson(path: string): Promise<unknown> {
+  if (path === '-') {
+    const chunks: Buffer[] = [];
+    for await (const chunk of process.stdin) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+    return JSON.parse(Buffer.concat(chunks).toString('utf8')) as unknown;
+  }
+
   const raw = await readFile(resolve(path), 'utf8');
   return JSON.parse(raw) as unknown;
-}
-
-function buildSpecFromTemplate(
-  template: z.infer<typeof templateSchema>,
-  data: unknown,
-): DesignSpec {
-  switch (template) {
-    case 'gtm-pipeline':
-      return buildGtmPipelineSpec(data);
-    case 'gtm-stats':
-      return buildGtmStatsSpec(data);
-    case 'scout-dispatch':
-      return buildScoutDispatchSpec(data);
-    default:
-      throw new Error(`Unsupported template: ${template satisfies never}`);
-  }
 }
 
 function specPathFor(metadataPath: string): string {
   return metadataPath.replace(/\.meta\.json$/iu, '.spec.json');
 }
 
+function splitCommaList(value: string): string[] {
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+}
+
+function parseLineRange(range: string): { start: number; end: number } {
+  const match = /^(\d+)\s*-\s*(\d+)$/u.exec(range.trim());
+  if (!match) {
+    throw new Error(`Invalid --lines value "${range}". Expected format "start-end".`);
+  }
+
+  const start = Number.parseInt(match[1], 10);
+  const end = Number.parseInt(match[2], 10);
+
+  if (start <= 0 || end <= 0 || end < start) {
+    throw new Error(`Invalid --lines range "${range}". Expected positive ascending range.`);
+  }
+
+  return { start, end };
+}
+
+function parseIntegerList(value: string): number[] {
+  const values = splitCommaList(value).map((part) => {
+    const parsed = Number.parseInt(part, 10);
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      throw new Error(`Invalid integer value "${part}" in list "${value}".`);
+    }
+    return parsed;
+  });
+
+  return [...new Set(values)].sort((a, b) => a - b);
+}
+
+function readCodeRange(code: string, start: number, end: number): string {
+  const lines = code.split(/\r?\n/u);
+  return lines.slice(start - 1, end).join('\n');
+}
+
+async function runRenderPipeline(
+  spec: DesignSpec,
+  options: { out: string; specOut?: string },
+): Promise<RenderOutput> {
+  const renderResult = await renderDesign(spec, { generatorVersion: pkg.version });
+  const written = await writeRenderArtifacts(renderResult, options.out);
+
+  const specPath = options.specOut ? resolve(options.specOut) : specPathFor(written.metadataPath);
+  await mkdir(dirname(specPath), { recursive: true });
+  await writeFile(specPath, JSON.stringify(spec, null, 2));
+
+  const qa = await runQa({
+    imagePath: written.imagePath,
+    spec,
+    metadata: written.metadata,
+  });
+
+  return {
+    imagePath: written.imagePath,
+    metadataPath: written.metadataPath,
+    specPath,
+    artifactHash: written.metadata.artifactHash,
+    specHash: written.metadata.specHash,
+    layoutMode: spec.layout.mode,
+    qa: {
+      pass: qa.pass,
+      issueCount: qa.issues.length,
+      issues: qa.issues,
+    },
+  };
+}
+
 cli.command('render', {
-  description: 'Render a deterministic design artifact from template data.',
+  description: 'Render a deterministic design artifact from a DesignSpec JSON file.',
   options: z.object({
-    template: templateSchema.describe('Template key: gtm-pipeline | gtm-stats | scout-dispatch'),
-    data: z.string().describe('Path to template data JSON file'),
+    spec: z
+      .string()
+      .describe('Path to DesignSpec JSON file (or "-" to read JSON from stdin)'),
     out: z.string().describe('Output file path (.png) or output directory'),
     specOut: z
       .string()
@@ -62,72 +150,27 @@ cli.command('render', {
       .describe('Optional explicit output path for normalized spec JSON'),
     allowQaFail: z.boolean().default(false).describe('Allow render success even if QA fails'),
   }),
-  output: z.object({
-    template: templateSchema,
-    imagePath: z.string(),
-    metadataPath: z.string(),
-    specPath: z.string(),
-    artifactHash: z.string(),
-    specHash: z.string(),
-    qa: z.object({
-      pass: z.boolean(),
-      issueCount: z.number(),
-      issues: z.array(
-        z.object({
-          code: z.string(),
-          severity: z.string(),
-          message: z.string(),
-          elementId: z.string().optional(),
-        }),
-      ),
-    }),
-  }),
+  output: renderOutputSchema,
   examples: [
     {
       options: {
-        template: 'gtm-pipeline',
-        data: './data/pipeline.json',
+        spec: './specs/pipeline.json',
         out: './output',
       },
-      description: 'Render a pipeline graphic and write .png/.meta/.spec artifacts',
+      description: 'Render a design spec and write .png/.meta/.spec artifacts',
     },
   ],
   async run(c) {
-    const data = await readJson(c.options.data);
-    const spec = buildSpecFromTemplate(c.options.template, data);
-    const renderResult = await renderDesign(spec, { generatorVersion: pkg.version });
-    const written = await writeRenderArtifacts(renderResult, c.options.out);
-
-    const specPath = c.options.specOut
-      ? resolve(c.options.specOut)
-      : specPathFor(written.metadataPath);
-    await mkdir(dirname(specPath), { recursive: true });
-    await writeFile(specPath, JSON.stringify(spec, null, 2));
-
-    const qa = await runQa({
-      imagePath: written.imagePath,
-      spec,
-      metadata: written.metadata,
+    const spec = parseDesignSpec(await readJson(c.options.spec));
+    const runReport = await runRenderPipeline(spec, {
+      out: c.options.out,
+      ...(c.options.specOut ? { specOut: c.options.specOut } : {}),
     });
 
-    const runReport = {
-      template: c.options.template,
-      imagePath: written.imagePath,
-      metadataPath: written.metadataPath,
-      specPath,
-      artifactHash: written.metadata.artifactHash,
-      specHash: written.metadata.specHash,
-      qa: {
-        pass: qa.pass,
-        issueCount: qa.issues.length,
-        issues: qa.issues,
-      },
-    };
-
-    if (!qa.pass && !c.options.allowQaFail) {
+    if (!runReport.qa.pass && !c.options.allowQaFail) {
       return c.error({
         code: 'QA_FAILED',
-        message: `Render completed but QA failed (${qa.issues.length} issues). Review qa output.`,
+        message: `Render completed but QA failed (${runReport.qa.issueCount} issues). Review qa output.`,
         retryable: false,
       });
     }
@@ -135,6 +178,312 @@ cli.command('render', {
     return c.ok(runReport);
   },
 });
+
+const template = Cli.create('template', {
+  description: 'Generate common design templates and run the full render → QA pipeline.',
+});
+
+template.command('flowchart', {
+  description: 'Build and render a flowchart from concise node/edge input.',
+  options: z.object({
+    nodes: z
+      .string()
+      .describe('Comma-separated node names, optionally with :shape (example: Decision:diamond)'),
+    edges: z
+      .string()
+      .describe('Comma-separated edges as From->To or From->To:label'),
+    title: z.string().optional().describe('Optional header title'),
+    direction: z.enum(['TB', 'BT', 'LR', 'RL']).default('TB').describe('Auto-layout direction'),
+    algorithm: z
+      .enum(['layered', 'stress', 'force', 'radial', 'box'])
+      .default('layered')
+      .describe('Auto-layout algorithm'),
+    theme: z.string().default('dark').describe('Theme name'),
+    nodeShape: z.string().optional().describe('Default shape for nodes without explicit :shape'),
+    width: z.number().int().positive().optional().describe('Canvas width override'),
+    height: z.number().int().positive().optional().describe('Canvas height override'),
+    out: z.string().describe('Output file path (.png) or output directory'),
+  }),
+  output: renderOutputSchema,
+  async run(c) {
+    const nodes = splitCommaList(c.options.nodes);
+    const edges = splitCommaList(c.options.edges);
+
+    if (nodes.length === 0) {
+      return c.error({
+        code: 'INVALID_TEMPLATE_INPUT',
+        message: 'Flowchart template requires at least one node.',
+        retryable: false,
+      });
+    }
+
+    if (edges.length === 0) {
+      return c.error({
+        code: 'INVALID_TEMPLATE_INPUT',
+        message: 'Flowchart template requires at least one edge.',
+        retryable: false,
+      });
+    }
+
+    const spec = buildFlowchartSpec({
+      nodes,
+      edges,
+      ...(c.options.title ? { title: c.options.title } : {}),
+      direction: c.options.direction,
+      algorithm: c.options.algorithm,
+      theme: c.options.theme,
+      ...(c.options.nodeShape ? { nodeShape: c.options.nodeShape } : {}),
+      ...(c.options.width ? { width: c.options.width } : {}),
+      ...(c.options.height ? { height: c.options.height } : {}),
+    });
+
+    const runReport = await runRenderPipeline(spec, { out: c.options.out });
+
+    if (!runReport.qa.pass) {
+      return c.error({
+        code: 'QA_FAILED',
+        message: `Render completed but QA failed (${runReport.qa.issueCount} issues). Review qa output.`,
+        retryable: false,
+      });
+    }
+
+    return c.ok(runReport);
+  },
+});
+
+template.command('code', {
+  description: 'Build and render a code screenshot from inline code or a source file.',
+  options: z.object({
+    code: z.string().optional().describe('Inline code string (mutually exclusive with --file)'),
+    file: z.string().optional().describe('Path to a source file to render'),
+    language: z.string().describe('Language for syntax highlighting'),
+    lines: z.string().optional().describe('Optional line range to extract (example: 10-25)'),
+    title: z.string().optional().describe('Optional code block title'),
+    theme: z.string().default('dark').describe('Theme name'),
+    showLineNumbers: z.boolean().default(false).describe('Show line numbers'),
+    highlightLines: z
+      .string()
+      .optional()
+      .describe('Comma-separated line numbers to highlight (example: 3,4,5)'),
+    surroundColor: z
+      .string()
+      .optional()
+      .describe('Outer surround color (default: rgba(171, 184, 195, 1))'),
+    windowControls: z
+      .enum(['macos', 'bw', 'none'])
+      .default('macos')
+      .describe('Window chrome controls style'),
+    scale: z
+      .number()
+      .int()
+      .refine((value) => value === 1 || value === 2 || value === 4, {
+        message: 'Scale must be one of: 1, 2, 4',
+      })
+      .default(2)
+      .describe('Export scale factor'),
+    width: z.number().int().positive().optional().describe('Canvas width override'),
+    height: z.number().int().positive().optional().describe('Canvas height override'),
+    out: z.string().describe('Output file path (.png) or output directory'),
+  }),
+  output: renderOutputSchema,
+  async run(c) {
+    if (Boolean(c.options.code) === Boolean(c.options.file)) {
+      return c.error({
+        code: 'INVALID_TEMPLATE_INPUT',
+        message: 'Code template requires exactly one of --code or --file.',
+        retryable: false,
+      });
+    }
+
+    let source = c.options.code ?? '';
+    if (c.options.file) {
+      try {
+        source = await readFile(resolve(c.options.file), 'utf8');
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return c.error({
+          code: 'FILE_READ_FAILED',
+          message: `Failed to read --file ${c.options.file}: ${message}`,
+          retryable: false,
+        });
+      }
+    }
+
+    let startLine = 1;
+    if (c.options.lines) {
+      const range = parseLineRange(c.options.lines);
+      source = readCodeRange(source, range.start, range.end);
+      startLine = range.start;
+    }
+
+    const highlightLines = c.options.highlightLines
+      ? parseIntegerList(c.options.highlightLines)
+      : undefined;
+    const title = c.options.title ?? (c.options.file ? basename(c.options.file) : undefined);
+
+    const spec = buildCodeSpec({
+      code: source,
+      language: c.options.language,
+      ...(title ? { title } : {}),
+      theme: c.options.theme,
+      showLineNumbers: c.options.showLineNumbers,
+      ...(highlightLines && highlightLines.length > 0 ? { highlightLines } : {}),
+      ...(startLine > 1 ? { startLine } : {}),
+      ...(c.options.surroundColor ? { surroundColor: c.options.surroundColor } : {}),
+      windowControls: c.options.windowControls,
+      scale: c.options.scale,
+      ...(c.options.width ? { width: c.options.width } : {}),
+      ...(c.options.height ? { height: c.options.height } : {}),
+    });
+
+    const runReport = await runRenderPipeline(spec, { out: c.options.out });
+
+    if (!runReport.qa.pass) {
+      return c.error({
+        code: 'QA_FAILED',
+        message: `Render completed but QA failed (${runReport.qa.issueCount} issues). Review qa output.`,
+        retryable: false,
+      });
+    }
+
+    return c.ok(runReport);
+  },
+});
+
+template.command('terminal', {
+  description: 'Build and render a terminal screenshot from command/output or raw content.',
+  options: z.object({
+    command: z.string().optional().describe('Command to show'),
+    output: z.string().optional().describe('Command output text'),
+    content: z.string().optional().describe('Raw terminal content (alternative to command/output)'),
+    title: z.string().optional().describe('Window title'),
+    prompt: z.string().default('$ ').describe('Prompt prefix used for formatted command mode'),
+    windowControls: z
+      .enum(['macos', 'bw', 'none'])
+      .default('macos')
+      .describe('Window chrome controls style'),
+    surroundColor: z
+      .string()
+      .optional()
+      .describe('Outer surround color (default: rgba(171, 184, 195, 1))'),
+    scale: z
+      .number()
+      .int()
+      .refine((value) => value === 1 || value === 2 || value === 4, {
+        message: 'Scale must be one of: 1, 2, 4',
+      })
+      .default(2)
+      .describe('Export scale factor'),
+    theme: z.string().default('dark').describe('Theme name'),
+    width: z.number().int().positive().optional().describe('Canvas width override'),
+    height: z.number().int().positive().optional().describe('Canvas height override'),
+    out: z.string().describe('Output file path (.png) or output directory'),
+  }),
+  output: renderOutputSchema,
+  async run(c) {
+    if (c.options.content && (c.options.command || c.options.output)) {
+      return c.error({
+        code: 'INVALID_TEMPLATE_INPUT',
+        message: 'Use either --content or --command/--output, not both.',
+        retryable: false,
+      });
+    }
+
+    const spec = buildTerminalSpec({
+      ...(c.options.command ? { command: c.options.command } : {}),
+      ...(c.options.output ? { output: c.options.output } : {}),
+      ...(c.options.content ? { content: c.options.content } : {}),
+      ...(c.options.title ? { title: c.options.title } : {}),
+      prompt: c.options.prompt,
+      windowControls: c.options.windowControls,
+      ...(c.options.surroundColor ? { surroundColor: c.options.surroundColor } : {}),
+      scale: c.options.scale,
+      theme: c.options.theme,
+      ...(c.options.width ? { width: c.options.width } : {}),
+      ...(c.options.height ? { height: c.options.height } : {}),
+    });
+
+    const runReport = await runRenderPipeline(spec, { out: c.options.out });
+
+    if (!runReport.qa.pass) {
+      return c.error({
+        code: 'QA_FAILED',
+        message: `Render completed but QA failed (${runReport.qa.issueCount} issues). Review qa output.`,
+        retryable: false,
+      });
+    }
+
+    return c.ok(runReport);
+  },
+});
+
+template.command('cards', {
+  description: 'Build and render a card grid from JSON card input.',
+  options: z.object({
+    cards: z
+      .string()
+      .describe('JSON array of cards: [{"title":"...","body":"...","metric":"..."}]'),
+    title: z.string().optional().describe('Header title'),
+    subtitle: z.string().optional().describe('Header subtitle'),
+    columns: z.number().int().positive().optional().describe('Grid columns (default: auto)'),
+    theme: z.string().default('dark').describe('Theme name'),
+    width: z.number().int().positive().optional().describe('Canvas width override'),
+    height: z.number().int().positive().optional().describe('Canvas height override'),
+    out: z.string().describe('Output file path (.png) or output directory'),
+  }),
+  output: renderOutputSchema,
+  async run(c) {
+    let cardsInput: unknown;
+    try {
+      cardsInput = JSON.parse(c.options.cards) as unknown;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return c.error({
+        code: 'INVALID_TEMPLATE_INPUT',
+        message: `Failed to parse --cards JSON: ${message}`,
+        retryable: false,
+      });
+    }
+
+    if (!Array.isArray(cardsInput)) {
+      return c.error({
+        code: 'INVALID_TEMPLATE_INPUT',
+        message: '--cards must be a JSON array.',
+        retryable: false,
+      });
+    }
+
+    const spec = buildCardsSpec({
+      cards: cardsInput as Array<{
+        title: string;
+        body: string;
+        badge?: string;
+        metric?: string;
+        tone?: string;
+      }>,
+      ...(c.options.title ? { title: c.options.title } : {}),
+      ...(c.options.subtitle ? { subtitle: c.options.subtitle } : {}),
+      ...(c.options.columns ? { columns: c.options.columns } : {}),
+      theme: c.options.theme,
+      ...(c.options.width ? { width: c.options.width } : {}),
+      ...(c.options.height ? { height: c.options.height } : {}),
+    });
+
+    const runReport = await runRenderPipeline(spec, { out: c.options.out });
+
+    if (!runReport.qa.pass) {
+      return c.error({
+        code: 'QA_FAILED',
+        message: `Render completed but QA failed (${runReport.qa.issueCount} issues). Review qa output.`,
+        retryable: false,
+      });
+    }
+
+    return c.ok(runReport);
+  },
+});
+
+cli.command(template);
 
 cli.command('qa', {
   description:
@@ -161,8 +510,8 @@ cli.command('qa', {
   examples: [
     {
       options: {
-        in: './output/gtm-pipeline-g0.1.0-sabc123.png',
-        spec: './output/gtm-pipeline-g0.1.0-sabc123.spec.json',
+        in: './output/design-v2-g0.2.0-sabc123.png',
+        spec: './output/design-v2-g0.2.0-sabc123.spec.json',
       },
       description: 'Validate dimensions, clipping, overlap, contrast, and footer spacing',
     },
@@ -246,14 +595,14 @@ cli.command('publish', {
   examples: [
     {
       options: {
-        in: './output/gtm-stats-g0.1.0-sabc123.png',
+        in: './output/design-v2-g0.2.0-sabc123.png',
         target: 'gist',
       },
       description: 'Publish a rendered design to a gist with retry/backoff',
     },
     {
       options: {
-        in: './output/scout-dispatch-g0.1.0-sabc123.png',
+        in: './output/design-v2-g0.2.0-sabc123.png',
         target: 'github',
         repo: 'spectra-the-bot/spectra-tools',
         branch: 'main',

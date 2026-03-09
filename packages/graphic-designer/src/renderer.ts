@@ -1,16 +1,25 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { basename, dirname, extname, join, resolve } from 'node:path';
-import { type SKRSContext2D, createCanvas } from '@napi-rs/canvas';
-import {
-  type DesignCardSpec,
-  type DesignSafeFrame,
-  type DesignSpec,
-  deriveSafeFrame,
-  parseDesignSpec,
-} from './spec.schema.js';
+import { createCanvas, type SKRSContext2D } from '@napi-rs/canvas';
+import { resolveRenderScale } from './code-style.js';
+import { loadFonts } from './fonts.js';
+import { drawGradientRect, drawRainbowRule, drawVignette } from './primitives/gradients.js';
+import { resolveFont, applyFont, wrapText } from './primitives/text.js';
+import { computeLayout, type EdgeRoute } from './layout/index.js';
+import { renderCard } from './renderers/card.js';
+import { renderCodeBlock } from './renderers/code.js';
+import { renderConnection } from './renderers/connection.js';
+import { renderFlowNode } from './renderers/flow-node.js';
+import { renderImageElement } from './renderers/image.js';
+import { renderShapeElement } from './renderers/shape.js';
+import { renderTerminal } from './renderers/terminal.js';
+import { renderTextElement } from './renderers/text.js';
+import { renderDrawCommands } from './renderers/draw.js';
+import { type DesignSafeFrame, type DesignSpec, deriveSafeFrame, parseDesignSpec } from './spec.schema.js';
+import { resolveTheme } from './themes/index.js';
 import { canonicalJson, sha256Hex, shortHash } from './utils/hash.js';
 
-export const DEFAULT_GENERATOR_VERSION = '0.1.0';
+export const DEFAULT_GENERATOR_VERSION = '0.2.0';
 
 export type Rect = {
   x: number;
@@ -21,7 +30,22 @@ export type Rect = {
 
 export type RenderedElement = {
   id: string;
-  kind: 'header' | 'card' | 'footer' | 'text' | 'badge';
+  kind:
+    | 'header'
+    | 'card'
+    | 'footer'
+    | 'text'
+    | 'badge'
+    | 'flow-node'
+    | 'connection'
+    | 'terminal'
+    | 'code-block'
+    | 'shape'
+    | 'image'
+    | 'draw'
+    | 'rainbow-rule'
+    | 'gradient-overlay'
+    | 'vignette';
   bounds: Rect;
   foregroundColor?: string;
   backgroundColor?: string;
@@ -35,14 +59,13 @@ export type LayoutSnapshot = {
 };
 
 export type RenderMetadata = {
-  schemaVersion: 1;
+  schemaVersion: 2;
   generatorVersion: string;
   renderedAt: string;
-  template: DesignSpec['template'];
   specHash: string;
   artifactHash: string;
   artifactBaseName: string;
-  canvas: { width: number; height: number };
+  canvas: { width: number; height: number; scale: number };
   layout: LayoutSnapshot;
 };
 
@@ -57,73 +80,66 @@ export type WrittenArtifacts = {
   metadata: RenderMetadata;
 };
 
-type WrappedLines = {
-  lines: string[];
-  truncated: boolean;
-};
-
-const TONE_BADGE_COLORS: Record<DesignCardSpec['tone'], string> = {
-  neutral: '#334B83',
-  accent: '#1E7A58',
-  success: '#166A45',
-  warning: '#7A5418',
-};
-
-function applyFont(
-  ctx: SKRSContext2D,
-  options: { size: number; weight: number; family: string },
-): void {
-  ctx.font = `${options.weight} ${options.size}px ${options.family}`;
+function buildArtifactBaseName(specHash: string, generatorVersion: string): string {
+  const safeVersion = generatorVersion.replace(/[^0-9A-Za-z_.-]/gu, '_');
+  return `design-v2-g${safeVersion}-s${shortHash(specHash)}`;
 }
 
-function roundRectPath(ctx: SKRSContext2D, rect: Rect, radius: number): void {
-  const r = Math.max(0, Math.min(radius, rect.width / 2, rect.height / 2));
-  const right = rect.x + rect.width;
-  const bottom = rect.y + rect.height;
-
-  ctx.beginPath();
-  ctx.moveTo(rect.x + r, rect.y);
-  ctx.lineTo(right - r, rect.y);
-  ctx.quadraticCurveTo(right, rect.y, right, rect.y + r);
-  ctx.lineTo(right, bottom - r);
-  ctx.quadraticCurveTo(right, bottom, right - r, bottom);
-  ctx.lineTo(rect.x + r, bottom);
-  ctx.quadraticCurveTo(rect.x, bottom, rect.x, bottom - r);
-  ctx.lineTo(rect.x, rect.y + r);
-  ctx.quadraticCurveTo(rect.x, rect.y, rect.x + r, rect.y);
-  ctx.closePath();
+export function computeSpecHash(spec: DesignSpec): string {
+  return sha256Hex(canonicalJson(spec));
 }
 
-function fillRoundRect(
-  ctx: SKRSContext2D,
-  rect: Rect,
-  radius: number,
-  fill: string,
-  stroke?: string,
-): void {
-  roundRectPath(ctx, rect, radius);
-  ctx.fillStyle = fill;
-  ctx.fill();
-  if (stroke) {
-    ctx.strokeStyle = stroke;
-    ctx.lineWidth = 1;
-    ctx.stroke();
+function resolveAlignedX(rect: Rect, align: 'left' | 'center' | 'right'): number {
+  if (align === 'center') {
+    return rect.x + rect.width / 2;
   }
+  if (align === 'right') {
+    return rect.x + rect.width;
+  }
+  return rect.x;
 }
 
-function wrapText(
+function measureTextWithLetterSpacing(
+  ctx: SKRSContext2D,
+  text: string,
+  letterSpacing: number,
+): number {
+  if (letterSpacing <= 0) {
+    return ctx.measureText(text).width;
+  }
+
+  const glyphs = Array.from(text);
+  if (glyphs.length === 0) {
+    return 0;
+  }
+
+  const base = glyphs.reduce((sum, glyph) => sum + ctx.measureText(glyph).width, 0);
+  return base + letterSpacing * (glyphs.length - 1);
+}
+
+function wrapTextWithLetterSpacing(
   ctx: SKRSContext2D,
   text: string,
   maxWidth: number,
   maxLines: number,
-): WrappedLines {
-  const words = text.trim().split(/\s+/u);
+  letterSpacing: number,
+): { lines: string[]; truncated: boolean } {
+  if (letterSpacing <= 0) {
+    return wrapText(ctx, text, maxWidth, maxLines);
+  }
+
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return { lines: [], truncated: false };
+  }
+
+  const words = trimmed.split(/\s+/u);
   const lines: string[] = [];
   let current = '';
 
   for (const word of words) {
     const trial = current.length > 0 ? `${current} ${word}` : word;
-    if (ctx.measureText(trial).width <= maxWidth) {
+    if (measureTextWithLetterSpacing(ctx, trial, letterSpacing) <= maxWidth) {
       current = trial;
       continue;
     }
@@ -152,7 +168,10 @@ function wrapText(
 
   const lastIndex = lines.length - 1;
   let truncatedLine = `${lines[lastIndex]}…`;
-  while (truncatedLine.length > 1 && ctx.measureText(truncatedLine).width > maxWidth) {
+  while (
+    truncatedLine.length > 1 &&
+    measureTextWithLetterSpacing(ctx, truncatedLine, letterSpacing) > maxWidth
+  ) {
     truncatedLine = `${truncatedLine.slice(0, -2)}…`;
   }
   lines[lastIndex] = truncatedLine;
@@ -160,317 +179,377 @@ function wrapText(
   return { lines, truncated: true };
 }
 
-function drawTextBlock(
+function drawAlignedTextLine(
+  ctx: SKRSContext2D,
+  text: string,
+  x: number,
+  y: number,
+  align: 'left' | 'center' | 'right',
+  letterSpacing: number,
+): void {
+  if (letterSpacing <= 0) {
+    ctx.textAlign = align;
+    ctx.fillText(text, x, y);
+    return;
+  }
+
+  const glyphs = Array.from(text);
+  const lineWidth = measureTextWithLetterSpacing(ctx, text, letterSpacing);
+  let cursorX = x;
+
+  if (align === 'center') {
+    cursorX = x - lineWidth / 2;
+  } else if (align === 'right') {
+    cursorX = x - lineWidth;
+  }
+
+  ctx.textAlign = 'left';
+  for (const glyph of glyphs) {
+    ctx.fillText(glyph, cursorX, y);
+    cursorX += ctx.measureText(glyph).width + letterSpacing;
+  }
+}
+
+function drawAlignedTextBlock(
   ctx: SKRSContext2D,
   options: {
+    text: string;
     x: number;
     y: number;
     maxWidth: number;
+    maxLines: number;
     lineHeight: number;
     color: string;
-    text: string;
-    maxLines: number;
     fontSize: number;
     fontWeight: number;
-    family: string;
+    fontFamily: string;
+    align: 'left' | 'center' | 'right';
+    letterSpacing?: number;
   },
-): { height: number; truncated: boolean; lines: string[] } {
-  applyFont(ctx, { size: options.fontSize, weight: options.fontWeight, family: options.family });
-  const wrapped = wrapText(ctx, options.text, options.maxWidth, options.maxLines);
+): { height: number; truncated: boolean } {
+  applyFont(ctx, { size: options.fontSize, weight: options.fontWeight, family: options.fontFamily });
+  const letterSpacing = options.letterSpacing ?? 0;
+  const wrapped = wrapTextWithLetterSpacing(
+    ctx,
+    options.text,
+    options.maxWidth,
+    options.maxLines,
+    letterSpacing,
+  );
 
   ctx.fillStyle = options.color;
   for (const [index, line] of wrapped.lines.entries()) {
-    ctx.fillText(line, options.x, options.y + index * options.lineHeight);
+    drawAlignedTextLine(
+      ctx,
+      line,
+      options.x,
+      options.y + index * options.lineHeight,
+      options.align,
+      letterSpacing,
+    );
   }
 
   return {
     height: wrapped.lines.length * options.lineHeight,
     truncated: wrapped.truncated,
-    lines: wrapped.lines,
   };
-}
-
-function buildArtifactBaseName(
-  spec: DesignSpec,
-  specHash: string,
-  generatorVersion: string,
-): string {
-  const safeVersion = generatorVersion.replace(/[^0-9A-Za-z_.-]/gu, '_');
-  return `${spec.template}-g${safeVersion}-s${shortHash(specHash)}`;
-}
-
-function cardRect(
-  index: number,
-  totalCards: number,
-  safe: DesignSafeFrame,
-  cardsTop: number,
-  cardsBottom: number,
-  columns: number,
-  gap: number,
-): Rect {
-  const effectiveColumns = Math.max(1, Math.min(columns, totalCards));
-  const rows = Math.ceil(totalCards / effectiveColumns);
-
-  const availableWidth = safe.width - gap * (effectiveColumns - 1);
-  const availableHeight = cardsBottom - cardsTop - gap * (rows - 1);
-
-  const width = Math.floor(availableWidth / effectiveColumns);
-  const height = Math.floor(availableHeight / rows);
-
-  const row = Math.floor(index / effectiveColumns);
-  const col = index % effectiveColumns;
-
-  return {
-    x: safe.x + col * (width + gap),
-    y: cardsTop + row * (height + gap),
-    width,
-    height,
-  };
-}
-
-export function computeSpecHash(spec: DesignSpec): string {
-  return sha256Hex(canonicalJson(spec));
 }
 
 export async function renderDesign(
   input: DesignSpec,
   options: { generatorVersion?: string; renderedAt?: string } = {},
 ): Promise<RenderResult> {
+  loadFonts();
+
   const spec = parseDesignSpec(input);
   const safeFrame = deriveSafeFrame(spec);
+  const theme = resolveTheme(spec.theme);
   const specHash = computeSpecHash(spec);
   const generatorVersion = options.generatorVersion ?? DEFAULT_GENERATOR_VERSION;
   const renderedAt = options.renderedAt ?? new Date().toISOString();
 
-  const canvas = createCanvas(spec.canvas.width, spec.canvas.height);
+  const renderScale = resolveRenderScale(spec);
+  const canvas = createCanvas(spec.canvas.width * renderScale, spec.canvas.height * renderScale);
   const ctx = canvas.getContext('2d');
+  if (renderScale !== 1) {
+    ctx.scale(renderScale, renderScale);
+  }
 
-  const backgroundGradient = ctx.createLinearGradient(0, 0, spec.canvas.width, spec.canvas.height);
-  backgroundGradient.addColorStop(0, spec.theme.background);
-  backgroundGradient.addColorStop(1, spec.theme.surfaceMuted);
-  ctx.fillStyle = backgroundGradient;
-  ctx.fillRect(0, 0, spec.canvas.width, spec.canvas.height);
+  const headingFont = resolveFont(theme.fonts.heading, 'heading');
+  const monoFont = resolveFont(theme.fonts.mono, 'mono');
+  const bodyFont = resolveFont(theme.fonts.body, 'body');
+
+  const background = spec.background ?? theme.background;
+  const canvasRect: Rect = { x: 0, y: 0, width: spec.canvas.width, height: spec.canvas.height };
+
+  if (typeof background === 'string') {
+    ctx.fillStyle = background;
+    ctx.fillRect(0, 0, spec.canvas.width, spec.canvas.height);
+  } else {
+    drawGradientRect(ctx, canvasRect, background);
+  }
+
+  const metadataBackground = typeof background === 'string' ? background : theme.background;
 
   const elements: RenderedElement[] = [];
 
-  const headerRect: Rect = {
-    x: safeFrame.x,
-    y: safeFrame.y,
-    width: safeFrame.width,
-    height: Math.round(safeFrame.height * 0.28),
-  };
-  const footerRect: Rect = {
-    x: safeFrame.x,
-    y: safeFrame.y + safeFrame.height - Math.round(safeFrame.height * 0.12),
-    width: safeFrame.width,
-    height: Math.round(safeFrame.height * 0.12),
-  };
+  const hasHeader = Boolean(spec.header);
+  const hasFooter = Boolean(spec.footer);
 
-  const cardsTop = headerRect.y + headerRect.height + spec.layout.sectionGap;
-  const cardsBottom = footerRect.y - spec.layout.sectionGap;
+  const headerRect: Rect | undefined = hasHeader
+    ? {
+        x: safeFrame.x,
+        y: safeFrame.y,
+        width: safeFrame.width,
+        height: Math.round(safeFrame.height * 0.24),
+      }
+    : undefined;
 
-  applyFont(ctx, { size: 16, weight: 700, family: spec.theme.monoFontFamily });
-  ctx.fillStyle = spec.theme.primary;
-  ctx.fillText(spec.header.eyebrow.toUpperCase(), headerRect.x, headerRect.y + 18);
+  const footerRect: Rect | undefined = hasFooter
+    ? {
+        x: safeFrame.x,
+        y: safeFrame.y + safeFrame.height - Math.round(safeFrame.height * 0.1),
+        width: safeFrame.width,
+        height: Math.round(safeFrame.height * 0.1),
+      }
+    : undefined;
 
-  const titleBlock = drawTextBlock(ctx, {
-    x: headerRect.x,
-    y: headerRect.y + 58,
-    maxWidth: headerRect.width,
-    lineHeight: 50,
-    color: spec.theme.text,
-    text: spec.header.title,
-    maxLines: 2,
-    fontSize: 44,
-    fontWeight: 800,
-    family: spec.theme.fontFamily,
-  });
+  const sectionGap = spec.layout.mode === 'grid' || spec.layout.mode === 'stack' ? spec.layout.gap : 24;
+  const contentTop = headerRect ? headerRect.y + headerRect.height + sectionGap : safeFrame.y;
+  const contentBottom = footerRect ? footerRect.y - sectionGap : safeFrame.y + safeFrame.height;
 
-  let subtitleTruncated = false;
-  if (spec.header.subtitle) {
-    const subtitleBlock = drawTextBlock(ctx, {
-      x: headerRect.x,
-      y: headerRect.y + 58 + titleBlock.height + 12,
+  if (headerRect && spec.header) {
+    const headerAlign = spec.header.align;
+    const headerX = resolveAlignedX(headerRect, headerAlign);
+
+    if (spec.header.eyebrow) {
+      applyFont(ctx, { size: 16, weight: 700, family: monoFont });
+      ctx.fillStyle = theme.primary;
+      ctx.textAlign = headerAlign;
+      ctx.fillText(spec.header.eyebrow.toUpperCase(), headerX, headerRect.y + 18);
+    }
+
+    const titleFontSize = spec.header.titleFontSize ?? 42;
+    const titleLineHeight = Math.round(titleFontSize * 1.14);
+    const titleY = spec.header.eyebrow ? headerRect.y + 58 : headerRect.y + 32;
+    const titleBlock = drawAlignedTextBlock(ctx, {
+      x: headerX,
+      y: titleY,
       maxWidth: headerRect.width,
-      lineHeight: 28,
-      color: spec.theme.textMuted,
-      text: spec.header.subtitle,
+      lineHeight: titleLineHeight,
+      color: theme.text,
+      text: spec.header.title,
       maxLines: 2,
-      fontSize: 22,
-      fontWeight: 500,
-      family: spec.theme.fontFamily,
-    });
-    subtitleTruncated = subtitleBlock.truncated;
-  }
-
-  elements.push({
-    id: 'header',
-    kind: 'header',
-    bounds: headerRect,
-    foregroundColor: spec.theme.text,
-    backgroundColor: spec.theme.background,
-  });
-  elements.push({
-    id: 'header-title',
-    kind: 'text',
-    bounds: {
-      x: headerRect.x,
-      y: headerRect.y + 20,
-      width: headerRect.width,
-      height: headerRect.height - 20,
-    },
-    foregroundColor: spec.theme.text,
-    backgroundColor: spec.theme.background,
-    truncated: titleBlock.truncated || subtitleTruncated,
-  });
-
-  for (const [index, card] of spec.cards.entries()) {
-    const rect = cardRect(
-      index,
-      spec.cards.length,
-      safeFrame,
-      cardsTop,
-      cardsBottom,
-      spec.layout.columns,
-      spec.layout.cardGap,
-    );
-    fillRoundRect(ctx, rect, spec.layout.cornerRadius, spec.theme.surface, '#32426E');
-
-    const padding = 18;
-    const innerLeft = rect.x + padding;
-    const innerWidth = rect.width - padding * 2;
-    let cursorY = rect.y + padding;
-
-    if (card.badge) {
-      applyFont(ctx, { size: 13, weight: 700, family: spec.theme.monoFontFamily });
-      const label = card.badge.toUpperCase();
-      const badgeWidth = Math.ceil(ctx.measureText(label).width + 18);
-      const badgeRect: Rect = {
-        x: innerLeft,
-        y: cursorY,
-        width: badgeWidth,
-        height: 24,
-      };
-      const badgeBg = TONE_BADGE_COLORS[card.tone];
-      fillRoundRect(ctx, badgeRect, 12, badgeBg);
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillText(label, badgeRect.x + 9, badgeRect.y + 16);
-
-      elements.push({
-        id: `card-${card.id}-badge`,
-        kind: 'badge',
-        bounds: badgeRect,
-        foregroundColor: '#FFFFFF',
-        backgroundColor: badgeBg,
-      });
-
-      cursorY += 34;
-    }
-
-    const titleBlockCard = drawTextBlock(ctx, {
-      x: innerLeft,
-      y: cursorY + 22,
-      maxWidth: innerWidth,
-      lineHeight: 26,
-      color: spec.theme.text,
-      text: card.title,
-      maxLines: 2,
-      fontSize: 22,
+      fontSize: titleFontSize,
       fontWeight: 700,
-      family: spec.theme.fontFamily,
-    });
-    cursorY += titleBlockCard.height + 18;
-
-    const bodyBlock = drawTextBlock(ctx, {
-      x: innerLeft,
-      y: cursorY + 20,
-      maxWidth: innerWidth,
-      lineHeight: 22,
-      color: spec.theme.textMuted,
-      text: card.body,
-      maxLines: 4,
-      fontSize: 18,
-      fontWeight: 500,
-      family: spec.theme.fontFamily,
+      fontFamily: headingFont,
+      align: headerAlign,
+      letterSpacing: spec.header.titleLetterSpacing,
     });
 
-    let cardTruncated = titleBlockCard.truncated || bodyBlock.truncated;
-
-    if (card.metric) {
-      applyFont(ctx, { size: 34, weight: 800, family: spec.theme.fontFamily });
-      ctx.fillStyle = spec.theme.accent;
-      ctx.fillText(card.metric, innerLeft, rect.y + rect.height - 20);
-      elements.push({
-        id: `card-${card.id}-metric`,
-        kind: 'text',
-        bounds: {
-          x: innerLeft,
-          y: rect.y + rect.height - 54,
-          width: innerWidth,
-          height: 40,
-        },
-        foregroundColor: spec.theme.accent,
-        backgroundColor: spec.theme.surface,
+    let subtitleTruncated = false;
+    if (spec.header.subtitle) {
+      const subtitleBlock = drawAlignedTextBlock(ctx, {
+        x: headerX,
+        y: titleY + titleBlock.height + 12,
+        maxWidth: headerRect.width,
+        lineHeight: 28,
+        color: theme.textMuted,
+        text: spec.header.subtitle,
+        maxLines: 2,
+        fontSize: 22,
+        fontWeight: 500,
+        fontFamily: bodyFont,
+        align: headerAlign,
       });
+      subtitleTruncated = subtitleBlock.truncated;
     }
 
-    if (cursorY + bodyBlock.height + 24 > rect.y + rect.height) {
-      cardTruncated = true;
-    }
+    ctx.textAlign = 'left';
 
     elements.push({
-      id: `card-${card.id}`,
-      kind: 'card',
-      bounds: rect,
-      foregroundColor: spec.theme.text,
-      backgroundColor: spec.theme.surface,
-      truncated: cardTruncated,
+      id: 'header',
+      kind: 'header',
+      bounds: headerRect,
+      foregroundColor: theme.text,
+      backgroundColor: metadataBackground,
     });
     elements.push({
-      id: `card-${card.id}-body`,
+      id: 'header-title',
       kind: 'text',
       bounds: {
-        x: innerLeft,
-        y: rect.y + 10,
-        width: innerWidth,
-        height: rect.height - 20,
+        x: headerRect.x,
+        y: headerRect.y + 20,
+        width: headerRect.width,
+        height: headerRect.height - 20,
       },
-      foregroundColor: spec.theme.textMuted,
-      backgroundColor: spec.theme.surface,
-      truncated: cardTruncated,
+      foregroundColor: theme.text,
+      backgroundColor: metadataBackground,
+      truncated: titleBlock.truncated || subtitleTruncated,
     });
   }
 
-  const footerText = spec.footer.tagline
-    ? `${spec.footer.text} • ${spec.footer.tagline}`
-    : spec.footer.text;
-  applyFont(ctx, { size: 16, weight: 600, family: spec.theme.monoFontFamily });
-  ctx.fillStyle = spec.theme.footerText;
-  ctx.fillText(footerText, footerRect.x, footerRect.y + footerRect.height - 10);
+  const deferredVignettes: Array<{ index: number; intensity: number; color: string }> = [];
 
-  elements.push({
-    id: 'footer',
-    kind: 'footer',
-    bounds: footerRect,
-    foregroundColor: spec.theme.footerText,
-    backgroundColor: spec.theme.background,
-  });
+  for (const [index, decorator] of spec.decorators.entries()) {
+    if (decorator.type === 'vignette') {
+      deferredVignettes.push({ index, intensity: decorator.intensity, color: decorator.color });
+      continue;
+    }
+
+    if (decorator.type === 'gradient-overlay') {
+      ctx.save();
+      ctx.globalAlpha = decorator.opacity;
+      drawGradientRect(ctx, canvasRect, decorator.gradient);
+      ctx.restore();
+
+      elements.push({
+        id: `decorator-gradient-overlay-${index}`,
+        kind: 'gradient-overlay',
+        bounds: { ...canvasRect },
+        allowOverlap: true,
+      });
+      continue;
+    }
+
+    const defaultAfterHeaderY = headerRect
+      ? headerRect.y + headerRect.height + Math.max(4, sectionGap / 2)
+      : safeFrame.y + 24;
+    const defaultBeforeFooterY = footerRect
+      ? footerRect.y - Math.max(4, sectionGap / 2)
+      : safeFrame.y + safeFrame.height - 24;
+
+    const y =
+      decorator.y === 'before-footer'
+        ? defaultBeforeFooterY
+        : decorator.y === 'custom'
+          ? decorator.customY ?? defaultAfterHeaderY
+          : defaultAfterHeaderY;
+
+    const x = safeFrame.x + decorator.margin;
+    const width = Math.max(0, safeFrame.width - decorator.margin * 2);
+
+    drawRainbowRule(ctx, x, y, width, decorator.thickness, decorator.colors);
+
+    elements.push({
+      id: `decorator-rainbow-rule-${index}`,
+      kind: 'rainbow-rule',
+      bounds: {
+        x,
+        y: y - decorator.thickness / 2,
+        width,
+        height: decorator.thickness,
+      },
+      allowOverlap: true,
+    });
+  }
+
+  const contentFrame: Rect = {
+    x: safeFrame.x,
+    y: contentTop,
+    width: safeFrame.width,
+    height: Math.max(0, contentBottom - contentTop),
+  };
+
+  const layoutResult = await computeLayout(spec.elements, spec.layout, contentFrame);
+  const elementRects = layoutResult.positions;
+  const edgeRoutes = (layoutResult as { edgeRoutes?: Map<string, EdgeRoute> }).edgeRoutes;
+
+  for (const element of spec.elements) {
+    if (element.type === 'connection') {
+      continue;
+    }
+
+    const rect = elementRects.get(element.id);
+    if (!rect) {
+      throw new Error(`Missing layout bounds for element: ${element.id}`);
+    }
+
+    switch (element.type) {
+      case 'card':
+        elements.push(...renderCard(ctx, element, rect, theme));
+        break;
+      case 'flow-node':
+        elements.push(...renderFlowNode(ctx, element, rect, theme));
+        break;
+      case 'terminal':
+        elements.push(...renderTerminal(ctx, element, rect, theme));
+        break;
+      case 'code-block':
+        elements.push(...(await renderCodeBlock(ctx, element, rect, theme)));
+        break;
+      case 'text':
+        elements.push(...renderTextElement(ctx, element, rect, theme));
+        break;
+      case 'shape':
+        elements.push(...renderShapeElement(ctx, element, rect, theme));
+        break;
+      case 'image':
+        elements.push(...(await renderImageElement(ctx, element, rect, theme)));
+        break;
+    }
+  }
+
+  for (const element of spec.elements) {
+    if (element.type !== 'connection') {
+      continue;
+    }
+
+    const fromRect = elementRects.get(element.from);
+    const toRect = elementRects.get(element.to);
+
+    if (!fromRect || !toRect) {
+      throw new Error(
+        `Connection endpoints must reference positioned elements: from=${element.from} to=${element.to}`,
+      );
+    }
+
+    const edgeRoute = edgeRoutes?.get(`${element.from}-${element.to}`);
+    elements.push(...renderConnection(ctx, element, fromRect, toRect, theme, edgeRoute));
+  }
+
+  if (footerRect && spec.footer) {
+    const footerText = spec.footer.tagline ? `${spec.footer.text} • ${spec.footer.tagline}` : spec.footer.text;
+    applyFont(ctx, { size: 16, weight: 600, family: monoFont });
+    ctx.fillStyle = theme.textMuted;
+    ctx.fillText(footerText, footerRect.x, footerRect.y + footerRect.height - 10);
+
+    elements.push({
+      id: 'footer',
+      kind: 'footer',
+      bounds: footerRect,
+      foregroundColor: theme.textMuted,
+      backgroundColor: metadataBackground,
+    });
+  }
+
+  elements.push(...renderDrawCommands(ctx, spec.draw, theme));
+
+  for (const vignette of deferredVignettes) {
+    drawVignette(ctx, spec.canvas.width, spec.canvas.height, vignette.intensity, vignette.color);
+    elements.push({
+      id: `decorator-vignette-${vignette.index}`,
+      kind: 'vignette',
+      bounds: { ...canvasRect },
+      allowOverlap: true,
+    });
+  }
 
   const pngBuffer = Buffer.from(await canvas.encode('png'));
   const artifactHash = sha256Hex(pngBuffer);
-  const artifactBaseName = buildArtifactBaseName(spec, specHash, generatorVersion);
+  const artifactBaseName = buildArtifactBaseName(specHash, generatorVersion);
 
   const metadata: RenderMetadata = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     generatorVersion,
     renderedAt,
-    template: spec.template,
     specHash,
     artifactHash,
     artifactBaseName,
     canvas: {
       width: spec.canvas.width,
       height: spec.canvas.height,
+      scale: renderScale,
     },
     layout: {
       safeFrame,

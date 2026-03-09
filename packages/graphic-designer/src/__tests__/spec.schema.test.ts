@@ -1,133 +1,358 @@
 import { describe, expect, it } from 'vitest';
 import { parseDesignSpec } from '../spec.schema.js';
-import { buildGtmPipelineSpec } from '../templates/gtm-pipeline.js';
-import { buildGtmStatsSpec } from '../templates/gtm-stats.js';
-import { buildScoutDispatchSpec } from '../templates/scout-dispatch.js';
 
-describe('design spec schema', () => {
-  it('parses a strict design spec', () => {
+describe('design spec schema v2', () => {
+  it('parses a mixed element spec', () => {
     const spec = parseDesignSpec({
-      version: 1,
-      template: 'custom',
-      canvas: { width: 1200, height: 675, padding: 72 },
-      theme: {
-        background: '#0B1020',
-        surface: '#111936',
-        surfaceMuted: '#1A2547',
-        primary: '#7AA2FF',
-        accent: '#65E4A3',
-        text: '#E8EEFF',
-        textMuted: '#AAB9E8',
-        footerText: '#8B9CCB',
-        fontFamily: 'Inter',
-        monoFontFamily: 'JetBrains Mono',
-      },
+      version: 2,
+      canvas: { width: 1200, height: 675, padding: 48 },
+      theme: 'dark',
       header: {
-        eyebrow: 'TEST',
-        title: 'Title',
-        subtitle: 'Subtitle',
+        title: 'Architecture',
       },
-      cards: [
+      elements: [
         {
-          id: 'a',
+          type: 'card',
+          id: 'card-1',
           title: 'Card',
-          body: 'Body',
-          badge: 'badge',
+          body: 'Body copy',
           tone: 'accent',
         },
+        {
+          type: 'flow-node',
+          id: 'node-1',
+          shape: 'rounded-box',
+          label: 'Start',
+        },
+        {
+          type: 'connection',
+          from: 'node-1',
+          to: 'node-2',
+          arrow: 'end',
+        },
+        {
+          type: 'code-block',
+          id: 'code-1',
+          code: 'console.log("hi")',
+          language: 'typescript',
+        },
+        {
+          type: 'terminal',
+          id: 'term-1',
+          content: 'npm run build\nDone',
+          style: {
+            windowControls: 'macos',
+          },
+        },
+        {
+          type: 'text',
+          id: 'text-1',
+          content: 'Free text',
+          style: 'caption',
+        },
+        {
+          type: 'shape',
+          id: 'shape-1',
+          shape: 'rectangle',
+          fill: '#112233',
+        },
       ],
-      footer: {
-        text: 'footer',
-      },
       layout: {
-        columns: 1,
-        cardGap: 18,
-        sectionGap: 24,
-        cornerRadius: 14,
+        mode: 'auto',
+        direction: 'LR',
+        nodeSpacing: 72,
+        rankSpacing: 96,
       },
       constraints: {
         minContrastRatio: 4.5,
-        minFooterSpacingPx: 16,
+        minFooterSpacing: 16,
         checkOverlaps: true,
-      },
-      generation: {
-        templateVersion: '1.0.0',
+        maxTextTruncation: 0.1,
       },
     });
 
-    expect(spec.template).toBe('custom');
-    expect(spec.cards).toHaveLength(1);
+    expect(spec.version).toBe(2);
+    expect(spec.elements).toHaveLength(7);
+    expect(spec.layout.mode).toBe('auto');
   });
 
-  it('rejects invalid colors', () => {
+  it('applies defaults for optional properties', () => {
+    const spec = parseDesignSpec({
+      elements: [
+        {
+          type: 'card',
+          id: 'a',
+          title: 'A',
+          body: 'B',
+        },
+      ],
+    });
+
+    expect(spec.version).toBe(2);
+    expect(spec.canvas.width).toBe(1200);
+    expect(spec.theme).toBe('dark');
+    expect(spec.layout.mode).toBe('grid');
+    expect(spec.constraints.maxTextTruncation).toBe(0.1);
+    expect(spec.decorators).toEqual([]);
+    expect(spec.background).toBeUndefined();
+  });
+
+  it('parses gradient backgrounds and decorator defaults', () => {
+    const spec = parseDesignSpec({
+      theme: 'dark',
+      background: {
+        type: 'linear',
+        stops: [
+          { offset: 0, color: '#0B1020' },
+          { offset: 1, color: '#1A2547' },
+        ],
+      },
+      elements: [{ type: 'card', id: 'a', title: 'A', body: 'B' }],
+      decorators: [{ type: 'vignette' }, { type: 'rainbow-rule' }],
+    });
+
+    expect(spec.background).toEqual({
+      type: 'linear',
+      angle: 180,
+      stops: [
+        { offset: 0, color: '#0B1020' },
+        { offset: 1, color: '#1A2547' },
+      ],
+    });
+    expect(spec.decorators[0]).toEqual({ type: 'vignette', intensity: 0.3, color: '#000000' });
+    expect(spec.decorators[1]).toEqual({
+      type: 'rainbow-rule',
+      y: 'after-header',
+      thickness: 2,
+      margin: 16,
+    });
+  });
+
+  it('infers layout mode when not explicitly provided', () => {
+    const flowSpec = parseDesignSpec({
+      elements: [
+        { type: 'flow-node', id: 'n1', shape: 'box', label: 'Start' },
+        { type: 'flow-node', id: 'n2', shape: 'box', label: 'End' },
+        { type: 'connection', from: 'n1', to: 'n2' },
+      ],
+    });
+
+    const codeSpec = parseDesignSpec({
+      elements: [{ type: 'code-block', id: 'code', language: 'ts', code: 'console.log(1);' }],
+    });
+
+    const explicitGrid = parseDesignSpec({
+      elements: [{ type: 'code-block', id: 'code', language: 'ts', code: 'console.log(1);' }],
+      layout: { mode: 'grid', columns: 2, gap: 20, equalHeight: true },
+    });
+
+    expect(flowSpec.layout.mode).toBe('auto');
+    expect(codeSpec.layout.mode).toBe('stack');
+    expect(explicitGrid.layout.mode).toBe('grid');
+  });
+
+  it('parses image elements with defaults', () => {
+    const spec = parseDesignSpec({
+      elements: [
+        {
+          type: 'image',
+          id: 'hero',
+          src: 'https://example.com/hero.png',
+        },
+      ],
+    });
+
+    expect(spec.elements[0]).toMatchObject({
+      type: 'image',
+      id: 'hero',
+      src: 'https://example.com/hero.png',
+      fit: 'contain',
+      borderRadius: 0,
+    });
+  });
+
+  it('accepts draw-only specs with no structured elements', () => {
+    const spec = parseDesignSpec({
+      draw: [
+        { type: 'rect', x: 10, y: 10, width: 80, height: 40, fill: '#112233' },
+        { type: 'text', x: 20, y: 30, text: 'hello' },
+      ],
+    });
+
+    expect(spec.elements).toEqual([]);
+    expect(spec.draw).toHaveLength(2);
+    expect(spec.layout.mode).toBe('grid');
+  });
+
+  it('supports enhanced header, flow-node, connection, and auto-layout schema fields', () => {
+    const spec = parseDesignSpec({
+      header: {
+        title: 'Enhanced Header',
+        align: 'center',
+        titleLetterSpacing: 4,
+        titleFontSize: 36,
+      },
+      layout: {
+        mode: 'auto',
+        algorithm: 'stress',
+        direction: 'LR',
+        nodeSpacing: 64,
+        rankSpacing: 96,
+        edgeRouting: 'spline',
+        aspectRatio: 1.78,
+      },
+      elements: [
+        {
+          type: 'flow-node',
+          id: 'n1',
+          shape: 'rounded-box',
+          label: 'A',
+          sublabel: 'details',
+          sublabelColor: '#8899AA',
+          labelColor: '#FFFFFF',
+          labelFontSize: 24,
+          borderWidth: 3,
+          cornerRadius: 24,
+          width: 220,
+          height: 100,
+          opacity: 0.9,
+        },
+        {
+          type: 'flow-node',
+          id: 'n2',
+          shape: 'diamond',
+          label: 'B',
+        },
+        {
+          type: 'connection',
+          from: 'n1',
+          to: 'n2',
+          width: 3,
+          arrowSize: 14,
+          opacity: 0.7,
+        },
+      ],
+    });
+
+    expect(spec.header?.align).toBe('center');
+    expect(spec.header?.titleLetterSpacing).toBe(4);
+    expect(spec.header?.titleFontSize).toBe(36);
+    expect(spec.layout.mode).toBe('auto');
+    if (spec.layout.mode === 'auto') {
+      expect(spec.layout.algorithm).toBe('stress');
+      expect(spec.layout.edgeRouting).toBe('spline');
+      expect(spec.layout.aspectRatio).toBe(1.78);
+    }
+
+    const node = spec.elements.find((element) => element.type === 'flow-node' && element.id === 'n1');
+    expect(node).toBeDefined();
+    if (node?.type === 'flow-node') {
+      expect(node.sublabelColor).toBe('#8899AA');
+      expect(node.labelColor).toBe('#FFFFFF');
+      expect(node.labelFontSize).toBe(24);
+      expect(node.borderWidth).toBe(3);
+      expect(node.cornerRadius).toBe(24);
+      expect(node.width).toBe(220);
+      expect(node.height).toBe(100);
+      expect(node.opacity).toBe(0.9);
+    }
+
+    const connection = spec.elements.find((element) => element.type === 'connection');
+    expect(connection).toBeDefined();
+    if (connection?.type === 'connection') {
+      expect(connection.width).toBe(3);
+      expect(connection.arrowSize).toBe(14);
+      expect(connection.opacity).toBe(0.7);
+    }
+  });
+
+  it('applies new defaults for header alignment and connection/flow opacity', () => {
+    const spec = parseDesignSpec({
+      header: { title: 'Defaults' },
+      elements: [
+        { type: 'flow-node', id: 'a', shape: 'box', label: 'A' },
+        { type: 'flow-node', id: 'b', shape: 'box', label: 'B' },
+        { type: 'connection', from: 'a', to: 'b' },
+      ],
+    });
+
+    expect(spec.header?.align).toBe('center');
+    expect(spec.header?.titleLetterSpacing).toBe(0);
+
+    const flow = spec.elements.find((element) => element.type === 'flow-node' && element.id === 'a');
+    const connection = spec.elements.find((element) => element.type === 'connection');
+
+    if (flow?.type === 'flow-node') {
+      expect(flow.opacity).toBe(1);
+    }
+    if (connection?.type === 'connection') {
+      expect(connection.opacity).toBe(1);
+    }
+  });
+
+  it('supports style overrides for code-block and terminal elements', () => {
+    const spec = parseDesignSpec({
+      elements: [
+        {
+          type: 'code-block',
+          id: 'code',
+          language: 'ts',
+          code: 'const hello = 1;',
+          style: {
+            paddingHorizontal: 64,
+            paddingVertical: 52,
+            windowControls: 'bw',
+            dropShadow: false,
+            scale: 4,
+          },
+        },
+        {
+          type: 'terminal',
+          id: 'term',
+          content: 'echo hello',
+          style: {
+            surroundColor: 'rgba(10, 20, 30, 1)',
+            fontSize: 16,
+            lineHeightPercent: 150,
+            windowControls: 'none',
+            scale: 1,
+          },
+        },
+      ],
+    });
+
+    const code = spec.elements.find((element) => element.type === 'code-block');
+    const term = spec.elements.find((element) => element.type === 'terminal');
+
+    expect(code?.type).toBe('code-block');
+    if (code?.type === 'code-block') {
+      expect(code.style?.paddingHorizontal).toBe(64);
+      expect(code.style?.dropShadow).toBe(false);
+      expect(code.style?.windowControls).toBe('bw');
+      expect(code.style?.scale).toBe(4);
+    }
+
+    expect(term?.type).toBe('terminal');
+    if (term?.type === 'terminal') {
+      expect(term.style?.windowControls).toBe('none');
+      expect(term.style?.fontSize).toBe(16);
+      expect(term.style?.lineHeightPercent).toBe(150);
+      expect(term.style?.scale).toBe(1);
+    }
+  });
+
+  it('rejects invalid connection shape', () => {
     expect(() =>
       parseDesignSpec({
-        version: 1,
-        template: 'custom',
-        canvas: { width: 1200, height: 675, padding: 72 },
-        theme: {
-          background: 'red',
-          surface: '#111936',
-          surfaceMuted: '#1A2547',
-          primary: '#7AA2FF',
-          accent: '#65E4A3',
-          text: '#E8EEFF',
-          textMuted: '#AAB9E8',
-          footerText: '#8B9CCB',
-          fontFamily: 'Inter',
-          monoFontFamily: 'JetBrains Mono',
-        },
-        header: { eyebrow: 'A', title: 'B' },
-        cards: [{ id: 'x', title: 'y', body: 'z', tone: 'neutral' }],
-        footer: { text: 'f' },
-        layout: {
-          columns: 1,
-          cardGap: 18,
-          sectionGap: 24,
-          cornerRadius: 14,
-        },
-        constraints: {
-          minContrastRatio: 4.5,
-          minFooterSpacingPx: 16,
-          checkOverlaps: true,
-        },
-        generation: {
-          templateVersion: '1.0.0',
-        },
+        elements: [
+          {
+            type: 'connection',
+            from: 'a',
+            to: 'b',
+            arrow: 'sideways',
+          },
+        ],
       }),
     ).toThrow();
-  });
-
-  it('template builders emit schema-valid specs', () => {
-    const pipeline = buildGtmPipelineSpec({
-      title: 'Pipeline',
-      stages: [
-        { name: 'Discover', description: 'Find targets' },
-        { name: 'Validate', description: 'Verify intent' },
-        { name: 'Launch', description: 'Ship assets' },
-      ],
-    });
-
-    const stats = buildGtmStatsSpec({
-      title: 'Stats',
-      stats: [
-        { label: 'Coverage', value: '91%', insight: 'Up week-over-week' },
-        { label: 'CTR', value: '4.2%', insight: 'Stable conversion path' },
-        { label: 'CPA', value: '$12', insight: 'Efficiency improved' },
-      ],
-    });
-
-    const dispatch = buildScoutDispatchSpec({
-      title: 'Dispatch',
-      dispatches: [
-        { lane: 'Creative', status: 'in-progress', nextAction: 'Finalize mockups' },
-        { lane: 'Distribution', status: 'queued', nextAction: 'Book launch slots' },
-        { lane: 'Analytics', status: 'complete', nextAction: 'Publish recap' },
-      ],
-    });
-
-    expect(pipeline.template).toBe('gtm-pipeline');
-    expect(stats.template).toBe('gtm-stats');
-    expect(dispatch.template).toBe('scout-dispatch');
   });
 });

@@ -1,7 +1,7 @@
 {
   "name": "@spectratools/graphic-designer",
-  "version": "0.2.0",
-  "description": "Deterministic infographic renderer + QA/publish pipeline for GTM and ops visuals.",
+  "version": "0.3.0",
+  "description": "Deterministic visual content generator — code screenshots, terminal shots, flowcharts, and infographics. No browser dependency.",
   "type": "module",
   "license": "MIT",
   "author": "spectra-the-bot",
@@ -28,10 +28,6 @@
       "types": "./dist/spec.schema.d.ts",
       "default": "./dist/spec.schema.js"
     },
-    "./templates": {
-      "types": "./dist/templates/index.d.ts",
-      "default": "./dist/templates/index.js"
-    },
     "./publish": {
       "types": "./dist/publish/index.d.ts",
       "default": "./dist/publish/index.js"
@@ -45,17 +41,35 @@
   },
   "dependencies": {
     "@napi-rs/canvas": "^0.1.80",
+    "elkjs": "^0.11.0",
     "incur": "^0.2.2",
-    "sharp": "^0.34.4"
+    "sharp": "^0.34.4",
+    "shiki": "^4.0.2",
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "typescript": "5.7.3",
     "vitest": "2.1.8"
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "fonts",
+    "README.md"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "keywords": ["graphics", "infographics", "canvas", "deterministic", "cli", "spectratools"],
+  "keywords": [
+    "graphics",
+    "infographics",
+    "code-screenshot",
+    "terminal-screenshot",
+    "flowchart",
+    "canvas",
+    "carbon",
+    "deterministic",
+    "cli",
+    "spectratools"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/spectra-the-bot/spectra-tools.git",

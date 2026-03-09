@@ -1,5 +1,11 @@
 export { cli } from './cli.js';
 export {
+  buildFlowchartSpec,
+  buildCodeSpec,
+  buildTerminalSpec,
+  buildCardsSpec,
+} from './templates/index.js';
+export {
   DEFAULT_GENERATOR_VERSION,
   computeSpecHash,
   inferSidecarPath,
@@ -12,6 +18,8 @@ export {
   type RenderedElement,
   type WrittenArtifacts,
 } from './renderer.js';
+export { type EdgeRoute, type ElkLayoutResult, type LayoutResult } from './layout/index.js';
+export { renderDrawCommands } from './renderers/draw.js';
 export {
   readMetadata,
   runQa,
@@ -19,18 +27,72 @@ export {
   type QaReport,
   type QaSeverity,
 } from './qa.js';
+export { loadFonts } from './fonts.js';
 export {
+  builtInThemeBackgrounds,
+  builtInThemes,
+  defaultAutoLayout,
   defaultCanvas,
   defaultConstraints,
+  defaultGridLayout,
   defaultLayout,
+  defaultStackLayout,
   defaultTheme,
   deriveSafeFrame,
   designSpecSchema,
+  inferLayout,
   parseDesignSpec,
-  type DesignCardSpec,
+  resolveTheme,
+  type AutoLayoutConfig,
+  type BuiltInTheme,
+  type CardElement,
+  type CodeBlockElement,
+  type ConnectionElement,
+  type ConstraintSpec,
+  type Decorator,
   type DesignSafeFrame,
   type DesignSpec,
-  type DesignTheme,
+  type DrawBadge,
+  type DrawBezier,
+  type DrawCircle,
+  type DrawCommand,
+  type DrawFontFamily,
+  type DrawGradientRect,
+  type DrawLine,
+  type DrawPath,
+  type DrawPoint,
+  type DrawRect,
+  type DrawText,
+  type Element,
+  type Gradient,
+  type GradientOverlayDecorator,
+  type FlowNodeElement,
+  type ImageElement,
+  type GridLayoutConfig,
+  type LayoutConfig,
+  type ManualLayoutConfig,
+  type RainbowRuleDecorator,
+  type ShapeElement,
+  type StackLayoutConfig,
+  type TerminalElement,
+  type TextElement,
+  type VignetteDecorator,
+  type Theme,
+  type ThemeInput,
 } from './spec.schema.js';
-export * from './templates/index.js';
+export {
+  DEFAULT_RAINBOW_COLORS,
+  drawGradientRect,
+  drawRainbowRule,
+  drawVignette,
+  type GradientSpec,
+  type GradientStop,
+} from './primitives/gradients.js';
+export { resolveShikiTheme, themeToShikiMap } from './themes/index.js';
+export {
+  disposeHighlighter,
+  highlightCode,
+  initHighlighter,
+  type HighlightedLine,
+} from './syntax/highlighter.js';
 export * from './publish/index.js';
