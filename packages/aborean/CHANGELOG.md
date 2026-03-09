@@ -1,5 +1,11 @@
 # @spectratools/aborean-cli
 
+## 0.5.0
+
+### Minor Changes
+
+- [#180](https://github.com/spectra-the-bot/spectra-tools/pull/180) [`8e2e6d4`](https://github.com/spectra-the-bot/spectra-tools/commit/8e2e6d445523ce6265558a0b61d69caae776a99f) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add V2 pool read commands for listing pools, inspecting reserves/fees, and getting swap quotes.
+
 ## 0.4.0
 
 ### Minor Changes

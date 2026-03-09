@@ -1,5 +1,16 @@
 # @spectra-the-bot/assembly-cli
 
+## 0.8.0
+
+### Minor Changes
+
+- [#181](https://github.com/spectra-the-bot/spectra-tools/pull/181) [`c6f6564`](https://github.com/spectra-the-bot/spectra-tools/commit/c6f6564e636c38b8cef822a486f5a35dc762894d) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add fuzzy member lookup support for `assembly members info` using partial address, ENS, or name metadata.
+
+### Patch Changes
+
+- Updated dependencies [[`68bb9f8`](https://github.com/spectra-the-bot/spectra-tools/commit/68bb9f8dda5b69eb3ded30752128c5c7f95d9c85)]:
+  - @spectratools/tx-shared@0.4.0
+
 ## 0.7.0
 
 ### Minor Changes
