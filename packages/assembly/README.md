@@ -33,6 +33,29 @@ assembly-cli mcp add
 | `ABSTRACT_RPC_URL` | No | Abstract RPC URL override (default from package client) |
 | `ASSEMBLY_INDEXER_URL` | No | Optional member snapshot endpoint for `members list` (falls back to on-chain `Registered` events with a warning if unavailable) |
 
+## Shared tx integration pattern (`@spectratools/tx-shared`)
+
+`assembly-cli` write flows are powered by `@spectratools/tx-shared` (`executeTx` lifecycle + structured `TxError`s).
+
+If you're building a consumer CLI command (or extending Assembly write behavior), use the shared pattern:
+
+1. Parse signer flags/env via `toSignerOptions(...)`
+2. Resolve signer with `resolveSigner(...)`
+3. Build write request (`address`, `abi`, `functionName`, `args`/`value`)
+4. Execute with `executeTx(...)` and handle `dryRun` + `TxError.code`
+
+Reference wiring:
+
+- Assembly example: [`src/examples/tx-shared-register.ts`](./src/examples/tx-shared-register.ts)
+- tx-shared docs: [`../tx-shared/README.md`](../tx-shared/README.md)
+- tx-shared assembly-style example: [`../tx-shared/src/examples/assembly-write.ts`](../tx-shared/src/examples/assembly-write.ts)
+
+Current `assembly-cli` write commands require `PRIVATE_KEY`, but tx-shared supports broader provider setup for consumer CLIs:
+
+- private key (`PRIVATE_KEY`)
+- keystore (`--keystore` + `--password` or `KEYSTORE_PASSWORD`)
+- Privy (`PRIVY_APP_ID`, `PRIVY_WALLET_ID`, `PRIVY_AUTHORIZATION_KEY`; implementation tracked in [#117](https://github.com/spectra-the-bot/spectra-tools/issues/117))
+
 ## Command Group Intent Summary
 
 - `members` — Membership state, counts, and registry fee settings
