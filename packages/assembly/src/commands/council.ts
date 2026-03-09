@@ -19,7 +19,7 @@ const env = z.object({
 
 type SeatTuple = readonly [string, bigint, bigint, boolean];
 type AuctionTuple = readonly [string, bigint, boolean];
-type AuctionStatus = 'bidding' | 'closed' | 'settled';
+type AuctionExecutionStatus = 'open_now' | 'upcoming' | 'closed_unsettled' | 'settled';
 
 const timestampOutput = z.union([z.number(), z.string()]);
 
@@ -42,14 +42,30 @@ function decodeAuction(value: unknown): {
   return { highestBidder, highestBid, settled };
 }
 
-function deriveAuctionStatus(params: {
+function deriveAuctionExecutionState(params: {
+  day: number;
+  slot: number;
+  currentAuctionDay: bigint;
+  currentAuctionSlot: bigint;
   settled: boolean;
   windowEnd: bigint;
   currentTimestamp: bigint;
-}): AuctionStatus {
-  if (params.settled) return 'settled';
-  if (params.currentTimestamp < params.windowEnd) return 'bidding';
-  return 'closed';
+}): {
+  executionStatus: AuctionExecutionStatus;
+  bidExecutableNow: boolean;
+} {
+  if (params.settled) return { executionStatus: 'settled', bidExecutableNow: false };
+
+  const isCurrentAuctionSlot =
+    params.day === Number(params.currentAuctionDay) &&
+    params.slot === Number(params.currentAuctionSlot);
+
+  if (params.currentTimestamp < params.windowEnd) {
+    if (isCurrentAuctionSlot) return { executionStatus: 'open_now', bidExecutableNow: true };
+    return { executionStatus: 'upcoming', bidExecutableNow: false };
+  }
+
+  return { executionStatus: 'closed_unsettled', bidExecutableNow: false };
 }
 
 export const council = Cli.create('council', {
@@ -285,7 +301,9 @@ council.command('auctions', {
         settled: z.boolean(),
         windowEnd: timestampOutput,
         windowEndRelative: z.string(),
-        status: z.enum(['bidding', 'closed', 'settled']),
+        bidExecutableNow: z.boolean(),
+        executionStatus: z.enum(['open_now', 'upcoming', 'closed_unsettled', 'settled']),
+        status: z.enum(['open_now', 'upcoming', 'closed_unsettled', 'settled']),
       }),
     ),
   }),
@@ -349,19 +367,28 @@ council.command('auctions', {
         currentSlot: asNum(slot),
         auctions: recent.map((x, i) => {
           const windowEnd = windowEnds[i] as bigint;
+          const dayValue = Number(x.day);
+          const execution = deriveAuctionExecutionState({
+            day: dayValue,
+            slot: x.slot,
+            currentAuctionDay: day,
+            currentAuctionSlot: slot,
+            settled: auctions[i].settled,
+            windowEnd,
+            currentTimestamp,
+          });
+
           return {
-            day: Number(x.day),
+            day: dayValue,
             slot: x.slot,
             highestBidder: toChecksum(auctions[i].highestBidder),
             highestBid: eth(auctions[i].highestBid),
             settled: auctions[i].settled,
             windowEnd: timeValue(windowEnd, c.format),
             windowEndRelative: relTime(windowEnd),
-            status: deriveAuctionStatus({
-              settled: auctions[i].settled,
-              windowEnd,
-              currentTimestamp,
-            }),
+            bidExecutableNow: execution.bidExecutableNow,
+            executionStatus: execution.executionStatus,
+            status: execution.executionStatus,
           };
         }),
       },
@@ -395,7 +422,9 @@ council.command('auction', {
     settled: z.boolean(),
     windowEnd: timestampOutput,
     windowEndRelative: z.string(),
-    status: z.enum(['bidding', 'closed', 'settled']),
+    bidExecutableNow: z.boolean(),
+    executionStatus: z.enum(['open_now', 'upcoming', 'closed_unsettled', 'settled']),
+    status: z.enum(['open_now', 'upcoming', 'closed_unsettled', 'settled']),
   }),
   examples: [{ args: { day: 0, slot: 0 }, description: 'Inspect day 0, slot 0 auction' }],
   async run(c) {
@@ -414,24 +443,44 @@ council.command('auction', {
       });
     }
 
-    const [auctionTuple, windowEnd, latestBlock] = await Promise.all([
-      client.readContract({
-        abi: councilSeatsAbi,
-        address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
-        functionName: 'auctions',
-        args: [BigInt(c.args.day), c.args.slot],
-      }),
-      client.readContract({
-        abi: councilSeatsAbi,
-        address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
-        functionName: 'auctionWindowEnd',
-        args: [BigInt(c.args.day), c.args.slot],
-      }),
-      client.getBlock({ blockTag: 'latest' }),
-    ]);
+    const [auctionTuple, windowEnd, latestBlock, currentAuctionDay, currentAuctionSlot] =
+      await Promise.all([
+        client.readContract({
+          abi: councilSeatsAbi,
+          address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+          functionName: 'auctions',
+          args: [BigInt(c.args.day), c.args.slot],
+        }),
+        client.readContract({
+          abi: councilSeatsAbi,
+          address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+          functionName: 'auctionWindowEnd',
+          args: [BigInt(c.args.day), c.args.slot],
+        }),
+        client.getBlock({ blockTag: 'latest' }),
+        client.readContract({
+          abi: councilSeatsAbi,
+          address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+          functionName: 'currentAuctionDay',
+        }),
+        client.readContract({
+          abi: councilSeatsAbi,
+          address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+          functionName: 'currentAuctionSlot',
+        }),
+      ]);
     const auction = decodeAuction(auctionTuple);
     const windowEndTimestamp = windowEnd as bigint;
     const currentTimestamp = (latestBlock as { timestamp: bigint }).timestamp;
+    const execution = deriveAuctionExecutionState({
+      day: c.args.day,
+      slot: c.args.slot,
+      currentAuctionDay: currentAuctionDay as bigint,
+      currentAuctionSlot: currentAuctionSlot as bigint,
+      settled: auction.settled,
+      windowEnd: windowEndTimestamp,
+      currentTimestamp,
+    });
 
     return c.ok({
       day: c.args.day,
@@ -441,11 +490,9 @@ council.command('auction', {
       settled: auction.settled,
       windowEnd: timeValue(windowEndTimestamp, c.format),
       windowEndRelative: relTime(windowEndTimestamp),
-      status: deriveAuctionStatus({
-        settled: auction.settled,
-        windowEnd: windowEndTimestamp,
-        currentTimestamp,
-      }),
+      bidExecutableNow: execution.bidExecutableNow,
+      executionStatus: execution.executionStatus,
+      status: execution.executionStatus,
     });
   },
 });
@@ -627,38 +674,60 @@ council.command('bid', {
     }
 
     // --- Pre-flight: read auction status ---
-    const [auctionTuple, windowEnd, latestBlock] = await Promise.all([
-      client.readContract({
-        abi: councilSeatsAbi,
-        address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
-        functionName: 'auctions',
-        args: [BigInt(c.args.day), c.args.slot],
-      }),
-      client.readContract({
-        abi: councilSeatsAbi,
-        address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
-        functionName: 'auctionWindowEnd',
-        args: [BigInt(c.args.day), c.args.slot],
-      }),
-      client.getBlock({ blockTag: 'latest' }),
-    ]);
+    const [auctionTuple, windowEnd, latestBlock, currentAuctionDay, currentAuctionSlot] =
+      await Promise.all([
+        client.readContract({
+          abi: councilSeatsAbi,
+          address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+          functionName: 'auctions',
+          args: [BigInt(c.args.day), c.args.slot],
+        }),
+        client.readContract({
+          abi: councilSeatsAbi,
+          address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+          functionName: 'auctionWindowEnd',
+          args: [BigInt(c.args.day), c.args.slot],
+        }),
+        client.getBlock({ blockTag: 'latest' }),
+        client.readContract({
+          abi: councilSeatsAbi,
+          address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+          functionName: 'currentAuctionDay',
+        }),
+        client.readContract({
+          abi: councilSeatsAbi,
+          address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+          functionName: 'currentAuctionSlot',
+        }),
+      ]);
     const auction = decodeAuction(auctionTuple);
     const windowEndTimestamp = windowEnd as bigint;
     const currentTimestamp = (latestBlock as { timestamp: bigint }).timestamp;
-    const status = deriveAuctionStatus({
+    const execution = deriveAuctionExecutionState({
+      day: c.args.day,
+      slot: c.args.slot,
+      currentAuctionDay: currentAuctionDay as bigint,
+      currentAuctionSlot: currentAuctionSlot as bigint,
       settled: auction.settled,
       windowEnd: windowEndTimestamp,
       currentTimestamp,
     });
 
-    if (status === 'settled') {
+    if (execution.executionStatus === 'settled') {
       return c.error({
         code: 'AUCTION_SETTLED',
         message: `Auction (day=${c.args.day}, slot=${c.args.slot}) is already settled. Winner: ${toChecksum(auction.highestBidder)}.`,
         retryable: false,
       });
     }
-    if (status === 'closed') {
+    if (execution.executionStatus === 'upcoming') {
+      return c.error({
+        code: 'AUCTION_NOT_ACTIVE',
+        message: `Auction (day=${c.args.day}, slot=${c.args.slot}) is not the currently active slot. Current bid-executable slot is day=${Number(currentAuctionDay)}, slot=${Number(currentAuctionSlot)}.`,
+        retryable: false,
+      });
+    }
+    if (execution.executionStatus === 'closed_unsettled') {
       return c.error({
         code: 'AUCTION_CLOSED',
         message: `Auction (day=${c.args.day}, slot=${c.args.slot}) bidding window has ended. Use "council settle" instead.`,
@@ -750,41 +819,63 @@ council.command('settle', {
     }
 
     // --- Pre-flight: read auction status ---
-    const [auctionTuple, windowEnd, latestBlock] = await Promise.all([
-      client.readContract({
-        abi: councilSeatsAbi,
-        address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
-        functionName: 'auctions',
-        args: [BigInt(c.args.day), c.args.slot],
-      }),
-      client.readContract({
-        abi: councilSeatsAbi,
-        address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
-        functionName: 'auctionWindowEnd',
-        args: [BigInt(c.args.day), c.args.slot],
-      }),
-      client.getBlock({ blockTag: 'latest' }),
-    ]);
+    const [auctionTuple, windowEnd, latestBlock, currentAuctionDay, currentAuctionSlot] =
+      await Promise.all([
+        client.readContract({
+          abi: councilSeatsAbi,
+          address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+          functionName: 'auctions',
+          args: [BigInt(c.args.day), c.args.slot],
+        }),
+        client.readContract({
+          abi: councilSeatsAbi,
+          address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+          functionName: 'auctionWindowEnd',
+          args: [BigInt(c.args.day), c.args.slot],
+        }),
+        client.getBlock({ blockTag: 'latest' }),
+        client.readContract({
+          abi: councilSeatsAbi,
+          address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+          functionName: 'currentAuctionDay',
+        }),
+        client.readContract({
+          abi: councilSeatsAbi,
+          address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+          functionName: 'currentAuctionSlot',
+        }),
+      ]);
     const auction = decodeAuction(auctionTuple);
     const windowEndTimestamp = windowEnd as bigint;
     const currentTimestamp = (latestBlock as { timestamp: bigint }).timestamp;
-    const status = deriveAuctionStatus({
+    const execution = deriveAuctionExecutionState({
+      day: c.args.day,
+      slot: c.args.slot,
+      currentAuctionDay: currentAuctionDay as bigint,
+      currentAuctionSlot: currentAuctionSlot as bigint,
       settled: auction.settled,
       windowEnd: windowEndTimestamp,
       currentTimestamp,
     });
 
-    if (status === 'settled') {
+    if (execution.executionStatus === 'settled') {
       return c.error({
         code: 'ALREADY_SETTLED',
         message: `Auction (day=${c.args.day}, slot=${c.args.slot}) is already settled.`,
         retryable: false,
       });
     }
-    if (status === 'bidding') {
+    if (execution.executionStatus === 'open_now') {
       return c.error({
         code: 'AUCTION_STILL_ACTIVE',
         message: `Auction (day=${c.args.day}, slot=${c.args.slot}) is still accepting bids. Window ends ${relTime(windowEndTimestamp)}.`,
+        retryable: false,
+      });
+    }
+    if (execution.executionStatus === 'upcoming') {
+      return c.error({
+        code: 'AUCTION_STILL_ACTIVE',
+        message: `Auction (day=${c.args.day}, slot=${c.args.slot}) is not yet the active slot. Current slot is day=${Number(currentAuctionDay)}, slot=${Number(currentAuctionSlot)}.`,
         retryable: false,
       });
     }
