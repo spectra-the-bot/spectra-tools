@@ -1,5 +1,13 @@
 # @spectratools/tx-shared
 
+## 0.4.2
+
+### Patch Changes
+
+- [#201](https://github.com/spectra-the-bot/spectra-tools/pull/201) [`eb5cd26`](https://github.com/spectra-the-bot/spectra-tools/commit/eb5cd267799b69521cbf364a792b1de1f9b06e8d) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add Privy intent transport and authorization-signature primitives with strict config validation and deterministic tx error mapping.
+
+- [#205](https://github.com/spectra-the-bot/spectra-tools/pull/205) [`e750281`](https://github.com/spectra-the-bot/spectra-tools/commit/e750281e12ecd4ed695f73a956afa3285ad134e8) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Document CI ETARGET regression guardrails and branch protection requirements for safer merges.
+
 ## 0.4.1
 
 ### Patch Changes

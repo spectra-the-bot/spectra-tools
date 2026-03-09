@@ -1,5 +1,13 @@
 # @spectra-the-bot/xapi-cli
 
+## 0.3.0
+
+### Minor Changes
+
+- [#203](https://github.com/spectra-the-bot/spectra-tools/pull/203) [`74b4fc4`](https://github.com/spectra-the-bot/spectra-tools/commit/74b4fc492cd0b3d60a292dd5363c103f44c5ca34) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add `users me` and baseline-based `users followers --new-only` client-side diffing.
+
+- [#202](https://github.com/spectra-the-bot/spectra-tools/pull/202) [`74c897f`](https://github.com/spectra-the-bot/spectra-tools/commit/74c897f3a2591605edad2bf32f92c32bb3234048) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add social-growth write API primitives and since_id support for timeline polling.
+
 ## 0.2.4
 
 ### Patch Changes
