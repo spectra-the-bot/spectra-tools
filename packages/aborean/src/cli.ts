@@ -3,6 +3,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Cli, z } from 'incur';
 
+import { cl } from './commands/cl.js';
 import { gauges } from './commands/gauges.js';
 import { ve } from './commands/ve.js';
 import { voter } from './commands/voter.js';
@@ -26,6 +27,8 @@ cli.command(voter);
 const rootEnv = z.object({
   ABSTRACT_RPC_URL: z.string().optional().describe('Abstract RPC URL override'),
 });
+
+cli.command(cl);
 
 cli.command('status', {
   description:

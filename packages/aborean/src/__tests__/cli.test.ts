@@ -43,6 +43,12 @@ function createViemError(options: { message: string; name: string; shortMessage:
 }
 
 describe('aborean CLI', () => {
+  const poolA = '0x1000000000000000000000000000000000000001';
+  const poolB = '0x1000000000000000000000000000000000000002';
+  const tokenA = '0x2000000000000000000000000000000000000001';
+  const tokenB = '0x2000000000000000000000000000000000000002';
+  const tokenC = '0x2000000000000000000000000000000000000003';
+
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
@@ -56,12 +62,12 @@ describe('aborean CLI', () => {
 
   it('status returns protocol snapshot', async () => {
     mockClient.readContract
-      .mockResolvedValueOnce(42n) // v2 allPoolsLength
-      .mockResolvedValueOnce(15n) // CL allPoolsLength
-      .mockResolvedValueOnce(30n) // voter length
-      .mockResolvedValueOnce(1000000000000000000000n) // totalWeight
-      .mockResolvedValueOnce(5000000000000000000000n) // veABX totalSupply
-      .mockResolvedValueOnce(4000000000000000000000n); // veABX supply (locked)
+      .mockResolvedValueOnce(42n)
+      .mockResolvedValueOnce(15n)
+      .mockResolvedValueOnce(30n)
+      .mockResolvedValueOnce(1000000000000000000000n)
+      .mockResolvedValueOnce(5000000000000000000000n)
+      .mockResolvedValueOnce(4000000000000000000000n);
 
     const out = await run(['status']);
 
@@ -282,5 +288,164 @@ describe('aborean CLI', () => {
     expect(out.ok).toBe(false);
     expect(out.error?.code).toBe('UNKNOWN');
     expect(out.error?.message).toContain('Version: viem@2.47.0');
+  });
+
+  it('cl pools returns pooled CL state with batching', async () => {
+    mockClient.readContract.mockResolvedValueOnce(2n);
+    mockClient.multicall
+      .mockResolvedValueOnce([poolA, poolB])
+      .mockResolvedValueOnce([
+        tokenA,
+        tokenB,
+        10,
+        500,
+        1000n,
+        [2n ** 96n, 123, 0, 0, 0, true],
+        tokenB,
+        tokenC,
+        60,
+        3000,
+        2000n,
+        [2n ** 96n, -87, 0, 0, 0, true],
+      ])
+      .mockResolvedValueOnce([
+        { status: 'success', result: 'AAA' },
+        { status: 'success', result: 18 },
+        { status: 'success', result: 'BBB' },
+        { status: 'success', result: 6 },
+        { status: 'success', result: 'CCC' },
+        { status: 'success', result: 18 },
+      ]);
+
+    const out = await run(['cl', 'pools']);
+
+    expect(out.ok).toBe(true);
+    const data = out.data as {
+      count: number;
+      pools: Array<{ pair: string; fee: number; currentTick: number }>;
+    };
+    expect(data.count).toBe(2);
+    expect(data.pools[0]?.pair).toBe('AAA/BBB');
+    expect(data.pools[0]?.fee).toBe(500);
+    expect(data.pools[1]?.currentTick).toBe(-87);
+    expect(mockClient.multicall).toHaveBeenCalledTimes(3);
+    expect(mockClient.multicall.mock.calls[0]?.[0]?.allowFailure).toBe(false);
+    expect(mockClient.multicall.mock.calls[1]?.[0]?.allowFailure).toBe(false);
+    expect(mockClient.multicall.mock.calls[2]?.[0]?.allowFailure).toBe(true);
+  });
+
+  it('cl pool returns detailed pool state', async () => {
+    mockClient.multicall
+      .mockResolvedValueOnce([tokenA, tokenB, 10, 500, 900n, [2n ** 96n, 7, 0, 0, 0, true]])
+      .mockResolvedValueOnce([
+        { status: 'success', result: 'AAA' },
+        { status: 'success', result: 18 },
+        { status: 'success', result: 'BBB' },
+        { status: 'success', result: 6 },
+      ]);
+
+    const out = await run(['cl', 'pool', poolA]);
+
+    expect(out.ok).toBe(true);
+    const data = out.data as {
+      pool: {
+        pool: string;
+        pair: string;
+        currentTick: number;
+        price: { token1PerToken0: number | null };
+      };
+    };
+    expect(data.pool.pool).toBe('0x1000000000000000000000000000000000000001');
+    expect(data.pool.pair).toBe('AAA/BBB');
+    expect(data.pool.currentTick).toBe(7);
+    expect(data.pool.price.token1PerToken0).not.toBeNull();
+  });
+
+  it('cl positions lists owner NFT positions with multicall', async () => {
+    mockClient.readContract.mockResolvedValueOnce(2n);
+    mockClient.multicall
+      .mockResolvedValueOnce([11n, 12n])
+      .mockResolvedValueOnce([
+        [0n, tokenA, tokenA, tokenB, 10, -120, 120, 10000n, 0n, 0n, 250n, 500n],
+        [0n, tokenA, tokenB, tokenC, 60, -600, 600, 8000n, 0n, 0n, 100n, 200n],
+      ])
+      .mockResolvedValueOnce([
+        { status: 'success', result: 'AAA' },
+        { status: 'success', result: 18 },
+        { status: 'success', result: 'BBB' },
+        { status: 'success', result: 6 },
+        { status: 'success', result: 'CCC' },
+        { status: 'success', result: 18 },
+      ]);
+
+    const out = await run(['cl', 'positions', tokenA]);
+
+    expect(out.ok).toBe(true);
+    const data = out.data as {
+      owner: string;
+      count: number;
+      positions: Array<{ tokenId: string; pair: string; tickLower: number; tickUpper: number }>;
+    };
+    expect(data.owner).toBe('0x2000000000000000000000000000000000000001');
+    expect(data.count).toBe(2);
+    expect(data.positions[0]?.tokenId).toBe('11');
+    expect(data.positions[0]?.pair).toBe('AAA/BBB');
+    expect(data.positions[1]?.tickLower).toBe(-600);
+    expect(data.positions[1]?.tickUpper).toBe(600);
+    expect(mockClient.multicall).toHaveBeenCalledTimes(3);
+  });
+
+  it('cl quote returns quoter result and selected pool metadata', async () => {
+    mockClient.readContract
+      .mockResolvedValueOnce(2n)
+      .mockResolvedValueOnce([3000000n, 2n ** 96n, 2, 123456n]);
+
+    mockClient.multicall
+      .mockResolvedValueOnce([poolA, poolB])
+      .mockResolvedValueOnce([
+        tokenA,
+        tokenB,
+        10,
+        500,
+        2500n,
+        [2n ** 96n, 0, 0, 0, 0, true],
+        tokenA,
+        tokenB,
+        60,
+        3000,
+        1200n,
+        [2n ** 96n, 0, 0, 0, 0, true],
+      ])
+      .mockResolvedValueOnce([
+        { status: 'success', result: 'AAA' },
+        { status: 'success', result: 6 },
+        { status: 'success', result: 'BBB' },
+        { status: 'success', result: 6 },
+      ])
+      .mockResolvedValueOnce([
+        { status: 'success', result: 'AAA' },
+        { status: 'success', result: 6 },
+        { status: 'success', result: 'BBB' },
+        { status: 'success', result: 6 },
+      ]);
+
+    const out = await run(['cl', 'quote', tokenA, tokenB, '1.5', '--fee', '500']);
+
+    expect(out.ok).toBe(true);
+    const data = out.data as {
+      pool: string;
+      selectedFee: number;
+      selectedTickSpacing: number;
+      amountIn: { raw: string };
+      amountOut: { raw: string };
+    };
+    expect(data.pool).toBe('0x1000000000000000000000000000000000000001');
+    expect(data.selectedFee).toBe(500);
+    expect(data.selectedTickSpacing).toBe(10);
+    expect(data.amountIn.raw).toBe('1500000');
+    expect(data.amountOut.raw).toBe('3000000');
+
+    expect(mockClient.readContract.mock.calls[1]?.[0]?.functionName).toBe('quoteExactInputSingle');
+    expect(mockClient.readContract.mock.calls[1]?.[0]?.args?.[0]?.tickSpacing).toBe(10);
   });
 });
