@@ -4,6 +4,12 @@
 
 ### Patch Changes
 
+- [#233](https://github.com/spectra-the-bot/spectra-tools/pull/233) [`c88bdd1`](https://github.com/spectra-the-bot/spectra-tools/commit/c88bdd12e0be8f52e1cbe59a7c828ead5a92b369) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Refresh xapi README and changelog with complete social-growth command documentation.
+
+## 0.6.1
+
+### Patch Changes
+
 - Refresh README and changelog with complete social-growth command documentation. All commands from the social-growth epic ([#134](https://github.com/spectra-the-bot/spectra-tools/issues/134)) are now fully documented:
   - **Post interactions:** `like`, `unlike`, `retweet`, `bookmark`, `unbookmark` ([#206](https://github.com/spectra-the-bot/spectra-tools/pull/206), [#225](https://github.com/spectra-the-bot/spectra-tools/pull/225))
   - **User moderation:** `follow`, `unfollow`, `block`, `unblock`, `mute`, `unmute` ([#206](https://github.com/spectra-the-bot/spectra-tools/pull/206), [#225](https://github.com/spectra-the-bot/spectra-tools/pull/225))
