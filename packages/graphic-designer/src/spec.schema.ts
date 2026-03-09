@@ -7,10 +7,22 @@ import {
   resolveTheme,
   themeSchema,
 } from './themes/index.js';
+import { normalizeColor } from './utils/color.js';
 
 const colorHexSchema = z
   .string()
-  .regex(/^#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/, 'Expected #RRGGBB or #RRGGBBAA color');
+  .refine(
+    (v) => {
+      try {
+        normalizeColor(v);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    { message: 'Expected #RRGGBB, #RRGGBBAA, rgb(), or rgba() color' },
+  )
+  .transform((v) => normalizeColor(v));
 
 const gradientStopSchema = z
   .object({
