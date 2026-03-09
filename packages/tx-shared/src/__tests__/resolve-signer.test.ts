@@ -1,14 +1,14 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { TxError } from '../errors.js';
 import { resolveSigner } from '../resolve-signer.js';
 
 const KNOWN_PRIVATE_KEY = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
 const KNOWN_ADDRESS = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266';
 const TEST_PASSWORD = 'test123';
-const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
+const PRIVY_WALLET_ADDRESS = '0x1111111111111111111111111111111111111111';
 const VALID_PRIVY_AUTHORIZATION_KEY =
   'wallet-auth:MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgvTXNoUAp1AJufoDRET9wFxWGj8rcRxHsi8b6swUq1PWhRANCAASkH1LqVUxrZRUr76ueaPFZKa0puuwGlEYx1fo6XVNiKiYcH1R26YLOe6fDjORlXOTnwucUSROOVcrxjsMttrER';
 
@@ -43,10 +43,37 @@ afterAll(() => {
   rmSync(tempDir, { recursive: true, force: true });
 });
 
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
 function writeKeystoreFile(filename: string): string {
   const filePath = join(tempDir, filename);
   writeFileSync(filePath, JSON.stringify(TEST_KEYSTORE_JSON), 'utf-8');
   return filePath;
+}
+
+function mockPrivyWalletLookup() {
+  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    if (url.includes('/v1/wallets/')) {
+      expect(init?.method ?? 'GET').toBe('GET');
+      return new Response(
+        JSON.stringify({
+          id: 'wallet-id-1234',
+          address: PRIVY_WALLET_ADDRESS,
+          owner_id: null,
+          policy_ids: [],
+        }),
+        { status: 200 },
+      );
+    }
+
+    throw new Error(`Unexpected fetch url: ${url}`);
+  });
+
+  vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch);
+  return fetchMock;
 }
 
 describe('resolveSigner', () => {
@@ -107,6 +134,8 @@ describe('resolveSigner', () => {
   });
 
   it('resolves a privy signer when privy mode is enabled', async () => {
+    const fetchMock = mockPrivyWalletLookup();
+
     const signer = await resolveSigner({
       privy: true,
       privyAppId: 'app-id-1234',
@@ -115,10 +144,18 @@ describe('resolveSigner', () => {
     });
 
     expect(signer.provider).toBe('privy');
-    expect(signer.address).toBe(ZERO_ADDRESS);
+    expect(signer.address).toBe(PRIVY_WALLET_ADDRESS);
+    expect(fetchMock).toHaveBeenCalledWith('https://api.privy.io/v1/wallets/wallet-id-1234', {
+      method: 'GET',
+      headers: {
+        'privy-app-id': 'app-id-1234',
+      },
+    });
   });
 
   it('resolves a privy signer when privy env config is present without --privy', async () => {
+    mockPrivyWalletLookup();
+
     const signer = await resolveSigner({
       privyAppId: 'app-id-1234',
       privyWalletId: 'wallet-id-1234',
@@ -126,10 +163,12 @@ describe('resolveSigner', () => {
     });
 
     expect(signer.provider).toBe('privy');
-    expect(signer.address).toBe(ZERO_ADDRESS);
+    expect(signer.address).toBe(PRIVY_WALLET_ADDRESS);
   });
 
   it('supports overriding privy api url', async () => {
+    const fetchMock = mockPrivyWalletLookup();
+
     const signer = await resolveSigner({
       privy: true,
       privyAppId: 'app-id-1234',
@@ -141,6 +180,15 @@ describe('resolveSigner', () => {
     expect(signer.provider).toBe('privy');
     expect((signer as { privy: { apiUrl: string } }).privy.apiUrl).toBe(
       'https://api.sandbox.privy.io',
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.sandbox.privy.io/v1/wallets/wallet-id-1234',
+      {
+        method: 'GET',
+        headers: {
+          'privy-app-id': 'app-id-1234',
+        },
+      },
     );
   });
 

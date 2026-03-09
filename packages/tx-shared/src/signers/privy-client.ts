@@ -11,11 +11,25 @@ export interface PrivyRpcIntentRequest {
   [key: string]: unknown;
 }
 
+export type PrivyIntentStatus =
+  | 'pending'
+  | 'executed'
+  | 'failed'
+  | 'expired'
+  | 'rejected'
+  | 'dismissed'
+  | string;
+
 export interface PrivyRpcIntentResponse {
   intent_id: string;
-  status: string;
+  status: PrivyIntentStatus;
   resource_id?: string;
   request_details?: Record<string, unknown>;
+  dismissal_reason?: string;
+  action_result?: {
+    response_body?: Record<string, unknown>;
+    [key: string]: unknown;
+  };
   [key: string]: unknown;
 }
 
