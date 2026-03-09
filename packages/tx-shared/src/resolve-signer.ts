@@ -38,7 +38,7 @@ export async function resolveSigner(opts: SignerOptions): Promise<TxSigner> {
   }
 
   if (opts.privy === true || hasPrivyConfig(opts)) {
-    return createPrivySigner({
+    const privySigner = await createPrivySigner({
       ...(opts.privyAppId !== undefined ? { privyAppId: opts.privyAppId } : {}),
       ...(opts.privyWalletId !== undefined ? { privyWalletId: opts.privyWalletId } : {}),
       ...(opts.privyAuthorizationKey !== undefined
@@ -46,6 +46,8 @@ export async function resolveSigner(opts: SignerOptions): Promise<TxSigner> {
         : {}),
       ...(opts.privyApiUrl !== undefined ? { privyApiUrl: opts.privyApiUrl } : {}),
     });
+
+    return privySigner as unknown as TxSigner;
   }
 
   throw new TxError(
