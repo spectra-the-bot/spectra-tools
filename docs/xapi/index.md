@@ -71,6 +71,7 @@ xapi-cli posts search "ai agents" --max-results 10 --json
 
 # Discover command capabilities
 xapi-cli --llms
+xapi-cli --llms-full
 
 # Register as local skill / MCP endpoint
 xapi-cli skills add

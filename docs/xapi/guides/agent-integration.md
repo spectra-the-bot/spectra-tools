@@ -4,10 +4,14 @@
 
 ## 1) Discover command capabilities
 
-Use the built-in manifest to inspect commands, args, env vars, and output fields:
+Use the built-in manifest to inspect commands:
 
 ```bash
+# Compact command index
 xapi-cli --llms
+
+# Full manifest with args, env vars, and output fields
+xapi-cli --llms-full
 ```
 
 For command-level schema introspection:
@@ -55,7 +59,7 @@ A minimal monitor-and-respond pattern:
 
 ```bash
 # discover
-xapi-cli --llms
+xapi-cli --llms-full
 
 # gather context
 xapi-cli users posts abstractchain --max-results 5 --json
