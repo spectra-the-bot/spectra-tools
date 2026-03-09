@@ -1,5 +1,13 @@
 # @spectratools/graphic-designer-cli
 
+## 0.3.2
+
+### Patch Changes
+
+- [#276](https://github.com/spectra-the-bot/spectra-tools/pull/276) [`8ce607e`](https://github.com/spectra-the-bot/spectra-tools/commit/8ce607e939b8435d036f0d4759747792fdcee7f3) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add JSDoc documentation to all exported functions and constants.
+
+- [#274](https://github.com/spectra-the-bot/spectra-tools/pull/274) [`7779859`](https://github.com/spectra-the-bot/spectra-tools/commit/777985936699e910eafdff70de9cfc69d1bcc1b1) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Replace local retry/HTTP utilities with @spectratools/cli-shared equivalents.
+
 ## 0.3.1
 
 ### Patch Changes
