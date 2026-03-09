@@ -1,5 +1,11 @@
 # @spectratools/aborean-cli
 
+## 0.6.0
+
+### Minor Changes
+
+- [#183](https://github.com/spectra-the-bot/spectra-tools/pull/183) [`c9dd199`](https://github.com/spectra-the-bot/spectra-tools/commit/c9dd199da3f305045c236bab1cde34f9129365c5) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add vault and Morpho lending read commands and upgrade status with cross-protocol snapshots.
+
 ## 0.5.0
 
 ### Minor Changes
