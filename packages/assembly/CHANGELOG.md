@@ -1,5 +1,16 @@
 # @spectra-the-bot/assembly-cli
 
+## 0.9.0
+
+### Minor Changes
+
+- [#208](https://github.com/spectra-the-bot/spectra-tools/pull/208) [`8ab3837`](https://github.com/spectra-the-bot/spectra-tools/commit/8ab38372be0502c676aa56b2ce88b0e7bcc0d366) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add governance write commands (`vote`, `propose`, `queue`, `execute`) with preflight validation, dry-run support, and tests.
+
+### Patch Changes
+
+- Updated dependencies [[`c1a5268`](https://github.com/spectra-the-bot/spectra-tools/commit/c1a5268bfc07aab756501ba59d2899d298f937f3)]:
+  - @spectratools/tx-shared@0.4.3
+
 ## 0.8.2
 
 ### Patch Changes
