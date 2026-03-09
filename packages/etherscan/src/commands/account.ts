@@ -31,6 +31,19 @@ const txListItemSchema = z.object({
   gasUsed: z.string(),
 });
 
+const internalTxItemSchema = z.object({
+  hash: z.string(),
+  from: z.string(),
+  to: z.string().nullable().optional(),
+  value: z.string(),
+  timeStamp: z.string(),
+  blockNumber: z.string(),
+  type: z.string().optional(),
+  traceId: z.string().optional(),
+  isError: z.string().optional(),
+  gasUsed: z.string().optional(),
+});
+
 const tokenTxItemSchema = z.object({
   hash: z.string(),
   from: z.string(),
@@ -39,6 +52,18 @@ const tokenTxItemSchema = z.object({
   tokenName: z.string(),
   tokenSymbol: z.string(),
   tokenDecimal: z.string(),
+  timeStamp: z.string(),
+  contractAddress: z.string(),
+});
+
+const nftTxItemSchema = z.object({
+  hash: z.string(),
+  from: z.string(),
+  to: z.string(),
+  tokenID: z.string(),
+  tokenValue: z.string().optional(),
+  tokenName: z.string(),
+  tokenSymbol: z.string(),
   timeStamp: z.string(),
   contractAddress: z.string(),
 });
@@ -227,6 +252,100 @@ accountCli.command('txlist', {
   },
 });
 
+accountCli.command('internaltx', {
+  description: 'List internal transactions for an address.',
+  args: z.object({
+    address: z.string().describe('Wallet address'),
+  }),
+  options: z.object({
+    startblock: z.number().optional().default(0).describe('Start block number'),
+    endblock: z.string().optional().default('latest').describe('End block number'),
+    page: z.number().optional().default(1).describe('Page number'),
+    offset: z.number().optional().default(10).describe('Number of results per page'),
+    sort: z.string().optional().default('asc').describe('Sort order (asc or desc)'),
+    chain: chainOption,
+  }),
+  env: etherscanEnv,
+  output: z.object({
+    address: z.string(),
+    chain: z.string(),
+    count: z.number(),
+    transactions: z.array(
+      z.object({
+        hash: z.string(),
+        from: z.string(),
+        to: z.string(),
+        value: z.string(),
+        eth: z.string(),
+        timestamp: z.string(),
+        block: z.string(),
+        type: z.string().optional(),
+        traceId: z.string().optional(),
+        status: z.string(),
+        gasUsed: z.string(),
+      }),
+    ),
+  }),
+  examples: [
+    {
+      args: { address: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' },
+      options: { chain: 'ethereum', sort: 'desc', offset: 5 },
+      description: 'List recent internal transactions for an address',
+    },
+  ],
+  async run(c) {
+    if (!isAddress(c.args.address)) {
+      return c.error({
+        code: 'INVALID_ADDRESS',
+        message: `Invalid address: "${c.args.address}". Use a valid 0x-prefixed 20-byte hex address.`,
+      });
+    }
+    const apiKey = c.env.ETHERSCAN_API_KEY;
+    const chainId = resolveChainId(c.options.chain);
+    const address = normalizeAddress(c.args.address);
+    const client = createEtherscanClient(apiKey);
+    const txs = await withRateLimit(
+      () =>
+        client.call(
+          {
+            chainid: chainId,
+            module: 'account',
+            action: 'txlistinternal',
+            address,
+            startblock: c.options.startblock,
+            endblock: c.options.endblock,
+            page: c.options.page,
+            offset: c.options.offset,
+            sort: c.options.sort,
+          },
+          z.array(internalTxItemSchema),
+        ),
+      rateLimiter,
+    );
+
+    const formatted = txs.map((tx) => ({
+      hash: tx.hash,
+      from: normalizeAddress(tx.from),
+      to: tx.to ? normalizeAddress(tx.to) : '',
+      value: tx.value,
+      eth: weiToEth(tx.value),
+      timestamp: formatTimestamp(Number(tx.timeStamp)),
+      block: tx.blockNumber,
+      type: tx.type,
+      traceId: tx.traceId,
+      status: tx.isError === '0' || tx.isError === undefined ? 'success' : 'failed',
+      gasUsed: tx.gasUsed ?? '0',
+    }));
+
+    return c.ok({
+      address,
+      chain: c.options.chain,
+      count: formatted.length,
+      transactions: formatted,
+    });
+  },
+});
+
 accountCli.command('tokentx', {
   description: 'List ERC-20 token transfers for an address.',
   args: z.object({
@@ -271,9 +390,18 @@ accountCli.command('tokentx', {
         message: `Invalid address: "${c.args.address}". Use a valid 0x-prefixed 20-byte hex address.`,
       });
     }
+    if (c.options.contractaddress && !isAddress(c.options.contractaddress)) {
+      return c.error({
+        code: 'INVALID_ADDRESS',
+        message: `Invalid contract address: "${c.options.contractaddress}". Use a valid 0x-prefixed 20-byte hex address.`,
+      });
+    }
     const apiKey = c.env.ETHERSCAN_API_KEY;
     const chainId = resolveChainId(c.options.chain);
     const address = normalizeAddress(c.args.address);
+    const contract = c.options.contractaddress
+      ? normalizeAddress(c.options.contractaddress)
+      : undefined;
     const client = createEtherscanClient(apiKey);
     const transfers = await withRateLimit(
       () =>
@@ -283,7 +411,7 @@ accountCli.command('tokentx', {
             module: 'account',
             action: 'tokentx',
             address,
-            contractaddress: c.options.contractaddress,
+            contractaddress: contract,
             page: c.options.page,
             offset: c.options.offset,
           },
@@ -318,6 +446,208 @@ accountCli.command('tokentx', {
             },
           },
     );
+  },
+});
+
+accountCli.command('nfttx', {
+  description: 'List ERC-721 NFT transfers for an address.',
+  args: z.object({
+    address: z.string().describe('Wallet address'),
+  }),
+  options: z.object({
+    contractaddress: z.string().optional().describe('Filter by NFT contract address'),
+    startblock: z.number().optional().default(0).describe('Start block number'),
+    endblock: z.string().optional().default('latest').describe('End block number'),
+    page: z.number().optional().default(1).describe('Page number'),
+    offset: z.number().optional().default(20).describe('Results per page'),
+    sort: z.string().optional().default('asc').describe('Sort order (asc or desc)'),
+    chain: chainOption,
+  }),
+  env: etherscanEnv,
+  output: z.object({
+    address: z.string(),
+    chain: z.string(),
+    count: z.number(),
+    transfers: z.array(
+      z.object({
+        hash: z.string(),
+        from: z.string(),
+        to: z.string(),
+        tokenId: z.string(),
+        tokenName: z.string(),
+        tokenSymbol: z.string(),
+        timestamp: z.string(),
+        contract: z.string(),
+      }),
+    ),
+  }),
+  examples: [
+    {
+      args: { address: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' },
+      options: { chain: 'ethereum', offset: 10, sort: 'desc' },
+      description: 'List recent ERC-721 transfers for an address',
+    },
+  ],
+  async run(c) {
+    if (!isAddress(c.args.address)) {
+      return c.error({
+        code: 'INVALID_ADDRESS',
+        message: `Invalid address: "${c.args.address}". Use a valid 0x-prefixed 20-byte hex address.`,
+      });
+    }
+    if (c.options.contractaddress && !isAddress(c.options.contractaddress)) {
+      return c.error({
+        code: 'INVALID_ADDRESS',
+        message: `Invalid contract address: "${c.options.contractaddress}". Use a valid 0x-prefixed 20-byte hex address.`,
+      });
+    }
+
+    const apiKey = c.env.ETHERSCAN_API_KEY;
+    const chainId = resolveChainId(c.options.chain);
+    const address = normalizeAddress(c.args.address);
+    const contract = c.options.contractaddress
+      ? normalizeAddress(c.options.contractaddress)
+      : undefined;
+    const client = createEtherscanClient(apiKey);
+    const transfers = await withRateLimit(
+      () =>
+        client.call(
+          {
+            chainid: chainId,
+            module: 'account',
+            action: 'tokennfttx',
+            address,
+            contractaddress: contract,
+            startblock: c.options.startblock,
+            endblock: c.options.endblock,
+            page: c.options.page,
+            offset: c.options.offset,
+            sort: c.options.sort,
+          },
+          z.array(nftTxItemSchema),
+        ),
+      rateLimiter,
+    );
+
+    const formatted = transfers.map((tx) => ({
+      hash: tx.hash,
+      from: normalizeAddress(tx.from),
+      to: normalizeAddress(tx.to),
+      tokenId: tx.tokenID,
+      tokenName: tx.tokenName,
+      tokenSymbol: tx.tokenSymbol,
+      timestamp: formatTimestamp(Number(tx.timeStamp)),
+      contract: normalizeAddress(tx.contractAddress),
+    }));
+
+    return c.ok({
+      address,
+      chain: c.options.chain,
+      count: formatted.length,
+      transfers: formatted,
+    });
+  },
+});
+
+accountCli.command('erc1155tx', {
+  description: 'List ERC-1155 token transfers for an address.',
+  args: z.object({
+    address: z.string().describe('Wallet address'),
+  }),
+  options: z.object({
+    contractaddress: z.string().optional().describe('Filter by ERC-1155 contract address'),
+    startblock: z.number().optional().default(0).describe('Start block number'),
+    endblock: z.string().optional().default('latest').describe('End block number'),
+    page: z.number().optional().default(1).describe('Page number'),
+    offset: z.number().optional().default(20).describe('Results per page'),
+    sort: z.string().optional().default('asc').describe('Sort order (asc or desc)'),
+    chain: chainOption,
+  }),
+  env: etherscanEnv,
+  output: z.object({
+    address: z.string(),
+    chain: z.string(),
+    count: z.number(),
+    transfers: z.array(
+      z.object({
+        hash: z.string(),
+        from: z.string(),
+        to: z.string(),
+        tokenId: z.string(),
+        amount: z.string(),
+        tokenName: z.string(),
+        tokenSymbol: z.string(),
+        timestamp: z.string(),
+        contract: z.string(),
+      }),
+    ),
+  }),
+  examples: [
+    {
+      args: { address: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' },
+      options: { chain: 'ethereum', offset: 10, sort: 'desc' },
+      description: 'List recent ERC-1155 transfers for an address',
+    },
+  ],
+  async run(c) {
+    if (!isAddress(c.args.address)) {
+      return c.error({
+        code: 'INVALID_ADDRESS',
+        message: `Invalid address: "${c.args.address}". Use a valid 0x-prefixed 20-byte hex address.`,
+      });
+    }
+    if (c.options.contractaddress && !isAddress(c.options.contractaddress)) {
+      return c.error({
+        code: 'INVALID_ADDRESS',
+        message: `Invalid contract address: "${c.options.contractaddress}". Use a valid 0x-prefixed 20-byte hex address.`,
+      });
+    }
+
+    const apiKey = c.env.ETHERSCAN_API_KEY;
+    const chainId = resolveChainId(c.options.chain);
+    const address = normalizeAddress(c.args.address);
+    const contract = c.options.contractaddress
+      ? normalizeAddress(c.options.contractaddress)
+      : undefined;
+    const client = createEtherscanClient(apiKey);
+    const transfers = await withRateLimit(
+      () =>
+        client.call(
+          {
+            chainid: chainId,
+            module: 'account',
+            action: 'token1155tx',
+            address,
+            contractaddress: contract,
+            startblock: c.options.startblock,
+            endblock: c.options.endblock,
+            page: c.options.page,
+            offset: c.options.offset,
+            sort: c.options.sort,
+          },
+          z.array(nftTxItemSchema),
+        ),
+      rateLimiter,
+    );
+
+    const formatted = transfers.map((tx) => ({
+      hash: tx.hash,
+      from: normalizeAddress(tx.from),
+      to: normalizeAddress(tx.to),
+      tokenId: tx.tokenID,
+      amount: tx.tokenValue ?? '0',
+      tokenName: tx.tokenName,
+      tokenSymbol: tx.tokenSymbol,
+      timestamp: formatTimestamp(Number(tx.timeStamp)),
+      contract: normalizeAddress(tx.contractAddress),
+    }));
+
+    return c.ok({
+      address,
+      chain: c.options.chain,
+      count: formatted.length,
+      transfers: formatted,
+    });
   },
 });
 

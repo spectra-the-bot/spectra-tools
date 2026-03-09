@@ -5,6 +5,7 @@ import { Cli } from 'incur';
 import { accountCli } from './commands/account.js';
 import { contractCli } from './commands/contract.js';
 import { gasCli } from './commands/gas.js';
+import { logsCli } from './commands/logs.js';
 import { statsCli } from './commands/stats.js';
 import { tokenCli } from './commands/token.js';
 import { txCli } from './commands/tx.js';
@@ -23,6 +24,7 @@ cli.command(txCli);
 cli.command(tokenCli);
 cli.command(gasCli);
 cli.command(statsCli);
+cli.command(logsCli);
 
 export { cli };
 
