@@ -71,11 +71,20 @@ function isLoadedLanguage(language: string): language is LoadedLanguage {
 function resolveLanguage(language: string): LoadedLanguage {
   const normalized =
     languageAliases[language.trim().toLowerCase()] ?? language.trim().toLowerCase();
-  return isLoadedLanguage(normalized) ? normalized : 'plaintext';
+
+  if (!isLoadedLanguage(normalized)) {
+    throw new Error(`Unsupported language: ${language}`);
+  }
+
+  return normalized;
 }
 
 function resolveTheme(themeName: string): LoadedTheme {
-  return isLoadedTheme(themeName) ? themeName : 'github-dark-default';
+  if (!isLoadedTheme(themeName)) {
+    throw new Error(`Unsupported theme: ${themeName}`);
+  }
+
+  return themeName;
 }
 
 function normalizeTokenColor(token: ThemedToken): string {
