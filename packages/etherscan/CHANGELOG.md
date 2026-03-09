@@ -1,5 +1,11 @@
 # @spectra-the-bot/etherscan-cli
 
+## 0.3.0
+
+### Minor Changes
+
+- [#216](https://github.com/spectra-the-bot/spectra-tools/pull/216) [`3bc13fe`](https://github.com/spectra-the-bot/spectra-tools/commit/3bc13fea69cf37872365a88fb612534edf25555c) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add account internaltx/nfttx/erc1155tx commands and a new logs get command with topic/address/block filters.
+
 ## 0.2.4
 
 ### Patch Changes
