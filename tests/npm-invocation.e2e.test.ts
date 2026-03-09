@@ -3,6 +3,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   readdirSync,
   rmSync,
   symlinkSync,
@@ -17,6 +18,20 @@ type CliPackage = {
   workspaceName: string;
   packageDir: string;
   binName: string;
+};
+
+type PackageManifest = {
+  name: string;
+  dependencies?: Record<string, string>;
+  optionalDependencies?: Record<string, string>;
+  peerDependencies?: Record<string, string>;
+};
+
+type WorkspacePackage = {
+  workspaceName: string;
+  packageDir: string;
+  manifest: PackageManifest;
+  internalDependencies: string[];
 };
 
 const CLI_PACKAGES: CliPackage[] = [
@@ -42,16 +57,6 @@ const CLI_PACKAGES: CliPackage[] = [
   },
 ];
 
-const WORKSPACE_PACKAGES_TO_PACK = [
-  {
-    workspaceName: '@spectratools/cli-shared',
-    packageDir: 'packages/shared',
-  },
-  ...CLI_PACKAGES.map((pkg) => ({
-    workspaceName: pkg.workspaceName,
-    packageDir: pkg.packageDir,
-  })),
-];
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const npmToken = process.env.NPM_TOKEN ?? 'test-token';
 
@@ -85,6 +90,136 @@ function expectHelpOutput(stdout: string, stderr: string) {
   expect(output).toContain('Usage');
 }
 
+function readManifest(packageDir: string): PackageManifest {
+  const packageJsonPath = resolve(repoRoot, packageDir, 'package.json');
+  const manifest = JSON.parse(readFileSync(packageJsonPath, 'utf8')) as Partial<PackageManifest>;
+
+  if (!manifest.name) {
+    throw new Error(`Missing package name in ${packageJsonPath}`);
+  }
+
+  return manifest as PackageManifest;
+}
+
+function getInternalWorkspaceDependencies(
+  manifest: PackageManifest,
+  workspaceNames: Set<string>,
+): string[] {
+  const internalDependencies = new Set<string>();
+  const dependencyFields = [
+    manifest.dependencies,
+    manifest.optionalDependencies,
+    manifest.peerDependencies,
+  ];
+
+  for (const dependencyField of dependencyFields) {
+    for (const dependencyName of Object.keys(dependencyField ?? {})) {
+      if (workspaceNames.has(dependencyName)) {
+        internalDependencies.add(dependencyName);
+      }
+    }
+  }
+
+  return [...internalDependencies].sort((a, b) => a.localeCompare(b));
+}
+
+function loadWorkspacePackages(): Map<string, WorkspacePackage> {
+  const packagesRoot = resolve(repoRoot, 'packages');
+  const packageDirs = readdirSync(packagesRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => join('packages', entry.name))
+    .filter((packageDir) => existsSync(resolve(repoRoot, packageDir, 'package.json')))
+    .sort((a, b) => a.localeCompare(b));
+
+  const manifests = packageDirs.map((packageDir) => {
+    const manifest = readManifest(packageDir);
+    return {
+      workspaceName: manifest.name,
+      packageDir,
+      manifest,
+    };
+  });
+
+  const workspaceNames = new Set(manifests.map((pkg) => pkg.workspaceName));
+  const workspacePackages = new Map<string, WorkspacePackage>();
+
+  for (const pkg of manifests) {
+    workspacePackages.set(pkg.workspaceName, {
+      ...pkg,
+      internalDependencies: getInternalWorkspaceDependencies(pkg.manifest, workspaceNames),
+    });
+  }
+
+  return workspacePackages;
+}
+
+function resolveWorkspacePackageOrder(
+  rootPackageNames: string[],
+  workspacePackages: Map<string, WorkspacePackage>,
+): WorkspacePackage[] {
+  const visiting = new Set<string>();
+  const resolved = new Set<string>();
+  const orderedPackageNames: string[] = [];
+
+  const visit = (workspaceName: string) => {
+    const workspacePackage = workspacePackages.get(workspaceName);
+    if (!workspacePackage) {
+      throw new Error(`Workspace package ${workspaceName} not found`);
+    }
+
+    if (resolved.has(workspaceName)) {
+      return;
+    }
+
+    if (visiting.has(workspaceName)) {
+      throw new Error(`Cycle detected while resolving workspace dependencies at ${workspaceName}`);
+    }
+
+    visiting.add(workspaceName);
+    for (const internalDependency of workspacePackage.internalDependencies) {
+      visit(internalDependency);
+    }
+    visiting.delete(workspaceName);
+
+    resolved.add(workspaceName);
+    orderedPackageNames.push(workspaceName);
+  };
+
+  for (const rootPackageName of [...new Set(rootPackageNames)].sort((a, b) => a.localeCompare(b))) {
+    visit(rootPackageName);
+  }
+
+  return orderedPackageNames.map((workspaceName) => {
+    const workspacePackage = workspacePackages.get(workspaceName);
+    if (!workspacePackage) {
+      throw new Error(`Resolved package ${workspaceName} disappeared`);
+    }
+    return workspacePackage;
+  });
+}
+
+function packWorkspaceTarballs(packagesToPack: WorkspacePackage[], tarballDir: string): string[] {
+  const tarballs: string[] = [];
+
+  for (const { workspaceName, packageDir } of packagesToPack) {
+    const before = new Set(readdirSync(tarballDir));
+    run('pnpm', ['pack', '--pack-destination', tarballDir], resolve(repoRoot, packageDir));
+    const packed = readdirSync(tarballDir)
+      .filter((file) => !before.has(file))
+      .sort((a, b) => a.localeCompare(b));
+
+    if (packed.length !== 1) {
+      throw new Error(
+        `Expected exactly one tarball for ${workspaceName}, found ${packed.length} (${packed.join(', ')})`,
+      );
+    }
+
+    tarballs.push(join(tarballDir, packed[0]));
+  }
+
+  return tarballs;
+}
+
 describe('CLI npm invocation e2e', () => {
   it.each(CLI_PACKAGES)('runs via symlink for $workspaceName', (pkg) => {
     const cliPath = resolve(repoRoot, pkg.packageDir, 'dist/cli.js');
@@ -107,6 +242,37 @@ describe('CLI npm invocation e2e', () => {
     }
   });
 
+  it('derives a deterministic transitive workspace pack plan for CLI tarballs', () => {
+    const workspacePackages = loadWorkspacePackages();
+    const forwardPlan = resolveWorkspacePackageOrder(
+      CLI_PACKAGES.map((pkg) => pkg.workspaceName),
+      workspacePackages,
+    );
+    const reversePlan = resolveWorkspacePackageOrder(
+      [...CLI_PACKAGES].reverse().map((pkg) => pkg.workspaceName),
+      workspacePackages,
+    );
+
+    expect(forwardPlan.map((pkg) => pkg.workspaceName)).toEqual(
+      reversePlan.map((pkg) => pkg.workspaceName),
+    );
+
+    const planNames = forwardPlan.map((pkg) => pkg.workspaceName);
+    const planNameSet = new Set(planNames);
+
+    for (const workspacePackage of forwardPlan) {
+      for (const internalDependency of workspacePackage.internalDependencies) {
+        expect(
+          planNameSet,
+          `${workspacePackage.workspaceName} depends on ${internalDependency}; dependency must be packed`,
+        ).toContain(internalDependency);
+        expect(planNames.indexOf(internalDependency)).toBeLessThan(
+          planNames.indexOf(workspacePackage.workspaceName),
+        );
+      }
+    }
+  });
+
   it('supports npm pack + install with npx and global binary invocation', () => {
     const tempDir = mkdtempSync(join(tmpdir(), 'spectratools-pack-install-'));
 
@@ -119,16 +285,12 @@ describe('CLI npm invocation e2e', () => {
       mkdirSync(localProjectDir, { recursive: true });
       mkdirSync(globalPrefixDir, { recursive: true });
 
-      const tarballs: string[] = [];
-      for (const { workspaceName, packageDir } of WORKSPACE_PACKAGES_TO_PACK) {
-        const before = new Set(readdirSync(tarballDir));
-        run('pnpm', ['pack', '--pack-destination', tarballDir], resolve(repoRoot, packageDir));
-        const packed = readdirSync(tarballDir).find((file) => !before.has(file));
-        if (!packed) {
-          throw new Error(`pnpm pack did not produce a tarball for ${workspaceName}`);
-        }
-        tarballs.push(join(tarballDir, packed));
-      }
+      const workspacePackages = loadWorkspacePackages();
+      const packagesToPack = resolveWorkspacePackageOrder(
+        CLI_PACKAGES.map((pkg) => pkg.workspaceName),
+        workspacePackages,
+      );
+      const tarballs = packWorkspaceTarballs(packagesToPack, tarballDir);
 
       writeFileSync(
         join(localProjectDir, 'package.json'),
