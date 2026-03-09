@@ -18,7 +18,15 @@ const cli = Cli.create('xapi', {
   description: 'X (Twitter) API CLI for spectra-the-bot.',
 });
 
-const WRITE_OPERATIONS = new Set(['posts create', 'posts delete', 'dm send']);
+const WRITE_OPERATIONS = new Set([
+  'posts create',
+  'posts delete',
+  'posts like',
+  'posts retweet',
+  'users follow',
+  'users unfollow',
+  'dm send',
+]);
 
 cli.use(async ({ command, error }, next) => {
   try {

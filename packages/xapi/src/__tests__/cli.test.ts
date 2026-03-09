@@ -221,6 +221,174 @@ describe('xapi cli users commands', () => {
   });
 });
 
+describe('xapi cli write commands', () => {
+  afterEach(() => {
+    Reflect.deleteProperty(process.env, 'X_BEARER_TOKEN');
+    Reflect.deleteProperty(process.env, 'X_ACCESS_TOKEN');
+    vi.unstubAllGlobals();
+  });
+
+  it('shows new write commands in group help output', async () => {
+    const postsHelp = await runCli(['posts', '--help']);
+    expect(postsHelp.exitCode).toBe(0);
+    expect(postsHelp.output).toContain('like');
+    expect(postsHelp.output).toContain('retweet');
+
+    const usersHelp = await runCli(['users', '--help']);
+    expect(usersHelp.exitCode).toBe(0);
+    expect(usersHelp.output).toContain('follow');
+    expect(usersHelp.output).toContain('unfollow');
+  });
+
+  it.each([
+    {
+      command: 'like',
+      path: '/2/users/me-user/likes',
+      responseBody: { data: { liked: true } },
+      expected: { liked: true, id: 'tweet-123' },
+    },
+    {
+      command: 'retweet',
+      path: '/2/users/me-user/retweets',
+      responseBody: { data: { retweeted: true } },
+      expected: { retweeted: true, id: 'tweet-123' },
+    },
+  ] as const)('returns success shape for posts $command', async (tc) => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>().mockImplementation(async (input, init) => {
+        const requestUrl =
+          typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+        const { pathname } = new URL(requestUrl);
+        const method = init?.method ?? (input instanceof Request ? input.method : 'GET');
+
+        if (pathname === '/2/users/me') {
+          return new Response(JSON.stringify({ data: { id: 'me-user', username: 'me' } }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          });
+        }
+
+        if (pathname === tc.path && method === 'POST') {
+          return new Response(JSON.stringify(tc.responseBody), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          });
+        }
+
+        return new Response('not found', { status: 404, statusText: 'Not Found' });
+      }),
+    );
+
+    process.env.X_ACCESS_TOKEN = 'write-token';
+
+    const { output, exitCode } = await runCli(['posts', tc.command, 'tweet-123', '--json']);
+
+    expect(exitCode).toBe(0);
+    expect(JSON.parse(output)).toEqual(tc.expected);
+  });
+
+  it.each([
+    {
+      command: 'follow',
+      targetPath: '/2/users/me-user/following',
+      method: 'POST',
+      responseBody: { data: { following: true, pending_follow: false } },
+      expected: { id: 'target-1', username: 'target', following: true, pending_follow: false },
+    },
+    {
+      command: 'unfollow',
+      targetPath: '/2/users/me-user/following/target-1',
+      method: 'DELETE',
+      responseBody: { data: { following: false } },
+      expected: { id: 'target-1', username: 'target', following: false },
+    },
+  ] as const)('returns success shape for users $command', async (tc) => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>().mockImplementation(async (input, init) => {
+        const requestUrl =
+          typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+        const { pathname } = new URL(requestUrl);
+        const method = init?.method ?? (input instanceof Request ? input.method : 'GET');
+
+        if (pathname === '/2/users/me') {
+          return new Response(JSON.stringify({ data: { id: 'me-user', username: 'me' } }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          });
+        }
+
+        if (pathname === '/2/users/by/username/target') {
+          return new Response(JSON.stringify({ data: { id: 'target-1', username: 'target' } }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          });
+        }
+
+        if (pathname === tc.targetPath && method === tc.method) {
+          return new Response(JSON.stringify(tc.responseBody), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          });
+        }
+
+        return new Response('not found', { status: 404, statusText: 'Not Found' });
+      }),
+    );
+
+    process.env.X_ACCESS_TOKEN = 'write-token';
+
+    const { output, exitCode } = await runCli(['users', tc.command, 'target', '--json']);
+
+    expect(exitCode).toBe(0);
+    expect(JSON.parse(output)).toEqual(tc.expected);
+  });
+
+  it.each([
+    { command: ['posts', 'like', 'tweet-1'], operation: 'posts like' },
+    { command: ['posts', 'retweet', 'tweet-1'], operation: 'posts retweet' },
+    { command: ['users', 'follow', 'target'], operation: 'users follow' },
+    { command: ['users', 'unfollow', 'target'], operation: 'users unfollow' },
+  ] as const)('maps auth failures for $operation', async (tc) => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>().mockImplementation(
+        async () =>
+          new Response(
+            JSON.stringify({
+              detail:
+                'Authenticating with OAuth 2.0 Application-Only is forbidden for this endpoint',
+            }),
+            {
+              status: 403,
+              statusText: 'Forbidden',
+              headers: { 'content-type': 'application/json' },
+            },
+          ),
+      ),
+    );
+
+    process.env.X_ACCESS_TOKEN = 'write-token';
+
+    const { output, exitCode } = await runCli([...tc.command, '--json']);
+
+    expect(exitCode).toBe(1);
+    expect(output).toContain('INSUFFICIENT_WRITE_AUTH');
+    expect(output).toContain(`operation: ${tc.operation}`);
+    expect(output).toContain('required auth: X_ACCESS_TOKEN');
+  });
+
+  it('requires X_ACCESS_TOKEN for new write commands', async () => {
+    process.env.X_BEARER_TOKEN = 'read-token';
+
+    const { output, exitCode } = await runCli(['posts', 'like', 'tweet-1', '--json']);
+
+    expect(exitCode).toBe(1);
+    expect(output).toContain('X_ACCESS_TOKEN');
+  });
+});
+
 describe('xapi cli error and empty-result paths', () => {
   afterEach(() => {
     Reflect.deleteProperty(process.env, 'X_BEARER_TOKEN');

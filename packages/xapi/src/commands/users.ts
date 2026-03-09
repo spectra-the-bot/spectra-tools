@@ -1,7 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { Cli, z } from 'incur';
 import { type XUser, createXApiClient, relativeTime, truncateText } from '../api.js';
-import { readAuthToken, xApiReadEnv } from '../auth.js';
+import {
+  readAuthToken,
+  toWriteAuthError,
+  writeAuthToken,
+  xApiReadEnv,
+  xApiWriteEnv,
+} from '../auth.js';
 import { collectPaged } from '../collect-paged.js';
 
 const users = Cli.create('users', {
@@ -159,6 +165,74 @@ users.command('get', {
             },
           },
     );
+  },
+});
+
+users.command('follow', {
+  description: 'Follow a user by username or ID.',
+  args: z.object({
+    username: z.string().describe('Username (with or without @) or user ID'),
+  }),
+  env: xApiWriteEnv,
+  output: z.object({
+    id: z.string(),
+    username: z.string(),
+    following: z.boolean(),
+    pending_follow: z.boolean().optional(),
+  }),
+  examples: [{ args: { username: 'jack' }, description: 'Follow @jack' }],
+  async run(c) {
+    try {
+      const client = createXApiClient(writeAuthToken(c.env));
+      const me = await client.getMe();
+      const targetRes = await resolveUser(client, c.args.username);
+      const target = targetRes.data;
+      const res = await client.followUser(me.data.id, target.id);
+
+      return c.ok({
+        id: target.id,
+        username: target.username,
+        following: res.data.following,
+        pending_follow: res.data.pending_follow,
+      });
+    } catch (error) {
+      const authError = toWriteAuthError('users follow', error);
+      if (authError) return c.error(authError);
+      throw error;
+    }
+  },
+});
+
+users.command('unfollow', {
+  description: 'Unfollow a user by username or ID.',
+  args: z.object({
+    username: z.string().describe('Username (with or without @) or user ID'),
+  }),
+  env: xApiWriteEnv,
+  output: z.object({
+    id: z.string(),
+    username: z.string(),
+    following: z.boolean(),
+  }),
+  examples: [{ args: { username: 'jack' }, description: 'Unfollow @jack' }],
+  async run(c) {
+    try {
+      const client = createXApiClient(writeAuthToken(c.env));
+      const me = await client.getMe();
+      const targetRes = await resolveUser(client, c.args.username);
+      const target = targetRes.data;
+      const res = await client.unfollowUser(me.data.id, target.id);
+
+      return c.ok({
+        id: target.id,
+        username: target.username,
+        following: res.data.following,
+      });
+    } catch (error) {
+      const authError = toWriteAuthError('users unfollow', error);
+      if (authError) return c.error(authError);
+      throw error;
+    }
   },
 });
 
