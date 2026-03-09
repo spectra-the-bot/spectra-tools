@@ -6,6 +6,12 @@
  *
  * Slipstream (CL) addresses sourced from:
  *   https://github.com/Aborean-Finance/aborean-slipstream/blob/main/README.md
+ *
+ * Vault/relay addresses sourced from:
+ *   https://github.com/Aborean-Finance/aborean-vaults/tree/main/deploy/output/abstractMainnet
+ *
+ * Morpho Abstract deployment sourced from:
+ *   https://github.com/morpho-org/sdks/blob/main/packages/blue-sdk/src/addresses.ts
  */
 
 // ---------------------------------------------------------------------------
@@ -73,9 +79,33 @@ export const ABOREAN_CL_ADDRESSES = {
 } as const;
 
 // ---------------------------------------------------------------------------
+// Vault / Relay (aborean-vaults)
+// ---------------------------------------------------------------------------
+export const ABOREAN_VAULT_ADDRESSES = {
+  /** Factory for AutoCompounder relay vaults */
+  autoCompounderFactory: '0x35b320599C1434291a0003E40Fcd1e40fA9E0222',
+  /** Factory for AutoConverter relay vaults */
+  autoConverterFactory: '0xf114D2aCF8aAFDde833e0a8ba2dc5A3946614354',
+  /** veABX Maxi relay vault */
+  veAbxMaxiRelay: '0xcbeB1A72A31670AE5ba27798c124Fcf3Ca1971df',
+  /** ABX rewards relay vault */
+  abxRewardsRelay: '0x3E8D887Bba5D4A757FaE757883CA35882AB4a0ee',
+} as const;
+
+// ---------------------------------------------------------------------------
+// Lending (Morpho on Abstract)
+// ---------------------------------------------------------------------------
+export const ABOREAN_LENDING_ADDRESSES = {
+  /** Morpho Blue core contract on Abstract */
+  morphoBlue: '0xc85CE8ffdA27b646D269516B8d0Fa6ec2E958B55',
+} as const;
+
+// ---------------------------------------------------------------------------
 // Convenience combined export
 // ---------------------------------------------------------------------------
 export const ABOREAN_ADDRESSES = {
   ...ABOREAN_V2_ADDRESSES,
   ...ABOREAN_CL_ADDRESSES,
+  ...ABOREAN_VAULT_ADDRESSES,
+  ...ABOREAN_LENDING_ADDRESSES,
 } as const;

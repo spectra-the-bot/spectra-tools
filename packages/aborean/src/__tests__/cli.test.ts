@@ -61,27 +61,234 @@ describe('aborean CLI', () => {
     vi.unstubAllGlobals();
   });
 
-  it('status returns protocol snapshot', async () => {
-    mockClient.readContract
-      .mockResolvedValueOnce(42n)
-      .mockResolvedValueOnce(15n)
-      .mockResolvedValueOnce(30n)
-      .mockResolvedValueOnce(1000000000000000000000n)
-      .mockResolvedValueOnce(5000000000000000000000n)
-      .mockResolvedValueOnce(4000000000000000000000n);
+  it('status returns cross-protocol snapshot', async () => {
+    const v2Pool = '0x1000000000000000000000000000000000000001';
+    const v2Pool2 = '0x1000000000000000000000000000000000000002';
+    const relayA = '0xcbeB1A72A31670AE5ba27798c124Fcf3Ca1971df';
+    const relayB = '0x3E8D887Bba5D4A757FaE757883CA35882AB4a0ee';
+    const morphoMarketId = '0xfe1d7da2fbde85b1fee120c88df3e6b55164a2442dab97486d3d4f719a5ff1fb';
+
+    mockClient.readContract.mockImplementation(async (args: Record<string, unknown>) => {
+      const functionName = args.functionName as string;
+      const address = String(args.address ?? '').toLowerCase();
+      const callArgs = (args.args ?? []) as unknown[];
+
+      if (
+        functionName === 'allPoolsLength' &&
+        address === '0xf6cdfff7ad51caad860e7a35d6d4075d74039a6b'
+      ) {
+        return 2n;
+      }
+      if (
+        functionName === 'allPoolsLength' &&
+        address === '0x8cfe21f272fdfddf42851f6282c0f998756eef27'
+      ) {
+        return 15n;
+      }
+      if (functionName === 'length') return 30n;
+      if (functionName === 'totalWeight') return 1000000000000000000000n;
+      if (functionName === 'totalSupply') return 5000000000000000000000n;
+      if (functionName === 'supply') return 4000000000000000000000n;
+      if (functionName === 'activePeriod') return 1900000000n;
+      if (functionName === 'WEEK') return 604800n;
+      if (functionName === 'epochCount') return 50n;
+      if (functionName === 'weekly') return 123000000000000000000n;
+
+      if (functionName === 'name' && address === relayA.toLowerCase()) return 'veABX Maxi Relay';
+      if (functionName === 'name' && address === relayB.toLowerCase()) return 'ABX Rewards Relay';
+      if (functionName === 'mTokenId' && address === relayA.toLowerCase()) return 8241n;
+      if (functionName === 'mTokenId' && address === relayB.toLowerCase()) return 8813n;
+      if (
+        functionName === 'token' &&
+        (address === relayA.toLowerCase() || address === relayB.toLowerCase())
+      ) {
+        return '0x4C68E4102c0F120cce9F08625bd12079806b7C4D';
+      }
+      if (functionName === 'keeperLastRun') return 1900000100n;
+      if (functionName === 'balanceOfNFT') {
+        if (callArgs[0] === 8241n) return 111n;
+        if (callArgs[0] === 8813n) return 222n;
+      }
+      if (functionName === 'symbol') return 'ABX';
+      if (functionName === 'decimals') return 18;
+      if (
+        functionName === 'balanceOf' &&
+        address === '0x4c68e4102c0f120cce9f08625bd12079806b7c4d'
+      ) {
+        return 10n;
+      }
+
+      throw new Error(`unexpected readContract ${functionName} on ${address}`);
+    });
+
+    mockClient.multicall.mockImplementation(async (args: Record<string, unknown>) => {
+      const contracts = (args.contracts ?? []) as Array<Record<string, unknown>>;
+      const firstFn = String(contracts[0]?.functionName ?? '');
+
+      if (firstFn === 'allPools') {
+        return [v2Pool, v2Pool2];
+      }
+
+      if (firstFn === 'token0') {
+        return [
+          tokenA,
+          tokenB,
+          false,
+          [100000000000000000000n, 200000000000000000000n, 0n],
+          tokenB,
+          tokenC,
+          true,
+          [300000000000000000000n, 100000000000000000000n, 0n],
+        ];
+      }
+
+      if (firstFn === 'symbol' && contracts.length === 6) {
+        return [
+          { status: 'success', result: 'TKA' },
+          { status: 'success', result: 18 },
+          { status: 'success', result: 'TKB' },
+          { status: 'success', result: 18 },
+          { status: 'success', result: 'TKC' },
+          { status: 'success', result: 18 },
+        ];
+      }
+
+      if (firstFn === 'idToMarketParams') {
+        return [
+          {
+            loanToken: tokenA,
+            collateralToken: tokenB,
+            oracle: '0x3000000000000000000000000000000000000001',
+            irm: '0x3000000000000000000000000000000000000002',
+            lltv: 860000000000000000n,
+          },
+          {
+            totalSupplyAssets: 700000000000000000000n,
+            totalSupplyShares: 700000000000000000000n,
+            totalBorrowAssets: 300000000000000000000n,
+            totalBorrowShares: 300000000000000000000n,
+            lastUpdate: 1900000500n,
+            fee: 0n,
+          },
+        ];
+      }
+
+      if (firstFn === 'symbol' && contracts.length === 4) {
+        return [
+          { status: 'success', result: 'TKA' },
+          { status: 'success', result: 18 },
+          { status: 'success', result: 'TKB' },
+          { status: 'success', result: 18 },
+        ];
+      }
+
+      throw new Error(`unexpected multicall ${firstFn}`);
+    });
+
+    mockClient.getContractEvents.mockResolvedValueOnce([{ args: { id: morphoMarketId } }]);
 
     const out = await run(['status']);
 
     expect(out.ok).toBe(true);
-    expect(mockClient.readContract).toHaveBeenCalledTimes(6);
 
     const data = out.data as Record<string, unknown>;
-    expect(data.v2PoolCount).toBe(42);
+    expect(data.v2PoolCount).toBe(2);
     expect(data.clPoolCount).toBe(15);
     expect(data.gaugeCount).toBe(30);
-    expect(data.totalVotingWeight).toBe('1000000000000000000000');
-    expect(data.veABXTotalSupply).toBe('5000000000000000000000');
-    expect(data.veABXLockedSupply).toBe('4000000000000000000000');
+    expect(data.topPools).toBeTruthy();
+    expect(data.vaults).toMatchObject({ relayCount: 2, managedVotingPower: '333', note: null });
+    expect(data.lending).toMatchObject({
+      available: true,
+      morpho: '0xc85CE8ffdA27b646D269516B8d0Fa6ec2E958B55',
+      marketCount: 1,
+      note: null,
+    });
+  });
+
+  it('vaults list returns relay snapshots', async () => {
+    const relayA = '0xcbeB1A72A31670AE5ba27798c124Fcf3Ca1971df';
+    const relayB = '0x3E8D887Bba5D4A757FaE757883CA35882AB4a0ee';
+
+    mockClient.readContract.mockImplementation(async (args: Record<string, unknown>) => {
+      const functionName = args.functionName as string;
+      const address = String(args.address ?? '').toLowerCase();
+      const callArgs = (args.args ?? []) as unknown[];
+
+      if (functionName === 'name' && address === relayA.toLowerCase()) return 'veABX Maxi Relay';
+      if (functionName === 'name' && address === relayB.toLowerCase()) return 'ABX Rewards Relay';
+      if (functionName === 'mTokenId' && address === relayA.toLowerCase()) return 8241n;
+      if (functionName === 'mTokenId' && address === relayB.toLowerCase()) return 8813n;
+      if (functionName === 'token') return '0x4C68E4102c0F120cce9F08625bd12079806b7C4D';
+      if (functionName === 'keeperLastRun') return 1900000100n;
+      if (functionName === 'symbol') return 'ABX';
+      if (functionName === 'decimals') return 18;
+      if (functionName === 'balanceOf') return 25n;
+      if (functionName === 'balanceOfNFT') {
+        if (callArgs[0] === 8241n) return 111n;
+        if (callArgs[0] === 8813n) return 222n;
+      }
+
+      throw new Error(`unexpected readContract ${functionName}`);
+    });
+
+    const out = await run(['vaults', 'list']);
+
+    expect(out.ok).toBe(true);
+    const data = out.data as {
+      relayCount: number;
+      totals: { managedVotingPower: string };
+      relays: Array<{ relay: string; managedTokenId: string }>;
+    };
+
+    expect(data.relayCount).toBe(2);
+    expect(data.totals.managedVotingPower).toBe('333');
+    expect(data.relays[0].relay).toBe(relayA);
+    expect(data.relays[1].managedTokenId).toBe('8813');
+  });
+
+  it('lending markets returns discovered Morpho markets', async () => {
+    const marketId = '0xfe1d7da2fbde85b1fee120c88df3e6b55164a2442dab97486d3d4f719a5ff1fb';
+
+    mockClient.getContractEvents.mockResolvedValueOnce([{ args: { id: marketId } }]);
+
+    mockClient.multicall
+      .mockResolvedValueOnce([
+        {
+          loanToken: tokenA,
+          collateralToken: tokenB,
+          oracle: '0x3000000000000000000000000000000000000001',
+          irm: '0x3000000000000000000000000000000000000002',
+          lltv: 860000000000000000n,
+        },
+        {
+          totalSupplyAssets: 700000000000000000000n,
+          totalSupplyShares: 700000000000000000000n,
+          totalBorrowAssets: 300000000000000000000n,
+          totalBorrowShares: 300000000000000000000n,
+          lastUpdate: 1900000500n,
+          fee: 0n,
+        },
+      ])
+      .mockResolvedValueOnce([
+        { status: 'success', result: 'TKA' },
+        { status: 'success', result: 18 },
+        { status: 'success', result: 'TKB' },
+        { status: 'success', result: 18 },
+      ]);
+
+    const out = await run(['lending', 'markets']);
+
+    expect(out.ok).toBe(true);
+    const data = out.data as {
+      marketCount: number;
+      markets: Array<{ marketId: string; lltvBps: number }>;
+      totalsByLoanToken: Array<{ symbol: string }>;
+    };
+
+    expect(data.marketCount).toBe(1);
+    expect(data.markets[0].marketId).toBe(marketId);
+    expect(data.markets[0].lltvBps).toBe(8600);
+    expect(data.totalsByLoanToken[0].symbol).toBe('TKA');
   });
 
   it('gauges list returns batched gauge data', async () => {
