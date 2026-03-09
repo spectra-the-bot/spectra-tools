@@ -35,8 +35,11 @@ erc8004-cli validation history 634 --json
 # Structured responses
 erc8004-cli identity get 634 --json
 
-# Machine-readable command manifest
+# Compact command index
 erc8004-cli --llms
+
+# Full machine-readable command manifest
+erc8004-cli --llms-full
 
 # Register with local runtime catalogs
 erc8004-cli skills add

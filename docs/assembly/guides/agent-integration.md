@@ -4,15 +4,19 @@
 
 This guide covers how to expose the CLI to agents and produce reliable machine-readable output.
 
-## 1) Discover command surface (`--llms`)
+## 1) Discover command surface (`--llms` / `--llms-full`)
 
 Print an LLM-readable command manifest:
 
 ```bash
+# Compact command index
 assembly-cli --llms
+
+# Full manifest with arguments, env vars, and output fields
+assembly-cli --llms-full
 ```
 
-Use this when bootstrapping tools in an agent harness so the model can inspect available commands and arguments.
+Use `--llms` for quick discovery and `--llms-full` when bootstrapping tools in an agent harness so the model can inspect all available commands and arguments.
 
 ## 2) Get structured command contracts (`--schema`)
 
