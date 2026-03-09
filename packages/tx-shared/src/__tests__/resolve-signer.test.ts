@@ -145,6 +145,14 @@ describe('resolveSigner', () => {
 
     expect(signer.provider).toBe('privy');
     expect(signer.address).toBe(PRIVY_WALLET_ADDRESS);
+    expect(typeof (signer.account as { sendTransaction?: unknown }).sendTransaction).toBe(
+      'function',
+    );
+    expect(typeof (signer.account as { signMessage?: unknown }).signMessage).toBe('function');
+    expect(typeof (signer.account as { signTypedData?: unknown }).signTypedData).toBe('function');
+    expect(typeof (signer.account as { signTransaction?: unknown }).signTransaction).toBe(
+      'function',
+    );
     expect(fetchMock).toHaveBeenCalledWith('https://api.privy.io/v1/wallets/wallet-id-1234', {
       method: 'GET',
       headers: {

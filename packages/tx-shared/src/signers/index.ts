@@ -3,7 +3,9 @@ export { createKeystoreSigner, type KeystoreSignerOptions } from './keystore.js'
 export {
   createPrivyAccount,
   type PrivyAccount,
+  type PrivySignTransactionRequest,
   type PrivySendTransactionRequest,
+  type PrivySignTypedDataRequest,
 } from './privy-account.js';
 export { createPrivyClient, type PrivyClient } from './privy-client.js';
 export {

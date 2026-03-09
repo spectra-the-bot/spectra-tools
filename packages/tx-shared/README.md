@@ -56,7 +56,11 @@ export PRIVY_WALLET_ID="..."
 export PRIVY_AUTHORIZATION_KEY="..."
 ```
 
-> Privy signer resolution now performs wallet address lookup and exposes a Privy-backed account helper for `eth_sendTransaction` intents. Additional signing methods (for example `personal_sign` and typed-data) are tracked in [issue #117](https://github.com/spectra-the-bot/spectra-tools/issues/117).
+> Privy signer resolution performs wallet address lookup and returns a Privy-backed account adapter with:
+> - `sendTransaction` → `eth_sendTransaction`
+> - `signMessage` → `personal_sign`
+> - `signTypedData` → `eth_signTypedData_v4`
+> - `signTransaction` → `eth_signTransaction` (returns serialized tx hex; broadcast separately via `sendRawTransaction`)
 
 ## `resolveSigner()` usage
 

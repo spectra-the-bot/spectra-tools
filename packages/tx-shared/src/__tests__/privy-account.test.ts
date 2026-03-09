@@ -8,6 +8,10 @@ const VALID_PRIVY_AUTHORIZATION_KEY =
 
 const PRIVY_WALLET_ADDRESS = '0x1111111111111111111111111111111111111111';
 const TX_HASH = '0x1111111111111111111111111111111111111111111111111111111111111111';
+const SIGNATURE =
+  '0x7f63570dc7ef00f66d27269d478573ba0f25d0d5ec4f855cb6dc42c5c2f4a6ec5de43d160a045bbf32f786f6b3afac9bcf7fbefcc5902474ed2c81f8ac2f665b1b';
+const SIGNED_TRANSACTION =
+  '0x02f870830ab500018459682f008506fc23ac008252089422222222222222222222222222222222222222228001c080a00f6776fbe133658291ceadf0f85fc6e4e83515a69f8f299ec52ffb62a1c1d7a6a0197b4fdf6902db4f652ca6d129ca4cf5f70995a5a77f2f3fbf2678d2f50199d0';
 
 describe('privy-account', () => {
   it('submits eth_sendTransaction intents and returns tx hash', async () => {
@@ -97,7 +101,233 @@ describe('privy-account', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it('maps rejected intents to PRIVY_AUTH_FAILED', async () => {
+  it('signs messages with personal_sign and returns viem-compatible hex signatures', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith('/v1/wallets/wallet-id-1234')) {
+        return new Response(
+          JSON.stringify({
+            id: 'wallet-id-1234',
+            address: PRIVY_WALLET_ADDRESS,
+            owner_id: null,
+            policy_ids: [],
+          }),
+          { status: 200 },
+        );
+      }
+
+      expect(url.endsWith('/v1/intents/wallets/wallet-id-1234/rpc')).toBe(true);
+      const requestBody = JSON.parse(String(init?.body));
+      expect(requestBody).toEqual({
+        method: 'personal_sign',
+        params: {
+          message: 'hello privy',
+          encoding: 'utf-8',
+        },
+      });
+
+      return new Response(
+        JSON.stringify({
+          intent_id: 'intent-personal-sign',
+          status: 'executed',
+          action_result: {
+            response_body: {
+              method: 'personal_sign',
+              data: {
+                signature: SIGNATURE,
+                encoding: 'hex',
+              },
+            },
+          },
+        }),
+        { status: 200 },
+      );
+    });
+
+    const client = createPrivyClient({
+      appId: 'app-id-1234',
+      walletId: 'wallet-id-1234',
+      authorizationKey: VALID_PRIVY_AUTHORIZATION_KEY,
+      fetchImplementation: fetchMock as typeof fetch,
+    });
+
+    const account = await createPrivyAccount({ client });
+
+    const signature = await account.signMessage({
+      message: 'hello privy',
+    });
+
+    expect(signature).toBe(SIGNATURE);
+  });
+
+  it('signs typed data with eth_signTypedData_v4 and normalizes bigint fields', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith('/v1/wallets/wallet-id-1234')) {
+        return new Response(
+          JSON.stringify({
+            id: 'wallet-id-1234',
+            address: PRIVY_WALLET_ADDRESS,
+            owner_id: null,
+            policy_ids: [],
+          }),
+          { status: 200 },
+        );
+      }
+
+      expect(url.endsWith('/v1/intents/wallets/wallet-id-1234/rpc')).toBe(true);
+      const requestBody = JSON.parse(String(init?.body));
+      expect(requestBody).toEqual({
+        method: 'eth_signTypedData_v4',
+        params: {
+          typed_data: {
+            domain: {
+              name: 'Spectra Mail',
+              version: '1',
+              chainId: '2741',
+            },
+            types: {
+              EIP712Domain: [
+                { name: 'name', type: 'string' },
+                { name: 'version', type: 'string' },
+                { name: 'chainId', type: 'uint256' },
+              ],
+              Mail: [{ name: 'contents', type: 'string' }],
+            },
+            message: {
+              contents: 'hello typed data',
+            },
+            primary_type: 'Mail',
+          },
+        },
+      });
+
+      return new Response(
+        JSON.stringify({
+          intent_id: 'intent-sign-typed-data',
+          status: 'executed',
+          action_result: {
+            response_body: {
+              method: 'eth_signTypedData_v4',
+              data: {
+                signature: SIGNATURE,
+                encoding: 'hex',
+              },
+            },
+          },
+        }),
+        { status: 200 },
+      );
+    });
+
+    const client = createPrivyClient({
+      appId: 'app-id-1234',
+      walletId: 'wallet-id-1234',
+      authorizationKey: VALID_PRIVY_AUTHORIZATION_KEY,
+      fetchImplementation: fetchMock as typeof fetch,
+    });
+
+    const account = await createPrivyAccount({ client });
+
+    const signature = await account.signTypedData({
+      domain: {
+        name: 'Spectra Mail',
+        version: '1',
+        chainId: 2741n,
+      },
+      primaryType: 'Mail',
+      types: {
+        EIP712Domain: [
+          { name: 'name', type: 'string' },
+          { name: 'version', type: 'string' },
+          { name: 'chainId', type: 'uint256' },
+        ],
+        Mail: [{ name: 'contents', type: 'string' }],
+      },
+      message: {
+        contents: 'hello typed data',
+      },
+    });
+
+    expect(signature).toBe(SIGNATURE);
+  });
+
+  it('signs transactions with eth_signTransaction and returns serialized tx hex', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith('/v1/wallets/wallet-id-1234')) {
+        return new Response(
+          JSON.stringify({
+            id: 'wallet-id-1234',
+            address: PRIVY_WALLET_ADDRESS,
+            owner_id: null,
+            policy_ids: [],
+          }),
+          { status: 200 },
+        );
+      }
+
+      expect(url.endsWith('/v1/intents/wallets/wallet-id-1234/rpc')).toBe(true);
+      const requestBody = JSON.parse(String(init?.body));
+      expect(requestBody).toEqual({
+        method: 'eth_signTransaction',
+        params: {
+          transaction: {
+            from: PRIVY_WALLET_ADDRESS,
+            to: '0x2222222222222222222222222222222222222222',
+            value: '1',
+            gas_limit: '21000',
+            max_fee_per_gas: '3000000000',
+            max_priority_fee_per_gas: '1000000000',
+            nonce: 5,
+            type: 2,
+            chain_id: 2741,
+          },
+        },
+      });
+
+      return new Response(
+        JSON.stringify({
+          intent_id: 'intent-sign-transaction',
+          status: 'executed',
+          action_result: {
+            response_body: {
+              method: 'eth_signTransaction',
+              data: {
+                signed_transaction: SIGNED_TRANSACTION,
+                encoding: 'rlp',
+              },
+            },
+          },
+        }),
+        { status: 200 },
+      );
+    });
+
+    const client = createPrivyClient({
+      appId: 'app-id-1234',
+      walletId: 'wallet-id-1234',
+      authorizationKey: VALID_PRIVY_AUTHORIZATION_KEY,
+      fetchImplementation: fetchMock as typeof fetch,
+    });
+
+    const account = await createPrivyAccount({ client });
+
+    const signedTransaction = await account.signTransaction({
+      to: '0x2222222222222222222222222222222222222222',
+      value: 1n,
+      gas: 21_000n,
+      maxFeePerGas: 3_000_000_000n,
+      maxPriorityFeePerGas: 1_000_000_000n,
+      nonce: 5,
+      type: 2,
+      chainId: 2741,
+    });
+
+    expect(signedTransaction).toBe(SIGNED_TRANSACTION);
+  });
+
+  it('maps rejected signing intents to PRIVY_AUTH_FAILED', async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url.endsWith('/v1/wallets/wallet-id-1234')) {
@@ -114,9 +344,9 @@ describe('privy-account', () => {
 
       return new Response(
         JSON.stringify({
-          intent_id: 'intent-2',
+          intent_id: 'intent-sign-rejected',
           status: 'rejected',
-          dismissal_reason: 'policy denied transfer',
+          dismissal_reason: 'policy denied signature',
         }),
         { status: 200 },
       );
@@ -132,16 +362,16 @@ describe('privy-account', () => {
     const account = await createPrivyAccount({ client });
 
     await expect(
-      account.sendTransaction({
-        to: '0x3333333333333333333333333333333333333333',
+      account.signMessage({
+        message: 'denied message',
       }),
     ).rejects.toMatchObject({
       code: 'PRIVY_AUTH_FAILED',
-      message: 'Privy rpc intent intent-2 rejected: policy denied transfer',
+      message: 'Privy rpc intent intent-sign-rejected rejected: policy denied signature',
     });
   });
 
-  it('maps failed intents to TX_REVERTED', async () => {
+  it('maps failed intents to TX_REVERTED for eth_sendTransaction', async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url.endsWith('/v1/wallets/wallet-id-1234')) {
