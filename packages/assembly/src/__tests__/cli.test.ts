@@ -17,10 +17,20 @@ const mockClient = {
   getBlock: vi.fn(),
   getBlockNumber: vi.fn(),
   getContractEvents: vi.fn(),
+  estimateContractGas: vi.fn().mockResolvedValue(21000n),
+  simulateContract: vi.fn().mockResolvedValue({ result: undefined }),
+  waitForTransactionReceipt: vi.fn(),
 };
 
+const mockWalletClient = {
+  writeContract: vi.fn(),
+};
+
+// vi.mock is hoisted — cannot reference module-scope consts. Defaults set in beforeEach.
 vi.mock('../contracts/client.js', () => ({
   createAssemblyPublicClient: () => mockClient,
+  createAssemblyWalletClient: () => mockWalletClient,
+  abstractMainnet: { id: 2741, name: 'Abstract Mainnet' },
 }));
 
 async function run(argv: string[]) {
@@ -56,6 +66,9 @@ function createViemError(options: { message: string; name: string; shortMessage:
   return error;
 }
 
+const MOCK_HASH =
+  '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890' as `0x${string}`;
+const MOCK_FROM = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266';
 const addrA = '0x00000000000000000000000000000000000000aa';
 const addrB = '0x00000000000000000000000000000000000000bb';
 
@@ -67,6 +80,24 @@ describe('assembly onchain commands', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
+    // Set defaults for write-related mocks (safe to set here, only consumed by write commands)
+    mockWalletClient.writeContract.mockResolvedValue(MOCK_HASH);
+    mockClient.waitForTransactionReceipt.mockResolvedValue({
+      transactionHash: MOCK_HASH,
+      blockNumber: 42n,
+      gasUsed: 21000n,
+      status: 'success',
+      from: MOCK_FROM,
+      to: '0xc37cC38F4e463F50745Bdf9F306Ce6b4b6335717',
+      effectiveGasPrice: 1000000000n,
+      blockHash: '0x0000000000000000000000000000000000000000000000000000000000000000',
+      contractAddress: null,
+      cumulativeGasUsed: 21000n,
+      logs: [],
+      logsBloom: '0x',
+      transactionIndex: 0,
+      type: 'eip1559',
+    });
   });
 
   afterEach(() => {
@@ -725,5 +756,203 @@ describe('assembly onchain commands', () => {
     expect(out.ok).toBe(false);
     expect(out.error?.code).toBe('UNKNOWN');
     expect(out.error?.message).toContain('Version: viem@2.47.0');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// council write commands
+// ---------------------------------------------------------------------------
+describe('council write commands', () => {
+  const TEST_PK = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
+
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    process.env.PRIVATE_KEY = TEST_PK;
+    mockClient.estimateContractGas.mockResolvedValue(21000n);
+    mockClient.simulateContract.mockResolvedValue({ result: undefined });
+    mockWalletClient.writeContract.mockResolvedValue(MOCK_HASH);
+    mockClient.waitForTransactionReceipt.mockResolvedValue({
+      transactionHash: MOCK_HASH,
+      blockNumber: 42n,
+      gasUsed: 21000n,
+      status: 'success',
+      from: MOCK_FROM,
+      to: '0xc37cC38F4e463F50745Bdf9F306Ce6b4b6335717',
+      effectiveGasPrice: 1000000000n,
+      blockHash: '0x0000000000000000000000000000000000000000000000000000000000000000',
+      contractAddress: null,
+      cumulativeGasUsed: 21000n,
+      logs: [],
+      logsBloom: '0x',
+      transactionIndex: 0,
+      type: 'eip1559',
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    process.env.PRIVATE_KEY = undefined;
+  });
+
+  async function runWrite(argv: string[]) {
+    const { cli } = await import('../cli.js');
+    const lines: string[] = [];
+    await cli.serve([...argv, '--format', 'json', '--verbose'], {
+      stdout: (line) => lines.push(line),
+      exit: () => undefined,
+    });
+    const json = [...lines].reverse().find((x) => x.trim().startsWith('{')) ?? '{}';
+    return JSON.parse(json) as Envelope;
+  }
+
+  describe('council bid', () => {
+    it('places a bid on a bidding auction', async () => {
+      mockClient.readContract.mockResolvedValueOnce(4n);
+      mockClient.readContract.mockResolvedValueOnce([addrA, 50000000000000000n, false]);
+      mockClient.readContract.mockResolvedValueOnce(9999999999n);
+      mockClient.getBlock.mockResolvedValueOnce({ timestamp: 100n });
+
+      const out = await runWrite(['council', 'bid', '0', '0', '--amount', '0.1']);
+
+      expect(out.ok).toBe(true);
+      const data = out.data as Record<string, unknown>;
+      expect(data.day).toBe(0);
+      expect(data.slot).toBe(0);
+      expect(data.bidAmount).toBe('0.1 ETH');
+      const tx = data.tx as Record<string, unknown>;
+      expect(tx.status).toBe('success');
+      expect(tx.hash).toBe(MOCK_HASH);
+    });
+
+    it('rejects bid on settled auction', async () => {
+      mockClient.readContract.mockResolvedValueOnce(4n);
+      mockClient.readContract.mockResolvedValueOnce([addrA, 100n, true]);
+      mockClient.readContract.mockResolvedValueOnce(200n);
+      mockClient.getBlock.mockResolvedValueOnce({ timestamp: 300n });
+
+      const out = await runWrite(['council', 'bid', '0', '0', '--amount', '0.1']);
+
+      expect(out.ok).toBe(false);
+      expect(out.error?.code).toBe('AUCTION_SETTLED');
+    });
+
+    it('rejects bid on closed auction', async () => {
+      mockClient.readContract.mockResolvedValueOnce(4n);
+      mockClient.readContract.mockResolvedValueOnce([addrA, 100n, false]);
+      mockClient.readContract.mockResolvedValueOnce(200n);
+      mockClient.getBlock.mockResolvedValueOnce({ timestamp: 300n });
+
+      const out = await runWrite(['council', 'bid', '0', '0', '--amount', '0.1']);
+
+      expect(out.ok).toBe(false);
+      expect(out.error?.code).toBe('AUCTION_CLOSED');
+    });
+
+    it('rejects bid lower than current highest', async () => {
+      mockClient.readContract.mockResolvedValueOnce(4n);
+      mockClient.readContract.mockResolvedValueOnce([addrA, 1000000000000000000n, false]);
+      mockClient.readContract.mockResolvedValueOnce(9999999999n);
+      mockClient.getBlock.mockResolvedValueOnce({ timestamp: 100n });
+
+      const out = await runWrite(['council', 'bid', '0', '0', '--amount', '0.5']);
+
+      expect(out.ok).toBe(false);
+      expect(out.error?.code).toBe('BID_TOO_LOW');
+    });
+
+    it('returns dry-run result without broadcasting', async () => {
+      mockClient.readContract.mockResolvedValueOnce(4n);
+      mockClient.readContract.mockResolvedValueOnce([addrA, 50000000000000000n, false]);
+      mockClient.readContract.mockResolvedValueOnce(9999999999n);
+      mockClient.getBlock.mockResolvedValueOnce({ timestamp: 100n });
+
+      const out = await runWrite(['council', 'bid', '0', '0', '--amount', '0.1', '--dry-run']);
+
+      expect(out.ok).toBe(true);
+      const data = out.data as Record<string, unknown>;
+      const tx = data.tx as Record<string, unknown>;
+      expect(tx.status).toBe('dry-run');
+      expect(mockWalletClient.writeContract).not.toHaveBeenCalled();
+    });
+
+    it('rejects slot out of range', async () => {
+      mockClient.readContract.mockResolvedValueOnce(4n);
+
+      const out = await runWrite(['council', 'bid', '0', '5', '--amount', '0.1']);
+
+      expect(out.ok).toBe(false);
+      expect(out.error?.code).toBe('OUT_OF_RANGE');
+    });
+  });
+
+  describe('council settle', () => {
+    it('settles a closed auction', async () => {
+      mockClient.readContract.mockResolvedValueOnce(4n);
+      mockClient.readContract.mockResolvedValueOnce([addrA, 100000000000000000n, false]);
+      mockClient.readContract.mockResolvedValueOnce(200n);
+      mockClient.getBlock.mockResolvedValueOnce({ timestamp: 300n });
+
+      const out = await runWrite(['council', 'settle', '0', '0']);
+
+      expect(out.ok).toBe(true);
+      const data = out.data as Record<string, unknown>;
+      expect(data.day).toBe(0);
+      expect(data.slot).toBe(0);
+      const tx = data.tx as Record<string, unknown>;
+      expect(tx.status).toBe('success');
+    });
+
+    it('rejects already settled auction', async () => {
+      mockClient.readContract.mockResolvedValueOnce(4n);
+      mockClient.readContract.mockResolvedValueOnce([addrA, 100n, true]);
+      mockClient.readContract.mockResolvedValueOnce(200n);
+      mockClient.getBlock.mockResolvedValueOnce({ timestamp: 300n });
+
+      const out = await runWrite(['council', 'settle', '0', '0']);
+
+      expect(out.ok).toBe(false);
+      expect(out.error?.code).toBe('ALREADY_SETTLED');
+    });
+
+    it('rejects auction still accepting bids', async () => {
+      mockClient.readContract.mockResolvedValueOnce(4n);
+      mockClient.readContract.mockResolvedValueOnce([addrA, 100n, false]);
+      mockClient.readContract.mockResolvedValueOnce(9999999999n);
+      mockClient.getBlock.mockResolvedValueOnce({ timestamp: 100n });
+
+      const out = await runWrite(['council', 'settle', '0', '0']);
+
+      expect(out.ok).toBe(false);
+      expect(out.error?.code).toBe('AUCTION_STILL_ACTIVE');
+    });
+  });
+
+  describe('council withdraw-refund', () => {
+    it('withdraws pending refund when balance > 0', async () => {
+      mockClient.readContract.mockResolvedValueOnce(500000000000000000n);
+
+      const out = await runWrite(['council', 'withdraw-refund']);
+
+      expect(out.ok).toBe(true);
+      const data = out.data as Record<string, unknown>;
+      expect(data.refundAmount).toBe('0.5 ETH');
+      expect(data.refundAmountWei).toBe('500000000000000000');
+      const tx = data.tx as Record<string, unknown>;
+      expect(tx.status).toBe('success');
+    });
+
+    it('returns gracefully when no refund available', async () => {
+      mockClient.readContract.mockResolvedValueOnce(0n);
+
+      const out = await runWrite(['council', 'withdraw-refund']);
+
+      expect(out.ok).toBe(true);
+      const data = out.data as Record<string, unknown>;
+      expect(data.refundAmount).toBe('0 ETH');
+      expect(data.refundAmountWei).toBe('0');
+      expect(data.tx).toBeUndefined();
+      expect(mockWalletClient.writeContract).not.toHaveBeenCalled();
+    });
   });
 });
