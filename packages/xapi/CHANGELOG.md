@@ -1,5 +1,11 @@
 # @spectra-the-bot/xapi-cli
 
+## 0.2.4
+
+### Patch Changes
+
+- [#178](https://github.com/spectra-the-bot/spectra-tools/pull/178) [`b3ec9e2`](https://github.com/spectra-the-bot/spectra-tools/commit/b3ec9e215683c55e28ff2811610ec7c4f21fff93) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Update incur to latest — adopt --llms compact index + --llms-full flags.
+
 ## 0.2.3
 
 ### Patch Changes
