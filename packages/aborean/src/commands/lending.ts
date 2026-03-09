@@ -517,12 +517,38 @@ lending.command('markets', {
       )
       .slice(0, c.args.limit);
 
-    return c.ok({
-      morpho: toChecksum(ABOREAN_LENDING_ADDRESSES.morphoBlue),
-      marketCount: marketIds.length,
-      markets: rows,
-      totalsByLoanToken: summarizeByLoanToken(markets, tokenMeta),
-    });
+    const firstMarket = rows[0];
+
+    return c.ok(
+      {
+        morpho: toChecksum(ABOREAN_LENDING_ADDRESSES.morphoBlue),
+        marketCount: marketIds.length,
+        markets: rows,
+        totalsByLoanToken: summarizeByLoanToken(markets, tokenMeta),
+      },
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Explore lending:',
+              commands: [
+                ...(firstMarket
+                  ? [
+                      {
+                        command: 'lending market' as const,
+                        args: { marketId: firstMarket.marketId },
+                        description: `Inspect ${firstMarket.loanToken.symbol}/${firstMarket.collateralToken.symbol} market`,
+                      },
+                    ]
+                  : []),
+                {
+                  command: 'pools list' as const,
+                  description: 'View V2 AMM pools',
+                },
+              ],
+            },
+          },
+    );
   },
 });
 
@@ -570,7 +596,29 @@ lending.command('market', {
 
     const tokenMeta = await readTokenMetadata(client, [params.loanToken, params.collateralToken]);
 
-    return c.ok(toMarketRow(marketId, params, state, tokenMeta));
+    const row = toMarketRow(marketId, params, state, tokenMeta);
+
+    return c.ok(
+      row,
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Related commands:',
+              commands: [
+                {
+                  command: 'lending position' as const,
+                  args: { marketId, user: '<address>' },
+                  description: 'Inspect a user position in this market',
+                },
+                {
+                  command: 'lending markets' as const,
+                  description: 'List all Morpho markets',
+                },
+              ],
+            },
+          },
+    );
   },
 });
 
@@ -695,33 +743,53 @@ lending.command('position', {
       state.totalBorrowAssets,
     );
 
-    return c.ok({
-      marketId,
-      user: toChecksum(user),
-      loanToken: {
-        address: toChecksum(loanMeta.address),
-        symbol: loanMeta.symbol,
-        decimals: loanMeta.decimals,
+    return c.ok(
+      {
+        marketId,
+        user: toChecksum(user),
+        loanToken: {
+          address: toChecksum(loanMeta.address),
+          symbol: loanMeta.symbol,
+          decimals: loanMeta.decimals,
+        },
+        collateralToken: {
+          address: toChecksum(collateralMeta.address),
+          symbol: collateralMeta.symbol,
+          decimals: collateralMeta.decimals,
+        },
+        supplyShares: position.supplyShares.toString(),
+        supplyAssetsEstimate: {
+          raw: supplyAssetsEstimate.toString(),
+          decimal: formatUnits(supplyAssetsEstimate, loanMeta.decimals),
+        },
+        borrowShares: position.borrowShares.toString(),
+        borrowAssetsEstimate: {
+          raw: borrowAssetsEstimate.toString(),
+          decimal: formatUnits(borrowAssetsEstimate, loanMeta.decimals),
+        },
+        collateralAssets: {
+          raw: position.collateral.toString(),
+          decimal: formatUnits(BigInt(position.collateral), collateralMeta.decimals),
+        },
       },
-      collateralToken: {
-        address: toChecksum(collateralMeta.address),
-        symbol: collateralMeta.symbol,
-        decimals: collateralMeta.decimals,
-      },
-      supplyShares: position.supplyShares.toString(),
-      supplyAssetsEstimate: {
-        raw: supplyAssetsEstimate.toString(),
-        decimal: formatUnits(supplyAssetsEstimate, loanMeta.decimals),
-      },
-      borrowShares: position.borrowShares.toString(),
-      borrowAssetsEstimate: {
-        raw: borrowAssetsEstimate.toString(),
-        decimal: formatUnits(borrowAssetsEstimate, loanMeta.decimals),
-      },
-      collateralAssets: {
-        raw: position.collateral.toString(),
-        decimal: formatUnits(BigInt(position.collateral), collateralMeta.decimals),
-      },
-    });
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Related commands:',
+              commands: [
+                {
+                  command: 'lending market' as const,
+                  args: { marketId },
+                  description: 'View market details',
+                },
+                {
+                  command: 'lending markets' as const,
+                  description: 'List all Morpho markets',
+                },
+              ],
+            },
+          },
+    );
   },
 });

@@ -285,7 +285,37 @@ vaults.command('list', {
   async run(c) {
     const client = createAboreanPublicClient(c.env.ABSTRACT_RPC_URL);
     const snapshot = await readVaultSummary(client);
-    return c.ok(snapshot);
+    const firstRelay = snapshot.relays[0];
+
+    return c.ok(
+      snapshot,
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Related commands:',
+              commands: [
+                ...(firstRelay
+                  ? [
+                      {
+                        command: 'vaults relay' as const,
+                        args: { relay: firstRelay.relay },
+                        description: `Inspect ${firstRelay.label}`,
+                      },
+                    ]
+                  : []),
+                {
+                  command: 'lending markets' as const,
+                  description: 'View Morpho lending markets',
+                },
+                {
+                  command: 've stats' as const,
+                  description: 'View veABX global stats',
+                },
+              ],
+            },
+          },
+    );
   },
 });
 
@@ -324,6 +354,27 @@ vaults.command('relay', {
 
     const client = createAboreanPublicClient(c.env.ABSTRACT_RPC_URL);
     const snapshot = await readRelaySnapshot(client, known);
-    return c.ok(snapshot);
+
+    return c.ok(
+      snapshot,
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Related commands:',
+              commands: [
+                {
+                  command: 'vaults list' as const,
+                  description: 'List all relay vaults',
+                },
+                {
+                  command: 've lock' as const,
+                  args: { tokenId: Number(snapshot.managedTokenId) },
+                  description: `Inspect managed veNFT #${snapshot.managedTokenId}`,
+                },
+              ],
+            },
+          },
+    );
   },
 });

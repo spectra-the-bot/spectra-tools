@@ -81,17 +81,37 @@ ve.command('stats', {
       args: [epoch],
     })) as GlobalPoint;
 
-    return c.ok({
-      token: toChecksum(token),
-      totalVotingPower: totalVotingPower.toString(),
-      totalLocked: totalLocked.toString(),
-      permanentLocked: permanentLocked.toString(),
-      epoch: asNum(epoch),
-      decayBias: point.bias.toString(),
-      decaySlope: point.slope.toString(),
-      lastCheckpointTimestamp: asNum(point.ts),
-      lastCheckpointBlock: asNum(point.blk),
-    });
+    return c.ok(
+      {
+        token: toChecksum(token),
+        totalVotingPower: totalVotingPower.toString(),
+        totalLocked: totalLocked.toString(),
+        permanentLocked: permanentLocked.toString(),
+        epoch: asNum(epoch),
+        decayBias: point.bias.toString(),
+        decaySlope: point.slope.toString(),
+        lastCheckpointTimestamp: asNum(point.ts),
+        lastCheckpointBlock: asNum(point.blk),
+      },
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Explore veABX:',
+              commands: [
+                {
+                  command: 've locks' as const,
+                  args: { address: '<owner>' },
+                  description: 'List veNFT locks for an address',
+                },
+                {
+                  command: 'voter epoch' as const,
+                  description: 'View current emissions epoch timing',
+                },
+              ],
+            },
+          },
+    );
   },
 });
 
@@ -135,14 +155,35 @@ ve.command('lock', {
       }),
     ])) as [Address, LockedBalance, bigint];
 
-    return c.ok({
-      tokenId: c.args.tokenId,
-      owner: toChecksum(owner),
-      amount: locked.amount.toString(),
-      unlockTime: asNum(locked.end),
-      isPermanent: locked.isPermanent,
-      votingPower: votingPower.toString(),
-    });
+    return c.ok(
+      {
+        tokenId: c.args.tokenId,
+        owner: toChecksum(owner),
+        amount: locked.amount.toString(),
+        unlockTime: asNum(locked.end),
+        isPermanent: locked.isPermanent,
+        votingPower: votingPower.toString(),
+      },
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Related commands:',
+              commands: [
+                {
+                  command: 've voting-power' as const,
+                  args: { tokenId: c.args.tokenId },
+                  description: 'Check current voting power',
+                },
+                {
+                  command: 'voter rewards' as const,
+                  args: { tokenId: c.args.tokenId },
+                  description: 'Check claimable rewards for this veNFT',
+                },
+              ],
+            },
+          },
+    );
   },
 });
 
@@ -234,11 +275,36 @@ ve.command('locks', {
       };
     });
 
-    return c.ok({
-      address: toChecksum(c.args.address),
-      locks,
-      count: locks.length,
-    });
+    const firstLock = locks[0];
+
+    return c.ok(
+      {
+        address: toChecksum(c.args.address),
+        locks,
+        count: locks.length,
+      },
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Explore locks:',
+              commands: firstLock
+                ? [
+                    {
+                      command: 've lock' as const,
+                      args: { tokenId: Number(firstLock.tokenId) },
+                      description: `Inspect veNFT #${firstLock.tokenId}`,
+                    },
+                    {
+                      command: 'voter rewards' as const,
+                      args: { tokenId: Number(firstLock.tokenId) },
+                      description: `Check rewards for veNFT #${firstLock.tokenId}`,
+                    },
+                  ]
+                : [],
+            },
+          },
+    );
   },
 });
 
@@ -263,9 +329,30 @@ ve.command('voting-power', {
       args: [BigInt(c.args.tokenId)],
     })) as bigint;
 
-    return c.ok({
-      tokenId: c.args.tokenId,
-      votingPower: votingPower.toString(),
-    });
+    return c.ok(
+      {
+        tokenId: c.args.tokenId,
+        votingPower: votingPower.toString(),
+      },
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Related commands:',
+              commands: [
+                {
+                  command: 've lock' as const,
+                  args: { tokenId: c.args.tokenId },
+                  description: 'View full lock details',
+                },
+                {
+                  command: 'voter rewards' as const,
+                  args: { tokenId: c.args.tokenId },
+                  description: 'Check claimable rewards',
+                },
+              ],
+            },
+          },
+    );
   },
 });

@@ -160,10 +160,30 @@ gauges.command('list', {
       };
     });
 
-    return c.ok({
-      gauges: items,
-      count: items.length,
-    });
+    const firstGauge = items[0];
+
+    return c.ok(
+      {
+        gauges: items,
+        count: items.length,
+      },
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Explore gauges:',
+              commands: firstGauge
+                ? [
+                    {
+                      command: 'gauges info' as const,
+                      args: { gauge: firstGauge.gauge },
+                      description: 'Inspect top gauge details',
+                    },
+                  ]
+                : [],
+            },
+          },
+    );
   },
 });
 
@@ -308,24 +328,48 @@ gauges.command('info', {
       bigint,
     ];
 
-    return c.ok({
-      gauge: toChecksum(gauge),
-      pool: toChecksum(pool),
-      isAlive,
-      stakingToken: toChecksum(stakingToken),
-      rewardToken: toChecksum(rewardToken),
-      totalStaked: totalStaked.toString(),
-      rewardRate: rewardRate.toString(),
-      rewardPerTokenStored: rewardPerTokenStored.toString(),
-      fees0: fees0.toString(),
-      fees1: fees1.toString(),
-      left: left.toString(),
-      periodFinish: asNum(periodFinish),
-      periodFinishRelative: relTime(periodFinish),
-      lastUpdateTime: asNum(lastUpdateTime),
-      bribeContract: toChecksum(bribeContract),
-      feeContract: toChecksum(feeContract),
-    });
+    return c.ok(
+      {
+        gauge: toChecksum(gauge),
+        pool: toChecksum(pool),
+        isAlive,
+        stakingToken: toChecksum(stakingToken),
+        rewardToken: toChecksum(rewardToken),
+        totalStaked: totalStaked.toString(),
+        rewardRate: rewardRate.toString(),
+        rewardPerTokenStored: rewardPerTokenStored.toString(),
+        fees0: fees0.toString(),
+        fees1: fees1.toString(),
+        left: left.toString(),
+        periodFinish: asNum(periodFinish),
+        periodFinishRelative: relTime(periodFinish),
+        lastUpdateTime: asNum(lastUpdateTime),
+        bribeContract: toChecksum(bribeContract),
+        feeContract: toChecksum(feeContract),
+      },
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Related commands:',
+              commands: [
+                {
+                  command: 've stats' as const,
+                  description: 'View veABX global stats',
+                },
+                {
+                  command: 'voter weights' as const,
+                  description: 'Check pool voting weight distribution',
+                },
+                {
+                  command: 'voter bribes' as const,
+                  args: { pool: toChecksum(pool) },
+                  description: 'View bribe rewards for this pool',
+                },
+              ],
+            },
+          },
+    );
   },
 });
 
@@ -413,10 +457,37 @@ gauges.command('staked', {
         earned: position.earned.toString(),
       }));
 
-    return c.ok({
-      address: toChecksum(c.args.address),
-      positions,
-      count: positions.length,
-    });
+    const firstPosition = positions[0];
+
+    return c.ok(
+      {
+        address: toChecksum(c.args.address),
+        positions,
+        count: positions.length,
+      },
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Related commands:',
+              commands: [
+                ...(firstPosition
+                  ? [
+                      {
+                        command: 'gauges info' as const,
+                        args: { gauge: firstPosition.gauge },
+                        description: 'Inspect gauge details',
+                      },
+                    ]
+                  : []),
+                {
+                  command: 've locks' as const,
+                  args: { address: toChecksum(c.args.address) },
+                  description: 'View veNFT locks for this address',
+                },
+              ],
+            },
+          },
+    );
   },
 });

@@ -110,15 +110,34 @@ voter.command('epoch', {
     const now = Math.floor(Date.now() / 1000);
     const epochEnd = asNum(activePeriod + weekSeconds);
 
-    return c.ok({
-      activePeriod: asNum(activePeriod),
-      epochEnd,
-      secondsRemaining: clampPositive(epochEnd - now),
-      timeRemaining: relTime(activePeriod + weekSeconds),
-      weekSeconds: asNum(weekSeconds),
-      epochCount: asNum(epochCount),
-      weeklyEmission: weeklyEmission.toString(),
-    });
+    return c.ok(
+      {
+        activePeriod: asNum(activePeriod),
+        epochEnd,
+        secondsRemaining: clampPositive(epochEnd - now),
+        timeRemaining: relTime(activePeriod + weekSeconds),
+        weekSeconds: asNum(weekSeconds),
+        epochCount: asNum(epochCount),
+        weeklyEmission: weeklyEmission.toString(),
+      },
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Related commands:',
+              commands: [
+                {
+                  command: 'voter weights' as const,
+                  description: 'View pool voting weight distribution',
+                },
+                {
+                  command: 'gauges list' as const,
+                  description: 'List active gauges',
+                },
+              ],
+            },
+          },
+    );
   },
 });
 
@@ -192,11 +211,37 @@ voter.command('weights', {
         weight: entry.weight.toString(),
       }));
 
-    return c.ok({
-      totalWeight: (totalWeight as bigint).toString(),
-      pools: entries,
-      count: entries.length,
-    });
+    const firstEntry = entries[0];
+
+    return c.ok(
+      {
+        totalWeight: (totalWeight as bigint).toString(),
+        pools: entries,
+        count: entries.length,
+      },
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Related commands:',
+              commands: [
+                {
+                  command: 'voter epoch' as const,
+                  description: 'View current epoch timing',
+                },
+                ...(firstEntry
+                  ? [
+                      {
+                        command: 'voter bribes' as const,
+                        args: { pool: firstEntry.pool },
+                        description: 'View bribe rewards for top-weighted pool',
+                      },
+                    ]
+                  : []),
+              ],
+            },
+          },
+    );
   },
 });
 
@@ -271,16 +316,36 @@ voter.command('rewards', {
       }),
     ])) as [Address, bigint, bigint, bigint, bigint, bigint, bigint];
 
-    return c.ok({
-      tokenId: c.args.tokenId,
-      rewardToken: toChecksum(rewardToken),
-      claimableRebase: claimableRebase.toString(),
-      timeCursor: asNum(timeCursor),
-      lastTokenTime: asNum(lastTokenTime),
-      distributorStartTime: asNum(distributorStartTime),
-      usedWeight: usedWeight.toString(),
-      lastVoted: asNum(lastVoted),
-    });
+    return c.ok(
+      {
+        tokenId: c.args.tokenId,
+        rewardToken: toChecksum(rewardToken),
+        claimableRebase: claimableRebase.toString(),
+        timeCursor: asNum(timeCursor),
+        lastTokenTime: asNum(lastTokenTime),
+        distributorStartTime: asNum(distributorStartTime),
+        usedWeight: usedWeight.toString(),
+        lastVoted: asNum(lastVoted),
+      },
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Related commands:',
+              commands: [
+                {
+                  command: 've lock' as const,
+                  args: { tokenId: c.args.tokenId },
+                  description: 'View lock details for this veNFT',
+                },
+                {
+                  command: 'voter weights' as const,
+                  description: 'Check pool voting weight distribution',
+                },
+              ],
+            },
+          },
+    );
   },
 });
 
@@ -397,13 +462,33 @@ voter.command('bribes', {
       epochAmount: epochAmounts[index].toString(),
     }));
 
-    return c.ok({
-      pool: toChecksum(c.args.pool),
-      gauge: toChecksum(gauge),
-      bribeContract: toChecksum(bribeContract),
-      epochStart: asNum(epochStart),
-      rewardTokens: items,
-      count: items.length,
-    });
+    return c.ok(
+      {
+        pool: toChecksum(c.args.pool),
+        gauge: toChecksum(gauge),
+        bribeContract: toChecksum(bribeContract),
+        epochStart: asNum(epochStart),
+        rewardTokens: items,
+        count: items.length,
+      },
+      c.format === 'json' || c.format === 'jsonl'
+        ? undefined
+        : {
+            cta: {
+              description: 'Related commands:',
+              commands: [
+                {
+                  command: 'gauges info' as const,
+                  args: { gauge: toChecksum(gauge) },
+                  description: 'Inspect gauge details',
+                },
+                {
+                  command: 'voter epoch' as const,
+                  description: 'View current epoch timing',
+                },
+              ],
+            },
+          },
+    );
   },
 });
