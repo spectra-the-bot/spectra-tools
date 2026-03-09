@@ -1,4 +1,4 @@
-import ELK from 'elkjs';
+import ELK, { type ElkNode } from 'elkjs';
 import type { Rect } from '../renderer.js';
 import type {
   AutoLayoutConfig,
@@ -250,12 +250,7 @@ export async function computeElkLayout(
 
   const edgeIdToRouteKey = new Map<string, string>();
 
-  const elkGraph: {
-    id: string;
-    layoutOptions: Record<string, string>;
-    children: Array<{ id: string; width: number; height: number }>;
-    edges: Array<{ id: string; sources: string[]; targets: string[] }>;
-  } = {
+  const elkGraph: ElkNode = {
     id: 'root',
     layoutOptions: {
       'elk.algorithm': algorithmToElk(config.algorithm),
@@ -289,8 +284,8 @@ export async function computeElkLayout(
       }),
   };
 
-  const elk = new ELK();
-  const result = await elk.layout(elkGraph as never);
+  const elk = new ELK.default();
+  const result = await elk.layout(elkGraph);
 
   const laidOutNodes = (result.children ?? []).filter(
     (node): node is { id: string; x: number; y: number; width: number; height: number } =>
