@@ -45,6 +45,7 @@ function createViemError(options: { message: string; name: string; shortMessage:
 describe('aborean CLI', () => {
   const poolA = '0x1000000000000000000000000000000000000001';
   const poolB = '0x1000000000000000000000000000000000000002';
+  const poolC = '0x1000000000000000000000000000000000000003';
   const tokenA = '0x2000000000000000000000000000000000000001';
   const tokenB = '0x2000000000000000000000000000000000000002';
   const tokenC = '0x2000000000000000000000000000000000000003';
@@ -254,6 +255,176 @@ describe('aborean CLI', () => {
     });
 
     vi.useRealTimers();
+  });
+
+  it('pools list returns paginated V2 pools with batched multicalls', async () => {
+    mockClient.readContract.mockResolvedValueOnce(4n); // allPoolsLength
+
+    mockClient.multicall
+      .mockResolvedValueOnce([poolB, poolC]) // allPools for offset window
+      .mockResolvedValueOnce([
+        tokenA,
+        tokenB,
+        true,
+        [1000n, 2000n, 1700000000n],
+        5000n,
+        tokenB,
+        tokenC,
+        false,
+        [3000n, 4000n, 1700000100n],
+        7000n,
+      ]) // pool state
+      .mockResolvedValueOnce([
+        { status: 'success', result: 'AAA' },
+        { status: 'success', result: 18 },
+        { status: 'success', result: 'BBB' },
+        { status: 'success', result: 6 },
+        { status: 'success', result: 'CCC' },
+        { status: 'success', result: 18 },
+      ]) // token metadata
+      .mockResolvedValueOnce([
+        { status: 'success', result: 4n },
+        { status: 'failure', error: new Error('fee unavailable') },
+      ]); // fees
+
+    const out = await run(['pools', 'list', '--offset', '1', '--limit', '2']);
+
+    expect(out.ok).toBe(true);
+    expect(mockClient.multicall).toHaveBeenCalledTimes(4);
+    expect(mockClient.multicall.mock.calls[0]?.[0]?.allowFailure).toBe(false);
+    expect(mockClient.multicall.mock.calls[1]?.[0]?.allowFailure).toBe(false);
+    expect(mockClient.multicall.mock.calls[2]?.[0]?.allowFailure).toBe(true);
+    expect(mockClient.multicall.mock.calls[3]?.[0]?.allowFailure).toBe(true);
+
+    const data = out.data as {
+      total: number;
+      offset: number;
+      limit: number;
+      count: number;
+      pools: Array<{ pair: string; stable: boolean; fee: { feeBps: number } | null }>;
+    };
+
+    expect(data.total).toBe(4);
+    expect(data.offset).toBe(1);
+    expect(data.limit).toBe(2);
+    expect(data.count).toBe(2);
+    expect(data.pools[0]).toMatchObject({
+      pair: 'AAA/BBB',
+      stable: true,
+      fee: { feeBps: 4 },
+    });
+    expect(data.pools[1]?.pair).toBe('BBB/CCC');
+    expect(data.pools[1]?.stable).toBe(false);
+    expect(data.pools[1]?.fee).toBeNull();
+  });
+
+  it('pools pool returns detailed state for one V2 pool', async () => {
+    mockClient.multicall
+      .mockResolvedValueOnce([
+        tokenA,
+        tokenB,
+        true,
+        [12345n, 67890n, 1700000200n],
+        444n,
+        '0x3000000000000000000000000000000000000001',
+        '0x3000000000000000000000000000000000000002',
+      ])
+      .mockResolvedValueOnce([
+        { status: 'success', result: 'AAA' },
+        { status: 'success', result: 6 },
+        { status: 'success', result: 'BBB' },
+        { status: 'success', result: 6 },
+      ])
+      .mockResolvedValueOnce([{ status: 'success', result: 2n }]);
+
+    const out = await run(['pools', 'pool', poolA]);
+
+    expect(out.ok).toBe(true);
+    const data = out.data as {
+      pool: {
+        pool: string;
+        pair: string;
+        stable: boolean;
+        totalSupply: string;
+        fee: { feeBps: number } | null;
+        poolFees: string;
+        factory: string;
+      };
+    };
+
+    expect(data.pool.pool).toBe(poolA);
+    expect(data.pool.pair).toBe('AAA/BBB');
+    expect(data.pool.stable).toBe(true);
+    expect(data.pool.totalSupply).toBe('444');
+    expect(data.pool.fee?.feeBps).toBe(2);
+    expect(data.pool.poolFees).toBe('0x3000000000000000000000000000000000000001');
+    expect(data.pool.factory).toBe('0x3000000000000000000000000000000000000002');
+  });
+
+  it('pools quote returns router quote for stable route', async () => {
+    mockClient.multicall.mockResolvedValueOnce([
+      { status: 'success', result: 'AAA' },
+      { status: 'success', result: 6 },
+      { status: 'success', result: 'BBB' },
+      { status: 'success', result: 6 },
+    ]);
+
+    mockClient.readContract
+      .mockResolvedValueOnce(poolA) // factory.getPool
+      .mockResolvedValueOnce([1_000_000n, 2_500_000n]); // router.getAmountsOut
+
+    const out = await run(['pools', 'quote', tokenA, tokenB, '1', '--stable']);
+
+    expect(out.ok).toBe(true);
+    expect(mockClient.readContract.mock.calls[0]?.[0]?.functionName).toBe('getPool');
+    expect(mockClient.readContract.mock.calls[1]?.[0]?.functionName).toBe('getAmountsOut');
+
+    const data = out.data as {
+      pool: string;
+      stable: boolean;
+      amountIn: { raw: string };
+      amountOut: { raw: string };
+    };
+
+    expect(data.pool).toBe(poolA);
+    expect(data.stable).toBe(true);
+    expect(data.amountIn.raw).toBe('1000000');
+    expect(data.amountOut.raw).toBe('2500000');
+  });
+
+  it('pools fees returns active, stable, and volatile fee config', async () => {
+    mockClient.multicall
+      .mockResolvedValueOnce([tokenA, tokenB, false])
+      .mockResolvedValueOnce([
+        { status: 'success', result: 'AAA' },
+        { status: 'success', result: 18 },
+        { status: 'success', result: 'BBB' },
+        { status: 'success', result: 18 },
+      ])
+      .mockResolvedValueOnce([
+        { status: 'success', result: 4n },
+        { status: 'success', result: 30n },
+      ]);
+
+    const out = await run(['pools', 'fees', poolA]);
+
+    expect(out.ok).toBe(true);
+
+    const data = out.data as {
+      pool: string;
+      pair: string;
+      stable: boolean;
+      activeFee: { feeBps: number } | null;
+      stableFee: { feeBps: number } | null;
+      volatileFee: { feeBps: number } | null;
+    };
+
+    expect(data.pool).toBe(poolA);
+    expect(data.pair).toBe('AAA/BBB');
+    expect(data.stable).toBe(false);
+    expect(data.activeFee?.feeBps).toBe(30);
+    expect(data.stableFee?.feeBps).toBe(4);
+    expect(data.volatileFee?.feeBps).toBe(30);
   });
 
   it('sanitizes RPC connection errors', async () => {
