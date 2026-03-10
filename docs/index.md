@@ -34,6 +34,16 @@ features:
     details: Explore trustless agent identity, reputation, and validation registries on Abstract. Experimental preview.
     link: /erc8004/
     linkText: Learn more (preview)
+  - icon: 🌊
+    title: Aborean CLI
+    details: Interact with Aborean DEX on Abstract — swap tokens, query pools, check liquidity, and manage positions from the terminal.
+    link: /aborean/
+    linkText: Learn more
+  - icon: 🎨
+    title: Graphic Designer CLI
+    details: Generate deterministic code screenshots, terminal shots, flowcharts, and infographics — no browser required. Designed for AI agent workflows.
+    link: /graphic-designer/
+    linkText: Learn more
 ---
 
 ## Try it now
@@ -49,6 +59,12 @@ npx @spectratools/etherscan-cli account balance 0xd8dA6BF26964aF9D7eEd9e03E53415
 
 # Search recent posts on X
 npx @spectratools/xapi-cli posts search "abstract chain" --limit 5
+
+# Swap tokens on Aborean DEX on Abstract
+npx @spectratools/aborean-cli pools list
+
+# Generate a code screenshot
+npx @spectratools/graphic-designer-cli design render spec.json --out output.png
 ```
 
 ## Built for agents
@@ -84,8 +100,6 @@ assembly-cli mcp add
 
 Every CLI supports `skills add` and `mcp add` out of the box — no configuration needed.
 
-→ [Full agent integration guide](/agent-integration)
-
 ## Output formats
 
 All CLIs share a consistent `--format` flag:
@@ -102,6 +116,6 @@ All CLIs share a consistent `--format` flag:
 
 <div class="tip custom-block" style="padding-top: 8px">
 
-**Ready to dive in?** Start with the [Getting Started guide](/getting-started) or jump straight to a CLI: [Assembly](/assembly/) · [Etherscan](/etherscan/) · [X API](/xapi/)
+**Ready to dive in?** Start with the [Getting Started guide](/getting-started) or jump straight to a CLI: [Assembly](/assembly/) · [Etherscan](/etherscan/) · [X API](/xapi/) · [ERC-8004](/erc8004/) · [Aborean](/aborean/) · [Graphic Designer](/graphic-designer/)
 
 </div>
