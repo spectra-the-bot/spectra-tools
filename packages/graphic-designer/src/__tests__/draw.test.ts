@@ -31,10 +31,17 @@ describe('freestyle draw layer', () => {
       draw: [
         { type: 'rect', x: 10, y: 20, width: 100, height: 60 },
         { type: 'text', x: 30, y: 40, text: 'hello' },
+        {
+          type: 'arc',
+          center: { x: 100, y: 100 },
+          radius: 40,
+          startAngle: 0,
+          endAngle: 180,
+        },
       ],
     });
 
-    expect(spec.draw).toHaveLength(2);
+    expect(spec.draw).toHaveLength(3);
     expect(spec.draw[0]).toMatchObject({ type: 'rect', strokeWidth: 0, radius: 0, opacity: 1 });
     expect(spec.draw[1]).toMatchObject({
       type: 'text',
@@ -44,6 +51,41 @@ describe('freestyle draw layer', () => {
       letterSpacing: 0,
       opacity: 1,
     });
+    expect(spec.draw[2]).toMatchObject({
+      type: 'arc',
+      color: '#FFFFFF',
+      width: 2,
+      opacity: 1,
+    });
+  });
+
+  it('renders arc command without error', async () => {
+    const spec = parseDesignSpec({
+      canvas: { width: 420, height: 260, padding: 20 },
+      theme: 'dark',
+      elements: [],
+      draw: [
+        {
+          type: 'arc',
+          center: { x: 210, y: 130 },
+          radius: 80,
+          startAngle: -45,
+          endAngle: 180,
+          color: '#22D3EE',
+          width: 6,
+          dash: [10, 5],
+        },
+      ],
+    });
+
+    const rendered = await renderDesign(spec, { generatorVersion: 'test-draw-arc' });
+    const drawElements = rendered.metadata.layout.elements.filter(
+      (element) => element.kind === 'draw',
+    );
+
+    expect(rendered.png.byteLength).toBeGreaterThan(512);
+    expect(drawElements).toHaveLength(1);
+    expect(drawElements[0].id).toBe('draw-0');
   });
 
   it('renders all draw command types in draw-only mode', async () => {
@@ -94,6 +136,16 @@ describe('freestyle draw layer', () => {
           color: '#F4B860',
           width: 3,
           arrow: 'both',
+        },
+        {
+          type: 'arc',
+          center: { x: 380, y: 240 },
+          radius: 70,
+          startAngle: 215,
+          endAngle: 325,
+          color: '#22D3EE',
+          width: 4,
+          dash: [8, 4],
         },
         {
           type: 'bezier',
@@ -152,7 +204,7 @@ describe('freestyle draw layer', () => {
     );
 
     expect(rendered.png.byteLength).toBeGreaterThan(1024);
-    expect(drawElements).toHaveLength(8);
+    expect(drawElements).toHaveLength(9);
     expect(drawElements.map((element) => element.id)).toEqual([
       'draw-0',
       'draw-1',
@@ -162,6 +214,7 @@ describe('freestyle draw layer', () => {
       'draw-5',
       'draw-6',
       'draw-7',
+      'draw-8',
     ]);
   });
 

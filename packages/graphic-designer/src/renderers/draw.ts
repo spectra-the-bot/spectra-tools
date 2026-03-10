@@ -160,6 +160,10 @@ function angleBetween(from: Point, to: Point): number {
   return Math.atan2(to.y - from.y, to.x - from.x);
 }
 
+function degreesToRadians(angle: number): number {
+  return (angle * Math.PI) / 180;
+}
+
 function pathBounds(operations: SvgPathOperation[]): Rect {
   let minX = Number.POSITIVE_INFINITY;
   let minY = Number.POSITIVE_INFINITY;
@@ -262,10 +266,10 @@ function applySvgOperations(ctx: SKRSContext2D, operations: SvgPathOperation[]):
 /**
  * Render an array of freestyle draw commands onto a canvas context.
  *
- * Supports eight command types: `rect`, `circle`, `text`, `line`, `bezier`,
- * `path`, `badge`, and `gradient-rect`. Each command is rendered in order and
- * produces a corresponding {@link RenderedElement} with computed bounds for
- * downstream QA checks.
+ * Supports draw command types including `rect`, `circle`, `text`, `line`,
+ * `arc`, `bezier`, `path`, `badge`, `gradient-rect`, `grid`, and `text-row`.
+ * Each command is rendered in order and produces a corresponding
+ * {@link RenderedElement} with computed bounds for downstream QA checks.
  *
  * @param ctx - The `@napi-rs/canvas` 2D rendering context to draw into.
  * @param commands - Array of {@link DrawCommand} objects from the design spec's
@@ -431,6 +435,36 @@ export function renderDrawCommands(
           id,
           kind: 'draw',
           bounds: expandRect(fromPoints([from, to]), Math.max(command.width / 2, arrowPadding)),
+          foregroundColor: command.color,
+        });
+        break;
+      }
+      case 'arc': {
+        const startAngle = degreesToRadians(command.startAngle);
+        const endAngle = degreesToRadians(command.endAngle);
+
+        withOpacity(ctx, command.opacity, () => {
+          applyDrawShadow(ctx, command.shadow);
+          ctx.beginPath();
+          ctx.setLineDash(command.dash ?? []);
+          ctx.lineWidth = command.width;
+          ctx.strokeStyle = command.color;
+          ctx.arc(command.center.x, command.center.y, command.radius, startAngle, endAngle);
+          ctx.stroke();
+        });
+
+        rendered.push({
+          id,
+          kind: 'draw',
+          bounds: expandRect(
+            {
+              x: command.center.x - command.radius,
+              y: command.center.y - command.radius,
+              width: command.radius * 2,
+              height: command.radius * 2,
+            },
+            command.width / 2,
+          ),
           foregroundColor: command.color,
         });
         break;

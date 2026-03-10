@@ -88,6 +88,7 @@ export {
   type DiagramElement,
   type DiagramLayout,
   type DiagramSpec,
+  type DrawArc,
   type DrawBadge,
   type DrawBezier,
   type DrawCircle,

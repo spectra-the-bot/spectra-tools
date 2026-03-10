@@ -129,6 +129,26 @@ const drawLineSchema = z
   })
   .strict();
 
+const drawArcSchema = z
+  .object({
+    type: z.literal('arc'),
+    center: z
+      .object({
+        x: z.number(),
+        y: z.number(),
+      })
+      .strict(),
+    radius: z.number().positive(),
+    startAngle: z.number(),
+    endAngle: z.number(),
+    color: colorHexSchema.default('#FFFFFF'),
+    width: z.number().min(0.5).max(32).default(2),
+    dash: z.array(z.number()).max(6).optional(),
+    opacity: z.number().min(0).max(1).default(1),
+    shadow: drawShadowSchema.optional(),
+  })
+  .strict();
+
 const drawPointSchema = z
   .object({
     x: z.number(),
@@ -237,6 +257,7 @@ const drawCommandSchema = z.discriminatedUnion('type', [
   drawCircleSchema,
   drawTextSchema,
   drawLineSchema,
+  drawArcSchema,
   drawBezierSchema,
   drawPathSchema,
   drawBadgeSchema,
@@ -747,6 +768,7 @@ export type DrawRect = z.infer<typeof drawRectSchema>;
 export type DrawCircle = z.infer<typeof drawCircleSchema>;
 export type DrawText = z.infer<typeof drawTextSchema>;
 export type DrawLine = z.infer<typeof drawLineSchema>;
+export type DrawArc = z.infer<typeof drawArcSchema>;
 export type DrawBezier = z.infer<typeof drawBezierSchema>;
 export type DrawPath = z.infer<typeof drawPathSchema>;
 export type DrawBadge = z.infer<typeof drawBadgeSchema>;
