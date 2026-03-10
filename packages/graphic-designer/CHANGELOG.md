@@ -1,5 +1,19 @@
 # @spectratools/graphic-designer-cli
 
+## 0.9.0
+
+### Minor Changes
+
+- [#348](https://github.com/spectra-the-bot/spectra-tools/pull/348) [`13ec44d`](https://github.com/spectra-the-bot/spectra-tools/commit/13ec44d5aff4f96dae45ce5f7df365de4ed713af) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add left-edge accent bar renderer to flow-node elements.
+
+- [#349](https://github.com/spectra-the-bot/spectra-tools/pull/349) [`2ceb165`](https://github.com/spectra-the-bot/spectra-tools/commit/2ceb1655f6b8dcfded3b790818b969fdc0653111) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add inner glow gradient overlay renderer to flow-node elements.
+
+### Patch Changes
+
+- [#352](https://github.com/spectra-the-bot/spectra-tools/pull/352) [`86e73cf`](https://github.com/spectra-the-bot/spectra-tools/commit/86e73cf1b91cbe7373f21e6d239aa0355ca23a2c) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add test coverage for flow-node accent bar and inner glow decoration.
+
+- [#350](https://github.com/spectra-the-bot/spectra-tools/pull/350) [`9ea9356`](https://github.com/spectra-the-bot/spectra-tools/commit/9ea9356a91d7fe16e42a3f6130103aa88d246f44) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Implement text-row draw command renderer with per-segment color/font overrides and alignment support.
+
 ## 0.8.0
 
 ### Minor Changes
