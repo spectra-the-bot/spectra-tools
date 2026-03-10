@@ -10,7 +10,7 @@ import {
 import { applyFont, resolveFont } from '../primitives/text.js';
 import type { Rect, RenderedElement } from '../renderer.js';
 import type { FlowNodeElement, Theme } from '../spec.schema.js';
-import { blendColorWithOpacity } from '../utils/color.js';
+import { blendColorWithOpacity, withAlpha } from '../utils/color.js';
 
 /** Badge pill constants. */
 const BADGE_FONT_SIZE = 10;
@@ -172,15 +172,40 @@ export function renderFlowNode(
   ctx.save();
   ctx.lineWidth = borderWidth;
 
+  // Apply shadow/glow effect if configured.
+  if (node.shadow) {
+    const shadowColor = node.shadow.color ?? borderColor ?? theme.accent;
+    ctx.shadowColor = withAlpha(shadowColor, node.shadow.opacity);
+    ctx.shadowBlur = node.shadow.blur;
+    ctx.shadowOffsetX = node.shadow.offsetX;
+    ctx.shadowOffsetY = node.shadow.offsetY;
+  }
+
   if (fillOpacity < 1) {
     ctx.globalAlpha = node.opacity * fillOpacity;
     drawNodeShape(ctx, node.shape, bounds, fillColor, undefined, cornerRadius);
+
+    // Clear shadow before stroke pass to avoid double shadow.
+    if (node.shadow) {
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
+    }
 
     ctx.globalAlpha = node.opacity;
     drawNodeShape(ctx, node.shape, bounds, 'rgba(0,0,0,0)', borderColor, cornerRadius);
   } else {
     ctx.globalAlpha = node.opacity;
     drawNodeShape(ctx, node.shape, bounds, fillColor, borderColor, cornerRadius);
+  }
+
+  // Clear shadow so it doesn't affect subsequent draws (text, badge, etc.).
+  if (node.shadow) {
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
   }
 
   const headingFont = resolveFont(theme.fonts.heading, 'heading');
