@@ -5,7 +5,6 @@ import {
   type LineStyle,
   type Point as PrimitivePoint,
   drawArrowhead,
-  drawOrthogonalPath,
 } from '../primitives/lines.js';
 import { drawTextLabel, resolveFont } from '../primitives/text.js';
 import type { RenderedElement, Rect as RendererRect } from '../renderer.js';
@@ -439,12 +438,69 @@ function pointAlongPolyline(points: Point[], t: number): Point {
   return points[points.length - 1];
 }
 
-function drawCubicInterpolatedPath(ctx: SKRSContext2D, points: Point[], style: LineStyle): void {
+type ConnectionStroke = string | ReturnType<SKRSContext2D['createLinearGradient']>;
+
+export function createConnectionGradient(
+  ctx: SKRSContext2D,
+  start: Point,
+  end: Point,
+  fromColor: string,
+  baseColor: string,
+  toColor: string,
+): ReturnType<SKRSContext2D['createLinearGradient']> {
+  const gradient = ctx.createLinearGradient(start.x, start.y, end.x, end.y);
+  gradient.addColorStop(0, fromColor);
+  gradient.addColorStop(0.5, baseColor);
+  gradient.addColorStop(1, toColor);
+  return gradient;
+}
+
+function resolveConnectionStroke(
+  ctx: SKRSContext2D,
+  start: Point,
+  end: Point,
+  fromColor: string | undefined,
+  baseColor: string,
+  toColor: string | undefined,
+): ConnectionStroke {
+  if (!fromColor || !toColor) {
+    return baseColor;
+  }
+
+  return createConnectionGradient(ctx, start, end, fromColor, baseColor, toColor);
+}
+
+function drawOrthogonalPathWithStroke(
+  ctx: SKRSContext2D,
+  from: Point,
+  to: Point,
+  style: LineStyle,
+  stroke: ConnectionStroke,
+): void {
+  const midX = (from.x + to.x) / 2;
+
+  ctx.strokeStyle = stroke;
+  ctx.lineWidth = style.width;
+  ctx.setLineDash(style.dash ?? []);
+  ctx.beginPath();
+  ctx.moveTo(from.x, from.y);
+  ctx.lineTo(midX, from.y);
+  ctx.lineTo(midX, to.y);
+  ctx.lineTo(to.x, to.y);
+  ctx.stroke();
+}
+
+function drawCubicInterpolatedPath(
+  ctx: SKRSContext2D,
+  points: Point[],
+  style: LineStyle,
+  stroke: ConnectionStroke,
+): void {
   if (points.length < 2) {
     return;
   }
 
-  ctx.strokeStyle = style.color;
+  ctx.strokeStyle = stroke;
   ctx.lineWidth = style.width;
   ctx.setLineDash(style.dash ?? []);
   ctx.beginPath();
@@ -538,7 +594,9 @@ export function renderConnection(
       conn.toAnchor,
     );
 
-    ctx.strokeStyle = style.color;
+    const stroke = resolveConnectionStroke(ctx, p0, p3, conn.fromColor, style.color, conn.toColor);
+
+    ctx.strokeStyle = stroke;
     ctx.lineWidth = style.width;
     ctx.setLineDash(style.dash ?? []);
     ctx.beginPath();
@@ -583,7 +641,9 @@ export function renderConnection(
     const [p0, cp1, cp2, pMid] = first;
     const [, cp3, cp4, p3] = second;
 
-    ctx.strokeStyle = style.color;
+    const stroke = resolveConnectionStroke(ctx, p0, p3, conn.fromColor, style.color, conn.toColor);
+
+    ctx.strokeStyle = stroke;
     ctx.lineWidth = style.width;
     ctx.setLineDash(style.dash ?? []);
     ctx.beginPath();
@@ -635,10 +695,19 @@ export function renderConnection(
       Math.atan2(startSegment.y - linePoints[0].y, startSegment.x - linePoints[0].x) + Math.PI;
     endAngle = Math.atan2(endPoint.y - endStart.y, endPoint.x - endStart.x);
 
+    const stroke = resolveConnectionStroke(
+      ctx,
+      startPoint,
+      endPoint,
+      conn.fromColor,
+      style.color,
+      conn.toColor,
+    );
+
     if (useElkRoute) {
-      drawCubicInterpolatedPath(ctx, linePoints, style);
+      drawCubicInterpolatedPath(ctx, linePoints, style, stroke);
     } else {
-      drawOrthogonalPath(ctx, startPoint, endPoint, style);
+      drawOrthogonalPathWithStroke(ctx, startPoint, endPoint, style, stroke);
     }
 
     labelPoint = pointAlongPolyline(linePoints, labelT);

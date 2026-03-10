@@ -447,6 +447,8 @@ export const connectionElementSchema = z
     label: z.string().min(1).max(200).optional(),
     labelPosition: z.enum(['start', 'middle', 'end']).default('middle'),
     color: colorHexSchema.optional(),
+    fromColor: colorHexSchema.optional(),
+    toColor: colorHexSchema.optional(),
     width: z.number().min(0.5).max(10).optional(),
     strokeWidth: z.number().min(0.5).max(10).default(2),
     arrowSize: z.number().min(4).max(32).optional(),

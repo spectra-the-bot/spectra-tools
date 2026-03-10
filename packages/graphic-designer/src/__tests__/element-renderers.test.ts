@@ -1,5 +1,5 @@
 import { createCanvas } from '@napi-rs/canvas';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { renderCard } from '../renderers/card.js';
 import { renderCodeBlock } from '../renderers/code.js';
 import { renderConnection } from '../renderers/connection.js';
@@ -134,5 +134,70 @@ describe('element renderers', () => {
     expect(textEls.length).toBeGreaterThan(0);
     expect(shapeEls.length).toBeGreaterThan(0);
     expect(imageEls.length).toBeGreaterThan(0);
+  });
+
+  it('uses gradient strokes when connection fromColor/toColor are provided', () => {
+    const theme = resolveTheme('dark');
+    const nodeA = { x: 120, y: 180, width: 180, height: 100 };
+    const nodeB = { x: 560, y: 240, width: 180, height: 100 };
+
+    for (const routing of ['curve', 'arc', 'orthogonal'] as const) {
+      const canvas = createCanvas(1200, 675);
+      const ctx = canvas.getContext('2d');
+      const gradientSpy = vi.spyOn(ctx, 'createLinearGradient');
+
+      const rendered = renderConnection(
+        ctx,
+        {
+          type: 'connection',
+          from: 'n1',
+          to: 'n2',
+          routing,
+          color: '#7AA2FF',
+          fromColor: '#F97316',
+          toColor: '#22C55E',
+          arrow: 'none',
+        },
+        nodeA,
+        nodeB,
+        theme,
+      );
+
+      expect(gradientSpy).toHaveBeenCalledTimes(1);
+      expect(rendered[0]?.foregroundColor).toBe('#7AA2FF');
+      gradientSpy.mockRestore();
+    }
+
+    const autoCanvas = createCanvas(1200, 675);
+    const autoCtx = autoCanvas.getContext('2d');
+    const autoGradientSpy = vi.spyOn(autoCtx, 'createLinearGradient');
+
+    renderConnection(
+      autoCtx,
+      {
+        type: 'connection',
+        from: 'n1',
+        to: 'n2',
+        routing: 'auto',
+        color: '#7AA2FF',
+        fromColor: '#F97316',
+        toColor: '#22C55E',
+        arrow: 'none',
+      },
+      nodeA,
+      nodeB,
+      theme,
+      {
+        points: [
+          { x: 300, y: 230 },
+          { x: 380, y: 210 },
+          { x: 500, y: 260 },
+          { x: 560, y: 290 },
+        ],
+      },
+    );
+
+    expect(autoGradientSpy).toHaveBeenCalledTimes(1);
+    autoGradientSpy.mockRestore();
   });
 });
