@@ -1,5 +1,13 @@
 # @spectratools/graphic-designer-cli
 
+## 0.8.0
+
+### Minor Changes
+
+- [#346](https://github.com/spectra-the-bot/spectra-tools/pull/346) [`be4e057`](https://github.com/spectra-the-bot/spectra-tools/commit/be4e057195b0eb4851dc4673d10f4cfe33169a1e) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add accentColor, accentBarWidth, glowColor, glowWidth, glowOpacity fields to flow-node element schema.
+
+- [#345](https://github.com/spectra-the-bot/spectra-tools/pull/345) [`9e36a62`](https://github.com/spectra-the-bot/spectra-tools/commit/9e36a62e6f1d98c26ee25404899cc5d8fc8234d9) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add text-row draw command schema for mixed-style inline text rendering.
+
 ## 0.7.1
 
 ### Patch Changes
