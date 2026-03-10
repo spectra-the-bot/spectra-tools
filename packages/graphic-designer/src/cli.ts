@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Cli, z } from 'incur';
+import { compareImages } from './compare.js';
 import { publishToGist } from './publish/gist.js';
 import { publishToGitHub } from './publish/github.js';
 import { readMetadata, runQa } from './qa.js';
@@ -47,6 +48,37 @@ const renderOutputSchema = z.object({
 });
 
 type RenderOutput = z.infer<typeof renderOutputSchema>;
+
+const compareOutputSchema = z.object({
+  targetPath: z.string(),
+  renderedPath: z.string(),
+  targetDimensions: z.object({
+    width: z.number().int().positive(),
+    height: z.number().int().positive(),
+  }),
+  renderedDimensions: z.object({
+    width: z.number().int().positive(),
+    height: z.number().int().positive(),
+  }),
+  normalizedDimensions: z.object({
+    width: z.number().int().positive(),
+    height: z.number().int().positive(),
+  }),
+  dimensionMismatch: z.boolean(),
+  grid: z.number().int().positive(),
+  threshold: z.number(),
+  closeThreshold: z.number(),
+  similarity: z.number(),
+  verdict: z.enum(['match', 'close', 'mismatch']),
+  regions: z.array(
+    z.object({
+      label: z.string(),
+      row: z.number().int().nonnegative(),
+      column: z.number().int().nonnegative(),
+      similarity: z.number(),
+    }),
+  ),
+});
 
 async function readJson(path: string): Promise<unknown> {
   if (path === '-') {
@@ -174,6 +206,51 @@ cli.command('render', {
     }
 
     return c.ok(runReport);
+  },
+});
+
+cli.command('compare', {
+  description:
+    'Compare a rendered design against a target image using structural similarity scoring.',
+  options: z.object({
+    target: z.string().describe('Path to target image (baseline)'),
+    rendered: z.string().describe('Path to rendered image to evaluate'),
+    grid: z.number().int().positive().default(3).describe('Grid size for per-region scoring'),
+    threshold: z
+      .number()
+      .min(0)
+      .max(1)
+      .default(0.8)
+      .describe('Minimum similarity score required for a match verdict'),
+  }),
+  output: compareOutputSchema,
+  examples: [
+    {
+      options: {
+        target: './designs/target.png',
+        rendered: './output/design-v2-g0.4.0-sabc123.png',
+        grid: 3,
+        threshold: 0.8,
+      },
+      description: 'Compare two images and report overall + per-region similarity scores',
+    },
+  ],
+  async run(c) {
+    try {
+      return c.ok(
+        await compareImages(c.options.target, c.options.rendered, {
+          grid: c.options.grid,
+          threshold: c.options.threshold,
+        }),
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return c.error({
+        code: 'COMPARE_FAILED',
+        message: `Unable to compare images: ${message}`,
+        retryable: false,
+      });
+    }
   },
 });
 
