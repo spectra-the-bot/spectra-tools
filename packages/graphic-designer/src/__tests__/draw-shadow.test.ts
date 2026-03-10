@@ -114,6 +114,14 @@ describe('draw command shadow', () => {
           shadow: {},
         },
         {
+          type: 'arc',
+          center: { x: 80, y: 80 },
+          radius: 30,
+          startAngle: 0,
+          endAngle: 180,
+          shadow: {},
+        },
+        {
           type: 'bezier',
           points: [
             { x: 0, y: 0 },
@@ -265,6 +273,14 @@ describe('draw command shadow', () => {
           shadow: { blur: 6, offsetX: 0, offsetY: 3 },
         },
         {
+          type: 'arc',
+          center: { x: 330, y: 165 },
+          radius: 45,
+          startAngle: 200,
+          endAngle: 350,
+          shadow: { blur: 7, offsetX: 0, offsetY: 3 },
+        },
+        {
           type: 'bezier',
           points: [
             { x: 250, y: 150 },
@@ -310,7 +326,7 @@ describe('draw command shadow', () => {
     );
 
     expect(rendered.png.byteLength).toBeGreaterThan(1024);
-    expect(drawElements).toHaveLength(8);
+    expect(drawElements).toHaveLength(9);
   });
 
   it('shadow does not affect subsequent draw commands in full render', async () => {
