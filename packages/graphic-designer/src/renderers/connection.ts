@@ -205,6 +205,69 @@ export function bezierPointAt(p0: Point, cp1: Point, cp2: Point, p3: Point, t: n
   };
 }
 
+/** Evaluate the derivative (tangent vector) of a cubic bezier at parameter `t`. */
+export function bezierTangentAt(p0: Point, cp1: Point, cp2: Point, p3: Point, t: number): Point {
+  const mt = 1 - t;
+  return {
+    x: 3 * mt * mt * (cp1.x - p0.x) + 6 * mt * t * (cp2.x - cp1.x) + 3 * t * t * (p3.x - cp2.x),
+    y: 3 * mt * mt * (cp1.y - p0.y) + 6 * mt * t * (cp2.y - cp1.y) + 3 * t * t * (p3.y - cp2.y),
+  };
+}
+
+/** Check whether a point lies inside (or on the boundary of) a rectangle. */
+export function isInsideRect(point: Point, rect: Rect): boolean {
+  return (
+    point.x >= rect.x &&
+    point.x <= rect.x + rect.width &&
+    point.y >= rect.y &&
+    point.y <= rect.y + rect.height
+  );
+}
+
+/**
+ * Find the parameter `t` where a cubic bezier curve crosses a rectangle boundary.
+ *
+ * When `searchFromEnd` is true (arrow: 'end'), sweeps backwards from t=0.95 to
+ * t=0.5 looking for the first point that exits the target rect (i.e. the last
+ * point inside the rect from the end).
+ *
+ * When `searchFromEnd` is false (arrow: 'start'), sweeps forward from t=0.05 to
+ * t=0.5 looking for the first point that exits the source rect.
+ *
+ * Returns the `t` value at the boundary crossing, or `undefined` if no
+ * intersection is found in the search range.
+ */
+export function findBoundaryIntersection(
+  p0: Point,
+  cp1: Point,
+  cp2: Point,
+  p3: Point,
+  targetRect: Rect,
+  searchFromEnd: boolean,
+): number | undefined {
+  const step = 0.005;
+
+  if (searchFromEnd) {
+    // Sweep backwards from t=0.95 toward t=0.5
+    for (let t = 0.95; t >= 0.5; t -= step) {
+      const pt = bezierPointAt(p0, cp1, cp2, p3, t);
+      if (!isInsideRect(pt, targetRect)) {
+        return t;
+      }
+    }
+  } else {
+    // Sweep forward from t=0.05 toward t=0.5
+    for (let t = 0.05; t <= 0.5; t += step) {
+      const pt = bezierPointAt(p0, cp1, cp2, p3, t);
+      if (!isInsideRect(pt, targetRect)) {
+        return t;
+      }
+    }
+  }
+
+  return undefined;
+}
+
 function pointAlongArc(route: [CubicBezierSegment, CubicBezierSegment], t: number): Point {
   const [first, second] = route;
   if (t <= 0.5) {
