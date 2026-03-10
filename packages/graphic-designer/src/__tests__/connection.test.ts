@@ -4,9 +4,12 @@ import {
   type Rect,
   arcRoute,
   bezierPointAt,
+  bezierTangentAt,
   computeDiagramCenter,
   curveRoute,
   edgeAnchor,
+  findBoundaryIntersection,
+  isInsideRect,
   orthogonalRoute,
   outwardNormal,
   rectCenter,
@@ -452,6 +455,218 @@ describe('bezierPointAt', () => {
     // For this curve, midpoint should be offset right
     expect(pt.x).toBeGreaterThan(0);
     expect(pt.y).toBeCloseTo(50);
+  });
+});
+
+/* ── Bezier tangent ───────────────────────────────────────────── */
+
+describe('bezierTangentAt', () => {
+  // Straight-line bezier: p0=(0,0), cp1=(100,0), cp2=(200,0), p3=(300,0)
+  const p0: Point = { x: 0, y: 0 };
+  const cp1: Point = { x: 100, y: 0 };
+  const cp2: Point = { x: 200, y: 0 };
+  const p3: Point = { x: 300, y: 0 };
+
+  it('returns a purely horizontal tangent for a horizontal line', () => {
+    const tan = bezierTangentAt(p0, cp1, cp2, p3, 0.5);
+    expect(tan.x).toBeGreaterThan(0);
+    expect(tan.y).toBeCloseTo(0);
+  });
+
+  it('returns correct tangent at t=0 (should be 3*(cp1 - p0))', () => {
+    const tan = bezierTangentAt(p0, cp1, cp2, p3, 0);
+    // At t=0: 3*(1)^2*(cp1-p0) = 3*(100,0) = (300,0)
+    expect(tan.x).toBeCloseTo(300);
+    expect(tan.y).toBeCloseTo(0);
+  });
+
+  it('returns correct tangent at t=1 (should be 3*(p3 - cp2))', () => {
+    const tan = bezierTangentAt(p0, cp1, cp2, p3, 1);
+    // At t=1: 3*(1)^2*(p3-cp2) = 3*(100,0) = (300,0)
+    expect(tan.x).toBeCloseTo(300);
+    expect(tan.y).toBeCloseTo(0);
+  });
+
+  it('returns correct tangent for a known C-shaped curve', () => {
+    // C-shaped curve: starts going right, curves down, ends going left
+    const cP0: Point = { x: 0, y: 0 };
+    const cCp1: Point = { x: 100, y: 0 };
+    const cCp2: Point = { x: 100, y: 100 };
+    const cP3: Point = { x: 0, y: 100 };
+
+    // At t=0: tangent = 3*(cp1 - p0) = (300, 0) — pointing right
+    const tan0 = bezierTangentAt(cP0, cCp1, cCp2, cP3, 0);
+    expect(tan0.x).toBeCloseTo(300);
+    expect(tan0.y).toBeCloseTo(0);
+
+    // At t=1: tangent = 3*(p3 - cp2) = (-300, 0) — pointing left
+    const tan1 = bezierTangentAt(cP0, cCp1, cCp2, cP3, 1);
+    expect(tan1.x).toBeCloseTo(-300);
+    expect(tan1.y).toBeCloseTo(0);
+
+    // At t=0.5: tangent should point downward (positive y)
+    const tanMid = bezierTangentAt(cP0, cCp1, cCp2, cP3, 0.5);
+    expect(tanMid.y).toBeGreaterThan(0);
+  });
+
+  it('tangent is consistent with numerical derivative of bezierPointAt', () => {
+    const cP0: Point = { x: 0, y: 0 };
+    const cCp1: Point = { x: 50, y: 200 };
+    const cCp2: Point = { x: 150, y: -100 };
+    const cP3: Point = { x: 300, y: 50 };
+
+    const t = 0.4;
+    const dt = 1e-6;
+    const pBefore = bezierPointAt(cP0, cCp1, cCp2, cP3, t - dt);
+    const pAfter = bezierPointAt(cP0, cCp1, cCp2, cP3, t + dt);
+    const numericalTan: Point = {
+      x: (pAfter.x - pBefore.x) / (2 * dt),
+      y: (pAfter.y - pBefore.y) / (2 * dt),
+    };
+
+    const analyticTan = bezierTangentAt(cP0, cCp1, cCp2, cP3, t);
+    expect(analyticTan.x).toBeCloseTo(numericalTan.x, 2);
+    expect(analyticTan.y).toBeCloseTo(numericalTan.y, 2);
+  });
+});
+
+/* ── isInsideRect ─────────────────────────────────────────────── */
+
+describe('isInsideRect', () => {
+  const rect: Rect = { x: 100, y: 100, width: 200, height: 100 };
+
+  it('returns true for a point in the center', () => {
+    expect(isInsideRect({ x: 200, y: 150 }, rect)).toBe(true);
+  });
+
+  it('returns true for a point on the left boundary', () => {
+    expect(isInsideRect({ x: 100, y: 150 }, rect)).toBe(true);
+  });
+
+  it('returns true for a point on the right boundary', () => {
+    expect(isInsideRect({ x: 300, y: 150 }, rect)).toBe(true);
+  });
+
+  it('returns true for a point on the top boundary', () => {
+    expect(isInsideRect({ x: 200, y: 100 }, rect)).toBe(true);
+  });
+
+  it('returns true for a point on the bottom boundary', () => {
+    expect(isInsideRect({ x: 200, y: 200 }, rect)).toBe(true);
+  });
+
+  it('returns true for a corner point', () => {
+    expect(isInsideRect({ x: 100, y: 100 }, rect)).toBe(true);
+    expect(isInsideRect({ x: 300, y: 200 }, rect)).toBe(true);
+  });
+
+  it('returns false for a point outside left', () => {
+    expect(isInsideRect({ x: 99, y: 150 }, rect)).toBe(false);
+  });
+
+  it('returns false for a point outside right', () => {
+    expect(isInsideRect({ x: 301, y: 150 }, rect)).toBe(false);
+  });
+
+  it('returns false for a point outside top', () => {
+    expect(isInsideRect({ x: 200, y: 99 }, rect)).toBe(false);
+  });
+
+  it('returns false for a point outside bottom', () => {
+    expect(isInsideRect({ x: 200, y: 201 }, rect)).toBe(false);
+  });
+});
+
+/* ── findBoundaryIntersection ─────────────────────────────────── */
+
+describe('findBoundaryIntersection', () => {
+  it('finds t where curve exits the target rect (searchFromEnd)', () => {
+    // Curve starts outside a rect and ends inside it
+    const p0: Point = { x: 0, y: 50 };
+    const cp1: Point = { x: 100, y: 50 };
+    const cp2: Point = { x: 200, y: 50 };
+    const p3: Point = { x: 300, y: 50 };
+    const targetRect: Rect = { x: 200, y: 0, width: 200, height: 100 };
+
+    const t = findBoundaryIntersection(p0, cp1, cp2, p3, targetRect, true);
+    expect(t).toBeDefined();
+    if (t === undefined) return;
+    // The point at t should be just outside the rect
+    const pt = bezierPointAt(p0, cp1, cp2, p3, t);
+    expect(pt.x).toBeLessThan(targetRect.x + 1);
+  });
+
+  it('finds t where curve exits the source rect (searchFromStart)', () => {
+    // Curve starts inside a rect and exits it
+    const p0: Point = { x: 50, y: 50 };
+    const cp1: Point = { x: 100, y: 50 };
+    const cp2: Point = { x: 200, y: 50 };
+    const p3: Point = { x: 400, y: 50 };
+    const sourceRect: Rect = { x: 0, y: 0, width: 100, height: 100 };
+
+    const t = findBoundaryIntersection(p0, cp1, cp2, p3, sourceRect, false);
+    expect(t).toBeDefined();
+    if (t === undefined) return;
+    // The point at t should be just outside the rect
+    const pt = bezierPointAt(p0, cp1, cp2, p3, t);
+    expect(pt.x).toBeGreaterThan(sourceRect.x + sourceRect.width - 1);
+  });
+
+  it('returns undefined when curve stays inside the rect', () => {
+    // Entire curve inside the rect
+    const p0: Point = { x: 50, y: 50 };
+    const cp1: Point = { x: 60, y: 50 };
+    const cp2: Point = { x: 70, y: 50 };
+    const p3: Point = { x: 80, y: 50 };
+    const rect: Rect = { x: 0, y: 0, width: 200, height: 200 };
+
+    const tEnd = findBoundaryIntersection(p0, cp1, cp2, p3, rect, true);
+    expect(tEnd).toBeUndefined();
+
+    const tStart = findBoundaryIntersection(p0, cp1, cp2, p3, rect, false);
+    expect(tStart).toBeUndefined();
+  });
+
+  it('returns a t in the valid search range', () => {
+    const p0: Point = { x: 0, y: 150 };
+    const cp1: Point = { x: 100, y: 150 };
+    const cp2: Point = { x: 200, y: 150 };
+    const p3: Point = { x: 300, y: 150 };
+    const targetRect: Rect = { x: 200, y: 100, width: 200, height: 100 };
+
+    const t = findBoundaryIntersection(p0, cp1, cp2, p3, targetRect, true);
+    expect(t).toBeDefined();
+    if (t === undefined) return;
+    expect(t).toBeGreaterThanOrEqual(0.5);
+    expect(t).toBeLessThanOrEqual(0.95);
+  });
+
+  it('works with a realistic curved connection', () => {
+    // Simulate a curve from one node to another
+    const fromBounds: Rect = { x: 100, y: 100, width: 180, height: 80 };
+    const toBounds: Rect = { x: 500, y: 300, width: 180, height: 80 };
+    const fromCenter: Point = { x: 190, y: 140 };
+    const toCenter: Point = { x: 590, y: 340 };
+
+    // Simple control points
+    const p0 = fromCenter;
+    const p3 = toCenter;
+    const cp1: Point = { x: 300, y: 100 };
+    const cp2: Point = { x: 400, y: 380 };
+
+    const t = findBoundaryIntersection(p0, cp1, cp2, p3, toBounds, true);
+    expect(t).toBeDefined();
+    if (t === undefined) return;
+
+    // The found t should place the point near or at the boundary
+    const pt = bezierPointAt(p0, cp1, cp2, p3, t);
+    const isNearBoundary =
+      !isInsideRect(pt, toBounds) ||
+      Math.abs(pt.x - toBounds.x) < 2 ||
+      Math.abs(pt.x - (toBounds.x + toBounds.width)) < 2 ||
+      Math.abs(pt.y - toBounds.y) < 2 ||
+      Math.abs(pt.y - (toBounds.y + toBounds.height)) < 2;
+    expect(isNearBoundary).toBe(true);
   });
 });
 
