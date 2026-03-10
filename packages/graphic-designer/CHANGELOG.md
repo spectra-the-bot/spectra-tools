@@ -1,5 +1,15 @@
 # @spectratools/graphic-designer-cli
 
+## 0.10.0
+
+### Minor Changes
+
+- [#359](https://github.com/spectra-the-bot/spectra-tools/pull/359) [`682fedd`](https://github.com/spectra-the-bot/spectra-tools/commit/682fedd06713bb4b310eb5c596e8a1b29eb81eca) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add a new freestyle `arc` draw command with schema validation and canvas rendering support.
+
+- [#360](https://github.com/spectra-the-bot/spectra-tools/pull/360) [`6139b8f`](https://github.com/spectra-the-bot/spectra-tools/commit/6139b8f846839f3ba2ebfc6f8a617ee59620063a) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add optional from/to connection stroke colors for multi-routing gradient rendering.
+
+- [#358](https://github.com/spectra-the-bot/spectra-tools/pull/358) [`4dcd147`](https://github.com/spectra-the-bot/spectra-tools/commit/4dcd147c173a7751f7faa496d8b324681c890512) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add optional iteration metadata support to render outputs and CLI render command flags.
+
 ## 0.9.0
 
 ### Minor Changes
