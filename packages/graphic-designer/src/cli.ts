@@ -565,6 +565,10 @@ cli.command('qa', {
     in: z.string().describe('Path to rendered PNG'),
     spec: z.string().describe('Path to normalized DesignSpec JSON'),
     meta: z.string().optional().describe('Optional sidecar metadata path (.meta.json)'),
+    reference: z
+      .string()
+      .optional()
+      .describe('Optional reference image path for visual comparison'),
   }),
   output: z.object({
     pass: z.boolean(),
@@ -579,6 +583,19 @@ cli.command('qa', {
         elementId: z.string().optional(),
       }),
     ),
+    reference: z
+      .object({
+        similarity: z.number(),
+        verdict: z.enum(['match', 'close', 'mismatch']),
+        regions: z.array(
+          z.object({
+            label: z.string(),
+            similarity: z.number(),
+            description: z.string().optional(),
+          }),
+        ),
+      })
+      .optional(),
   }),
   examples: [
     {
@@ -604,6 +621,7 @@ cli.command('qa', {
       imagePath: c.options.in,
       spec,
       ...(metadata ? { metadata } : {}),
+      ...(c.options.reference ? { referencePath: c.options.reference } : {}),
     });
 
     const response = {
@@ -612,6 +630,7 @@ cli.command('qa', {
       imagePath: report.imagePath,
       issueCount: report.issues.length,
       issues: report.issues,
+      ...(report.reference ? { reference: report.reference } : {}),
     };
 
     if (!report.pass) {

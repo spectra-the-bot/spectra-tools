@@ -1,11 +1,19 @@
 import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { type MockInstance, describe, expect, it, vi } from 'vitest';
 import { runQa } from '../qa.js';
 import { renderDesign, writeRenderArtifacts } from '../renderer.js';
 import { parseDesignSpec } from '../spec.schema.js';
 import { resolveTheme } from '../themes/index.js';
+
+vi.mock('../compare.js', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../compare.js')>();
+  return {
+    ...original,
+    compareImages: vi.fn(),
+  };
+});
 
 function buildQaSpec() {
   return parseDesignSpec({
@@ -45,6 +53,7 @@ describe('qa gate', () => {
 
     expect(report.pass).toBe(true);
     expect(report.issues).toHaveLength(0);
+    expect(report.reference).toBeUndefined();
   });
 
   it('fails when contrast rules are violated', async () => {
@@ -76,5 +85,140 @@ describe('qa gate', () => {
 
     expect(report.pass).toBe(false);
     expect(report.issues.some((issue) => issue.code === 'LOW_CONTRAST')).toBe(true);
+  });
+});
+
+describe('qa reference comparison', () => {
+  it('adds no REFERENCE_MISMATCH when reference matches', async () => {
+    const { compareImages } = await import('../compare.js');
+    const mockCompare = compareImages as unknown as MockInstance;
+    mockCompare.mockResolvedValueOnce({
+      targetPath: '/ref.png',
+      renderedPath: '/rendered.png',
+      targetDimensions: { width: 1200, height: 675 },
+      renderedDimensions: { width: 1200, height: 675 },
+      normalizedDimensions: { width: 1200, height: 675 },
+      dimensionMismatch: false,
+      grid: 3,
+      threshold: 0.8,
+      closeThreshold: 0.7,
+      similarity: 0.95,
+      verdict: 'match' as const,
+      regions: [
+        { label: 'A1', row: 0, column: 0, similarity: 0.95 },
+        { label: 'A2', row: 0, column: 1, similarity: 0.96 },
+        { label: 'A3', row: 0, column: 2, similarity: 0.94 },
+      ],
+    });
+
+    const spec = buildQaSpec();
+    const render = await renderDesign(spec, { generatorVersion: 'test-qa-ref' });
+    const dir = await mkdtemp(join(tmpdir(), 'graphic-designer-qa-ref-match-'));
+    const written = await writeRenderArtifacts(render, dir);
+
+    const report = await runQa({
+      imagePath: written.imagePath,
+      spec,
+      metadata: written.metadata,
+      referencePath: '/ref.png',
+    });
+
+    expect(report.pass).toBe(true);
+    expect(report.issues.some((issue) => issue.code === 'REFERENCE_MISMATCH')).toBe(false);
+    expect(report.reference).toBeDefined();
+    expect(report.reference?.verdict).toBe('match');
+    expect(report.reference?.similarity).toBe(0.95);
+    expect(report.reference?.regions).toHaveLength(3);
+  });
+
+  it('adds REFERENCE_MISMATCH warning when verdict is mismatch with similarity >= 0.5', async () => {
+    const { compareImages } = await import('../compare.js');
+    const mockCompare = compareImages as unknown as MockInstance;
+    mockCompare.mockResolvedValueOnce({
+      targetPath: '/ref.png',
+      renderedPath: '/rendered.png',
+      targetDimensions: { width: 1200, height: 675 },
+      renderedDimensions: { width: 1200, height: 675 },
+      normalizedDimensions: { width: 1200, height: 675 },
+      dimensionMismatch: false,
+      grid: 3,
+      threshold: 0.8,
+      closeThreshold: 0.7,
+      similarity: 0.55,
+      verdict: 'mismatch' as const,
+      regions: [{ label: 'A1', row: 0, column: 0, similarity: 0.55 }],
+    });
+
+    const spec = buildQaSpec();
+    const render = await renderDesign(spec, { generatorVersion: 'test-qa-ref' });
+    const dir = await mkdtemp(join(tmpdir(), 'graphic-designer-qa-ref-warn-'));
+    const written = await writeRenderArtifacts(render, dir);
+
+    const report = await runQa({
+      imagePath: written.imagePath,
+      spec,
+      metadata: written.metadata,
+      referencePath: '/ref.png',
+    });
+
+    const refIssue = report.issues.find((issue) => issue.code === 'REFERENCE_MISMATCH');
+    expect(refIssue).toBeDefined();
+    expect(refIssue?.severity).toBe('warning');
+    expect(report.pass).toBe(true);
+    expect(report.reference?.verdict).toBe('mismatch');
+  });
+
+  it('adds REFERENCE_MISMATCH error when similarity < 0.5', async () => {
+    const { compareImages } = await import('../compare.js');
+    const mockCompare = compareImages as unknown as MockInstance;
+    mockCompare.mockResolvedValueOnce({
+      targetPath: '/ref.png',
+      renderedPath: '/rendered.png',
+      targetDimensions: { width: 1200, height: 675 },
+      renderedDimensions: { width: 1200, height: 675 },
+      normalizedDimensions: { width: 1200, height: 675 },
+      dimensionMismatch: false,
+      grid: 3,
+      threshold: 0.8,
+      closeThreshold: 0.7,
+      similarity: 0.3,
+      verdict: 'mismatch' as const,
+      regions: [{ label: 'A1', row: 0, column: 0, similarity: 0.3 }],
+    });
+
+    const spec = buildQaSpec();
+    const render = await renderDesign(spec, { generatorVersion: 'test-qa-ref' });
+    const dir = await mkdtemp(join(tmpdir(), 'graphic-designer-qa-ref-error-'));
+    const written = await writeRenderArtifacts(render, dir);
+
+    const report = await runQa({
+      imagePath: written.imagePath,
+      spec,
+      metadata: written.metadata,
+      referencePath: '/ref.png',
+    });
+
+    const refIssue = report.issues.find((issue) => issue.code === 'REFERENCE_MISMATCH');
+    expect(refIssue).toBeDefined();
+    expect(refIssue?.severity).toBe('error');
+    expect(report.pass).toBe(false);
+    expect(report.reference?.similarity).toBe(0.3);
+  });
+
+  it('omitting referencePath preserves backward compatibility', async () => {
+    const spec = buildQaSpec();
+    const render = await renderDesign(spec, { generatorVersion: 'test-qa-ref' });
+    const dir = await mkdtemp(join(tmpdir(), 'graphic-designer-qa-ref-compat-'));
+    const written = await writeRenderArtifacts(render, dir);
+
+    const report = await runQa({
+      imagePath: written.imagePath,
+      spec,
+      metadata: written.metadata,
+    });
+
+    expect(report.reference).toBeUndefined();
+    expect(report.issues.some((issue) => issue.code === 'REFERENCE_MISMATCH')).toBe(false);
+    expect(report.pass).toBe(true);
   });
 });
