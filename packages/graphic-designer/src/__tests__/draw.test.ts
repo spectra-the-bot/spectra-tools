@@ -258,4 +258,144 @@ describe('freestyle draw layer', () => {
       ),
     ).toBe(true);
   });
+
+  describe('grid draw command', () => {
+    it('parses grid command with all defaults', () => {
+      const spec = parseDesignSpec({
+        elements: [],
+        draw: [{ type: 'grid' }],
+      });
+
+      expect(spec.draw).toHaveLength(1);
+      expect(spec.draw[0]).toMatchObject({
+        type: 'grid',
+        spacing: 40,
+        width: 0.5,
+        opacity: 0.2,
+        offsetX: 0,
+        offsetY: 0,
+      });
+    });
+
+    it('parses grid command with custom values', () => {
+      const spec = parseDesignSpec({
+        elements: [],
+        draw: [
+          {
+            type: 'grid',
+            spacing: 80,
+            color: '#FF0000',
+            width: 2,
+            opacity: 0.5,
+            offsetX: 10,
+            offsetY: 20,
+          },
+        ],
+      });
+
+      expect(spec.draw[0]).toMatchObject({
+        type: 'grid',
+        spacing: 80,
+        width: 2,
+        opacity: 0.5,
+        offsetX: 10,
+        offsetY: 20,
+      });
+    });
+
+    it('rejects extra fields on grid command (strict)', () => {
+      expect(() =>
+        parseDesignSpec({
+          elements: [],
+          draw: [{ type: 'grid', spacing: 40, extraField: true }],
+        }),
+      ).toThrow();
+    });
+
+    it('rejects spacing below minimum', () => {
+      expect(() =>
+        parseDesignSpec({
+          elements: [],
+          draw: [{ type: 'grid', spacing: 2 }],
+        }),
+      ).toThrow();
+    });
+
+    it('rejects spacing above maximum', () => {
+      expect(() =>
+        parseDesignSpec({
+          elements: [],
+          draw: [{ type: 'grid', spacing: 300 }],
+        }),
+      ).toThrow();
+    });
+
+    it('rejects width above maximum', () => {
+      expect(() =>
+        parseDesignSpec({
+          elements: [],
+          draw: [{ type: 'grid', width: 10 }],
+        }),
+      ).toThrow();
+    });
+
+    it('renders grid command and produces draw element', async () => {
+      const spec = parseDesignSpec({
+        canvas: { width: 400, height: 300, padding: 20 },
+        theme: 'dark',
+        elements: [],
+        draw: [{ type: 'grid', spacing: 50, color: '#334B83', width: 1, opacity: 0.3 }],
+      });
+
+      const rendered = await renderDesign(spec, { generatorVersion: 'test-draw-grid' });
+      const drawElements = rendered.metadata.layout.elements.filter(
+        (element) => element.kind === 'draw',
+      );
+
+      expect(rendered.png.byteLength).toBeGreaterThan(512);
+      expect(drawElements).toHaveLength(1);
+      expect(drawElements[0].id).toBe('draw-0');
+      expect(drawElements[0].bounds).toEqual({ x: 0, y: 0, width: 400, height: 300 });
+    });
+
+    it('renders grid alongside other draw commands', async () => {
+      const spec = parseDesignSpec({
+        canvas: { width: 600, height: 400, padding: 20 },
+        theme: 'dark',
+        elements: [],
+        draw: [
+          { type: 'grid', spacing: 40 },
+          { type: 'rect', x: 50, y: 50, width: 100, height: 80, fill: '#1A2547' },
+          { type: 'text', x: 100, y: 200, text: 'over grid' },
+        ],
+      });
+
+      const rendered = await renderDesign(spec, { generatorVersion: 'test-draw-grid-combo' });
+      const drawElements = rendered.metadata.layout.elements.filter(
+        (element) => element.kind === 'draw',
+      );
+
+      expect(drawElements).toHaveLength(3);
+      expect(drawElements[0].id).toBe('draw-0');
+      expect(drawElements[1].id).toBe('draw-1');
+      expect(drawElements[2].id).toBe('draw-2');
+    });
+
+    it('renders grid with offsets', async () => {
+      const spec = parseDesignSpec({
+        canvas: { width: 400, height: 300, padding: 10 },
+        theme: 'dark',
+        elements: [],
+        draw: [{ type: 'grid', spacing: 40, offsetX: 15, offsetY: 25 }],
+      });
+
+      const rendered = await renderDesign(spec, { generatorVersion: 'test-draw-grid-offset' });
+      expect(rendered.png.byteLength).toBeGreaterThan(512);
+
+      const drawElements = rendered.metadata.layout.elements.filter(
+        (element) => element.kind === 'draw',
+      );
+      expect(drawElements).toHaveLength(1);
+    });
+  });
 });

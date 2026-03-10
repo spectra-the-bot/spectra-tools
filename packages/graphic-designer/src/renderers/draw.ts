@@ -548,6 +548,40 @@ export function renderDrawCommands(
         });
         break;
       }
+      case 'grid': {
+        const canvasWidth = ctx.canvas.width;
+        const canvasHeight = ctx.canvas.height;
+
+        withOpacity(ctx, command.opacity, () => {
+          ctx.strokeStyle = command.color;
+          ctx.lineWidth = command.width;
+
+          const startX = command.offsetX % command.spacing;
+          for (let x = startX; x <= canvasWidth; x += command.spacing) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, canvasHeight);
+            ctx.stroke();
+          }
+
+          const startY = command.offsetY % command.spacing;
+          for (let y = startY; y <= canvasHeight; y += command.spacing) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(canvasWidth, y);
+            ctx.stroke();
+          }
+        });
+
+        rendered.push({
+          id,
+          kind: 'draw',
+          bounds: { x: 0, y: 0, width: canvasWidth, height: canvasHeight },
+          foregroundColor: command.color,
+          allowOverlap: true,
+        });
+        break;
+      }
     }
   }
 
