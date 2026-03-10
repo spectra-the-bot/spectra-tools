@@ -42,6 +42,10 @@ const linearGradientSchema = z
 const radialGradientSchema = z
   .object({
     type: z.literal('radial'),
+    cx: z.number().optional(),
+    cy: z.number().optional(),
+    innerRadius: z.number().min(0).optional(),
+    outerRadius: z.number().min(0).optional(),
     stops: z.array(gradientStopSchema).min(2),
   })
   .strict();
