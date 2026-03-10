@@ -53,13 +53,35 @@ vi.mock('../contracts/client.js', () => ({
   },
 }));
 
-async function run(argv: string[]) {
+async function run(argv: string[], env?: Record<string, string>) {
   const { cli } = await import('../cli.js');
   const lines: string[] = [];
-  await cli.serve([...argv, '--format', 'json', '--verbose'], {
-    stdout: (line) => lines.push(line),
-    exit: () => undefined,
-  });
+  const prevEnv: Record<string, string | undefined> = {};
+
+  if (env) {
+    for (const [key, value] of Object.entries(env)) {
+      prevEnv[key] = process.env[key];
+      process.env[key] = value;
+    }
+  }
+
+  try {
+    await cli.serve([...argv, '--format', 'json', '--verbose'], {
+      stdout: (line) => lines.push(line),
+      exit: () => undefined,
+    });
+  } finally {
+    if (env) {
+      for (const [key, value] of Object.entries(prevEnv)) {
+        if (value === undefined) {
+          delete process.env[key];
+        } else {
+          process.env[key] = value;
+        }
+      }
+    }
+  }
+
   const json = [...lines].reverse().find((x) => x.trim().startsWith('{')) ?? '{}';
   return JSON.parse(json) as Envelope;
 }
@@ -100,7 +122,6 @@ describe('cl swap', () => {
 
   afterEach(() => {
     vi.useRealTimers();
-    vi.restoreAllMocks();
   });
 
   it('executes a live swap and returns tx result', async () => {
@@ -114,16 +135,10 @@ describe('cl swap', () => {
       150000n,
     ]);
 
-    const out = await run([
-      'cl',
-      'swap',
-      '--token-in',
-      tokenA,
-      '--token-out',
-      tokenB,
-      '--amount-in',
-      '1000000',
-    ]);
+    const out = await run(
+      ['cl', 'swap', '--token-in', tokenA, '--token-out', tokenB, '--amount-in', '1000000'],
+      { PRIVATE_KEY: TEST_PRIVATE_KEY },
+    );
 
     expect(out.ok).toBe(true);
 
@@ -163,17 +178,20 @@ describe('cl swap', () => {
       150000n,
     ]);
 
-    const out = await run([
-      'cl',
-      'swap',
-      '--token-in',
-      tokenA,
-      '--token-out',
-      tokenB,
-      '--amount-in',
-      '1000000',
-      '--dry-run',
-    ]);
+    const out = await run(
+      [
+        'cl',
+        'swap',
+        '--token-in',
+        tokenA,
+        '--token-out',
+        tokenB,
+        '--amount-in',
+        '1000000',
+        '--dry-run',
+      ],
+      { PRIVATE_KEY: TEST_PRIVATE_KEY },
+    );
 
     expect(out.ok).toBe(true);
 
@@ -197,19 +215,22 @@ describe('cl swap', () => {
       100000n,
     ]);
 
-    const out = await run([
-      'cl',
-      'swap',
-      '--token-in',
-      tokenA,
-      '--token-out',
-      tokenB,
-      '--amount-in',
-      '5000',
-      '--slippage',
-      '1',
-      '--dry-run',
-    ]);
+    const out = await run(
+      [
+        'cl',
+        'swap',
+        '--token-in',
+        tokenA,
+        '--token-out',
+        tokenB,
+        '--amount-in',
+        '5000',
+        '--slippage',
+        '1',
+        '--dry-run',
+      ],
+      { PRIVATE_KEY: TEST_PRIVATE_KEY },
+    );
 
     expect(out.ok).toBe(true);
 
@@ -225,48 +246,30 @@ describe('cl swap', () => {
   });
 
   it('rejects invalid token-in address', async () => {
-    const out = await run([
-      'cl',
-      'swap',
-      '--token-in',
-      'not-an-address',
-      '--token-out',
-      tokenB,
-      '--amount-in',
-      '1000',
-    ]);
+    const out = await run(
+      ['cl', 'swap', '--token-in', 'not-an-address', '--token-out', tokenB, '--amount-in', '1000'],
+      { PRIVATE_KEY: TEST_PRIVATE_KEY },
+    );
 
     expect(out.ok).toBe(false);
     expect(out.error?.code).toBe('INVALID_ADDRESS');
   });
 
   it('rejects invalid amount-in', async () => {
-    const out = await run([
-      'cl',
-      'swap',
-      '--token-in',
-      tokenA,
-      '--token-out',
-      tokenB,
-      '--amount-in',
-      'not-a-number',
-    ]);
+    const out = await run(
+      ['cl', 'swap', '--token-in', tokenA, '--token-out', tokenB, '--amount-in', 'not-a-number'],
+      { PRIVATE_KEY: TEST_PRIVATE_KEY },
+    );
 
     expect(out.ok).toBe(false);
     expect(out.error?.code).toBe('INVALID_AMOUNT');
   });
 
   it('rejects zero amount-in', async () => {
-    const out = await run([
-      'cl',
-      'swap',
-      '--token-in',
-      tokenA,
-      '--token-out',
-      tokenB,
-      '--amount-in',
-      '0',
-    ]);
+    const out = await run(
+      ['cl', 'swap', '--token-in', tokenA, '--token-out', tokenB, '--amount-in', '0'],
+      { PRIVATE_KEY: TEST_PRIVATE_KEY },
+    );
 
     expect(out.ok).toBe(false);
     expect(out.error?.code).toBe('INVALID_AMOUNT');
@@ -291,16 +294,10 @@ describe('cl swap', () => {
       [2n ** 96n, 0, 0, 0, 0, true],
     ]);
 
-    const out = await run([
-      'cl',
-      'swap',
-      '--token-in',
-      tokenA,
-      '--token-out',
-      tokenB,
-      '--amount-in',
-      '1000',
-    ]);
+    const out = await run(
+      ['cl', 'swap', '--token-in', tokenA, '--token-out', tokenB, '--amount-in', '1000'],
+      { PRIVATE_KEY: TEST_PRIVATE_KEY },
+    );
 
     expect(out.ok).toBe(false);
     expect(out.error?.code).toBe('POOL_NOT_FOUND');
