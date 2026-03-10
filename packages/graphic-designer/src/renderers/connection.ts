@@ -506,7 +506,6 @@ export function findBoundaryIntersection(
   return undefined;
 }
 
-
 /**
  * Compute the centroid of all node bounding boxes. Falls back to the
  * provided `canvasCenter` when no nodes are supplied.
