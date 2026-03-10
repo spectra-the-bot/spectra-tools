@@ -35,6 +35,47 @@ describe('connectionElementSchema', () => {
     expect(result.arrow).toBe('end');
     expect(result.strokeStyle).toBe('solid');
     expect(result.strokeWidth).toBe(2);
+    expect(result.arrowPlacement).toBe('endpoint');
+  });
+
+  it('defaults arrowPlacement to endpoint', () => {
+    const result = connectionElementSchema.parse({
+      type: 'connection',
+      from: 'a',
+      to: 'b',
+    });
+    expect(result.arrowPlacement).toBe('endpoint');
+  });
+
+  it('parses arrowPlacement: boundary', () => {
+    const result = connectionElementSchema.parse({
+      type: 'connection',
+      from: 'a',
+      to: 'b',
+      arrowPlacement: 'boundary',
+    });
+    expect(result.arrowPlacement).toBe('boundary');
+  });
+
+  it('parses arrowPlacement: endpoint explicitly', () => {
+    const result = connectionElementSchema.parse({
+      type: 'connection',
+      from: 'a',
+      to: 'b',
+      arrowPlacement: 'endpoint',
+    });
+    expect(result.arrowPlacement).toBe('endpoint');
+  });
+
+  it('rejects invalid arrowPlacement value', () => {
+    expect(() =>
+      connectionElementSchema.parse({
+        type: 'connection',
+        from: 'a',
+        to: 'b',
+        arrowPlacement: 'center',
+      }),
+    ).toThrow();
   });
 
   it('parses a connection with routing: curve', () => {
@@ -667,6 +708,80 @@ describe('findBoundaryIntersection', () => {
       Math.abs(pt.y - toBounds.y) < 2 ||
       Math.abs(pt.y - (toBounds.y + toBounds.height)) < 2;
     expect(isNearBoundary).toBe(true);
+  });
+});
+
+/* ── Boundary placement geometry ──────────────────────────────── */
+
+describe('arrowPlacement boundary (curve)', () => {
+  const fromBounds: Rect = { x: 100, y: 100, width: 180, height: 80 };
+  const toBounds: Rect = { x: 500, y: 300, width: 180, height: 80 };
+  const diagramCenter: Point = { x: 400, y: 300 };
+
+  it('finds boundary intersection for end arrow on curve', () => {
+    const [p0, cp1, cp2, p3] = curveRoute(fromBounds, toBounds, diagramCenter, 0.35);
+    const tEnd = findBoundaryIntersection(p0, cp1, cp2, p3, toBounds, true);
+    expect(tEnd).toBeDefined();
+    if (tEnd === undefined) return;
+
+    const pt = bezierPointAt(p0, cp1, cp2, p3, tEnd);
+    // The point should be outside or at the boundary of toBounds
+    expect(isInsideRect(pt, toBounds)).toBe(false);
+
+    // Tangent at that point should be a valid direction
+    const tangent = bezierTangentAt(p0, cp1, cp2, p3, tEnd);
+    const angle = Math.atan2(tangent.y, tangent.x);
+    expect(Number.isFinite(angle)).toBe(true);
+  });
+
+  it('finds boundary intersection for start arrow on curve', () => {
+    const [p0, cp1, cp2, p3] = curveRoute(fromBounds, toBounds, diagramCenter, 0.35);
+    const tStart = findBoundaryIntersection(p0, cp1, cp2, p3, fromBounds, false);
+    expect(tStart).toBeDefined();
+    if (tStart === undefined) return;
+
+    const pt = bezierPointAt(p0, cp1, cp2, p3, tStart);
+    expect(isInsideRect(pt, fromBounds)).toBe(false);
+
+    const tangent = bezierTangentAt(p0, cp1, cp2, p3, tStart);
+    const angle = Math.atan2(tangent.y, tangent.x) + Math.PI;
+    expect(Number.isFinite(angle)).toBe(true);
+  });
+});
+
+describe('arrowPlacement boundary (arc)', () => {
+  const fromBounds: Rect = { x: 100, y: 100, width: 180, height: 80 };
+  const toBounds: Rect = { x: 500, y: 300, width: 180, height: 80 };
+  const diagramCenter: Point = { x: 400, y: 300 };
+
+  it('finds boundary intersection for end arrow on arc second segment', () => {
+    const [, second] = arcRoute(fromBounds, toBounds, diagramCenter, 0.35);
+    const [pMid, cp3, cp4, p3] = second;
+    const tEnd = findBoundaryIntersection(pMid, cp3, cp4, p3, toBounds, true);
+    expect(tEnd).toBeDefined();
+    if (tEnd === undefined) return;
+
+    const pt = bezierPointAt(pMid, cp3, cp4, p3, tEnd);
+    expect(isInsideRect(pt, toBounds)).toBe(false);
+
+    const tangent = bezierTangentAt(pMid, cp3, cp4, p3, tEnd);
+    const angle = Math.atan2(tangent.y, tangent.x);
+    expect(Number.isFinite(angle)).toBe(true);
+  });
+
+  it('finds boundary intersection for start arrow on arc first segment', () => {
+    const [first] = arcRoute(fromBounds, toBounds, diagramCenter, 0.35);
+    const [p0, cp1, cp2, pMid] = first;
+    const tStart = findBoundaryIntersection(p0, cp1, cp2, pMid, fromBounds, false);
+    expect(tStart).toBeDefined();
+    if (tStart === undefined) return;
+
+    const pt = bezierPointAt(p0, cp1, cp2, pMid, tStart);
+    expect(isInsideRect(pt, fromBounds)).toBe(false);
+
+    const tangent = bezierTangentAt(p0, cp1, cp2, pMid, tStart);
+    const angle = Math.atan2(tangent.y, tangent.x) + Math.PI;
+    expect(Number.isFinite(angle)).toBe(true);
   });
 });
 
