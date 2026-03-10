@@ -1,14 +1,66 @@
 import { checksumAddress, isAddress } from '@spectratools/cli-shared';
 import { Cli, z } from 'incur';
 import { formatUnits, parseUnits } from 'viem';
-import type { Address } from 'viem';
+import type { Abi, Address } from 'viem';
 
 import { poolFactoryAbi, v2PoolAbi, v2RouterAbi } from '../contracts/abis.js';
 import { ABOREAN_V2_ADDRESSES } from '../contracts/addresses.js';
 import { createAboreanPublicClient } from '../contracts/client.js';
 import { ZERO_ADDRESS } from './_common.js';
+import { aboreanWriteTx, resolveAccount, writeEnv, writeOptions } from './_write-utils.js';
 
 const MULTICALL_BATCH_SIZE = 100;
+
+const DEFAULT_SLIPPAGE_PERCENT = 0.5;
+const DEFAULT_DEADLINE_SECONDS = 300;
+
+const erc20ApproveAbi: Abi = [
+  {
+    type: 'function',
+    name: 'approve',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'spender', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+    ],
+    outputs: [{ name: '', type: 'bool' }],
+  },
+  {
+    type: 'function',
+    name: 'allowance',
+    stateMutability: 'view',
+    inputs: [
+      { name: 'owner', type: 'address' },
+      { name: 'account', type: 'address' },
+    ],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+];
+
+const v2RouterSwapAbi: Abi = [
+  {
+    type: 'function',
+    name: 'swapExactTokensForTokens',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'amountIn', type: 'uint256' },
+      { name: 'amountOutMin', type: 'uint256' },
+      {
+        name: 'routes',
+        type: 'tuple[]',
+        components: [
+          { name: 'from', type: 'address' },
+          { name: 'to', type: 'address' },
+          { name: 'stable', type: 'bool' },
+          { name: 'factory', type: 'address' },
+        ],
+      },
+      { name: 'to', type: 'address' },
+      { name: 'deadline', type: 'uint256' },
+    ],
+    outputs: [{ name: 'amounts', type: 'uint256[]' }],
+  },
+];
 
 type TokenMeta = {
   address: Address;
@@ -786,5 +838,205 @@ pools.command('fees', {
             },
           },
     );
+  },
+});
+
+pools.command('swap', {
+  description:
+    'Execute a single-hop V2 AMM swap. Quotes the expected output, applies slippage tolerance, approves the router if needed, and broadcasts the swap transaction.',
+  options: z
+    .object({
+      'token-in': z.string().describe('Input token address'),
+      'token-out': z.string().describe('Output token address'),
+      'amount-in': z.string().describe('Input amount in wei'),
+      slippage: z.coerce
+        .number()
+        .min(0)
+        .max(100)
+        .default(DEFAULT_SLIPPAGE_PERCENT)
+        .describe('Slippage tolerance in percent (default: 0.5)'),
+      deadline: z.coerce
+        .number()
+        .int()
+        .positive()
+        .default(DEFAULT_DEADLINE_SECONDS)
+        .describe('Transaction deadline in seconds from now (default: 300)'),
+      stable: z.boolean().default(false).describe('Use stable pool route (default: volatile)'),
+    })
+    .merge(writeOptions),
+  env: writeEnv,
+  output: z.object({
+    pool: z.string(),
+    stable: z.boolean(),
+    tokenIn: tokenSchema,
+    tokenOut: tokenSchema,
+    amountIn: amountSchema,
+    expectedAmountOut: amountSchema,
+    minAmountOut: amountSchema,
+    slippagePercent: z.number(),
+    effectivePrice: z.number().nullable(),
+    tx: z.union([
+      z.object({
+        txHash: z.string(),
+        blockNumber: z.number(),
+        gasUsed: z.string(),
+      }),
+      z.object({
+        dryRun: z.literal(true),
+        estimatedGas: z.string(),
+        simulationResult: z.unknown(),
+      }),
+    ]),
+  }),
+  async run(c) {
+    const tokenInRaw = c.options['token-in'];
+    const tokenOutRaw = c.options['token-out'];
+
+    if (!isAddress(tokenInRaw) || !isAddress(tokenOutRaw)) {
+      return c.error({
+        code: 'INVALID_ADDRESS',
+        message: 'token-in and token-out must both be valid 0x-prefixed 20-byte addresses.',
+      });
+    }
+
+    const tokenIn = toAddress(tokenInRaw);
+    const tokenOut = toAddress(tokenOutRaw);
+    const amountInRaw = BigInt(c.options['amount-in']);
+
+    if (amountInRaw <= 0n) {
+      return c.error({
+        code: 'INVALID_AMOUNT',
+        message: 'amount-in must be a positive integer in wei.',
+      });
+    }
+
+    const client = createAboreanPublicClient(c.env.ABSTRACT_RPC_URL);
+
+    // Fetch token metadata
+    const tokenMeta = await readTokenMetadata(client, [tokenIn, tokenOut]);
+    const inMeta = tokenMeta.get(tokenIn.toLowerCase()) ?? fallbackTokenMeta(tokenIn);
+    const outMeta = tokenMeta.get(tokenOut.toLowerCase()) ?? fallbackTokenMeta(tokenOut);
+
+    // Find the pool
+    const poolAddress = (await client.readContract({
+      abi: poolFactoryAbi,
+      address: ABOREAN_V2_ADDRESSES.poolFactory,
+      functionName: 'getPool',
+      args: [tokenIn, tokenOut, c.options.stable],
+    })) as Address;
+
+    if (poolAddress.toLowerCase() === ZERO_ADDRESS.toLowerCase()) {
+      return c.error({
+        code: 'POOL_NOT_FOUND',
+        message: `No ${c.options.stable ? 'stable' : 'volatile'} V2 pool found for pair ${checksumAddress(tokenIn)}/${checksumAddress(tokenOut)}.`,
+      });
+    }
+
+    // Get quote via router
+    const amounts = (await client.readContract({
+      abi: v2RouterAbi,
+      address: ABOREAN_V2_ADDRESSES.router,
+      functionName: 'getAmountsOut',
+      args: [
+        amountInRaw,
+        [
+          {
+            from: tokenIn,
+            to: tokenOut,
+            stable: c.options.stable,
+            factory: ABOREAN_V2_ADDRESSES.poolFactory,
+          },
+        ],
+      ],
+    })) as bigint[];
+
+    const expectedAmountOut = amounts[amounts.length - 1] ?? 0n;
+
+    if (expectedAmountOut === 0n) {
+      return c.error({
+        code: 'ZERO_QUOTE',
+        message: 'Router returned zero output amount. The pool may have insufficient liquidity.',
+      });
+    }
+
+    // Apply slippage tolerance
+    const slippageBps = Math.round(c.options.slippage * 100);
+    const minAmountOut = (expectedAmountOut * BigInt(10_000 - slippageBps)) / 10_000n;
+    const deadlineTimestamp = BigInt(Math.floor(Date.now() / 1000) + c.options.deadline);
+
+    const account = resolveAccount(c.env);
+
+    // Approve router to spend tokenIn (if not dry-run, we approve; if dry-run, skip approval)
+    if (!c.options['dry-run']) {
+      const currentAllowance = (await client.readContract({
+        abi: erc20ApproveAbi,
+        address: tokenIn,
+        functionName: 'allowance',
+        args: [account.address, ABOREAN_V2_ADDRESSES.router],
+      })) as bigint;
+
+      if (currentAllowance < amountInRaw) {
+        await aboreanWriteTx({
+          env: c.env,
+          options: { ...c.options, 'dry-run': false },
+          address: tokenIn,
+          abi: erc20ApproveAbi,
+          functionName: 'approve',
+          args: [ABOREAN_V2_ADDRESSES.router, amountInRaw],
+        });
+      }
+    }
+
+    // Execute swap
+
+    const tx = await aboreanWriteTx({
+      env: c.env,
+      options: c.options,
+      address: ABOREAN_V2_ADDRESSES.router,
+      abi: v2RouterSwapAbi,
+      functionName: 'swapExactTokensForTokens',
+      args: [
+        amountInRaw,
+        minAmountOut,
+        [
+          {
+            from: tokenIn,
+            to: tokenOut,
+            stable: c.options.stable,
+            factory: ABOREAN_V2_ADDRESSES.poolFactory,
+          },
+        ],
+        account.address,
+        deadlineTimestamp,
+      ],
+    });
+
+    const amountInDecimal = formatUnits(amountInRaw, inMeta.decimals);
+    const expectedOutDecimal = formatUnits(expectedAmountOut, outMeta.decimals);
+    const minOutDecimal = formatUnits(minAmountOut, outMeta.decimals);
+
+    const ratio = Number(expectedOutDecimal) / Number(amountInDecimal);
+
+    return c.ok({
+      pool: checksumAddress(poolAddress),
+      stable: c.options.stable,
+      tokenIn: inMeta,
+      tokenOut: outMeta,
+      amountIn: {
+        raw: amountInRaw.toString(),
+        decimal: amountInDecimal,
+      },
+      expectedAmountOut: {
+        raw: expectedAmountOut.toString(),
+        decimal: expectedOutDecimal,
+      },
+      minAmountOut: {
+        raw: minAmountOut.toString(),
+        decimal: minOutDecimal,
+      },
+      slippagePercent: c.options.slippage,
+      effectivePrice: Number(amountInDecimal) === 0 ? null : finiteOrNull(ratio),
+      tx,
+    });
   },
 });
