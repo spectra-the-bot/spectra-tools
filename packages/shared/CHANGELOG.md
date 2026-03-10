@@ -1,5 +1,11 @@
 # @spectra-the-bot/cli-shared
 
+## 0.2.0
+
+### Minor Changes
+
+- [#389](https://github.com/spectra-the-bot/spectra-tools/pull/389) [`6f2d227`](https://github.com/spectra-the-bot/spectra-tools/commit/6f2d2272d310069f8cc936c22c3518d1f6e4ffcf) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add shared OpenTelemetry initialization module with lazy SDK bootstrap, span helpers, and graceful shutdown. Telemetry activates only when `OTEL_EXPORTER_OTLP_ENDPOINT` or `SPECTRA_OTEL_ENABLED=true` is set, ensuring zero overhead when instrumentation is disabled.
+
 ## 0.1.2
 
 ### Patch Changes
