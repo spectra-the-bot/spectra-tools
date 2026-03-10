@@ -208,6 +208,21 @@ export function renderFlowNode(
     ctx.shadowOffsetY = 0;
   }
 
+  // Render left-edge accent bar if configured.
+  if (node.accentColor) {
+    const barWidth = node.accentBarWidth ?? 3;
+    const effectiveRadius = node.shape === 'box' ? 0 : cornerRadius;
+    ctx.save();
+    // Create a clipping path that follows the node's rounded corners.
+    ctx.beginPath();
+    ctx.roundRect(bounds.x, bounds.y, bounds.width, bounds.height, effectiveRadius);
+    ctx.clip();
+    // Fill a rectangle on the left edge — the clip path handles corner rounding.
+    ctx.fillStyle = node.accentColor;
+    ctx.fillRect(bounds.x, bounds.y, barWidth, bounds.height);
+    ctx.restore();
+  }
+
   const headingFont = resolveFont(theme.fonts.heading, 'heading');
   const bodyFont = resolveFont(theme.fonts.body, 'body');
   const monoFont = resolveFont(theme.fonts.mono, 'mono');
