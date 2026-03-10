@@ -1,5 +1,11 @@
 # @spectratools/graphic-designer-cli
 
+## 0.6.0
+
+### Minor Changes
+
+- [#285](https://github.com/spectra-the-bot/spectra-tools/pull/285) [`b4d83e9`](https://github.com/spectra-the-bot/spectra-tools/commit/b4d83e97236a164605bb5a83cfa4852794c3e663) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add routing: curve option to connection elements with configurable tension for smooth bezier paths.
+
 ## 0.5.0
 
 ### Minor Changes

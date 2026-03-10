@@ -1,5 +1,11 @@
 # @spectratools/aborean-cli
 
+## 0.9.0
+
+### Minor Changes
+
+- [#320](https://github.com/spectra-the-bot/spectra-tools/pull/320) [`06f9167`](https://github.com/spectra-the-bot/spectra-tools/commit/06f91679f22a8aafd10151d55ec354e3958cc31e) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add pools swap command for V2 AMM single-hop swap execution.
+
 ## 0.8.0
 
 ### Minor Changes
