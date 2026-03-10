@@ -39,6 +39,28 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Validate changesets
+        if: github.event_name == 'pull_request' && !startsWith(github.head_ref, 'changeset-release/')
+        run: |
+          git fetch --no-tags --depth=1 origin main
+          CHANGED_FILES="$(git diff --name-only origin/main...HEAD)"
+
+          if ! echo "$CHANGED_FILES" | grep -q "^packages/"; then
+            echo "No package changes detected, skipping changeset check"
+            exit 0
+          fi
+
+          NON_VERSION_PACKAGE_CHANGES="$(echo "$CHANGED_FILES" | grep "^packages/" | grep -Ev '^packages/[^/]+/(CHANGELOG\.md|package\.json)$' || true)"
+          if [ -z "$NON_VERSION_PACKAGE_CHANGES" ]; then
+            echo "Only package version files changed (CHANGELOG.md/package.json), skipping changeset check"
+            exit 0
+          fi
+
+          if ! npx --yes @changesets/cli status --since origin/main; then
+            echo "One or more packages were modified without a changeset. Run `npx changeset` to add one."
+            exit 1
+          fi
+
       - name: Lint & format check
         run: pnpm biome check .
 
