@@ -2,6 +2,7 @@ import { readFileSync, realpathSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Cli } from 'incur';
+import { tvlCli } from './commands/tvl.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(resolve(__dirname, '../package.json'), 'utf8'));
@@ -11,11 +12,8 @@ const cli = Cli.create('defillama', {
   description: 'Query DefiLlama API data from the command line.',
 });
 
-/* ── Placeholder command groups ─────────────────────────────── */
+/* ── Command groups ─────────────────────────────────────────── */
 
-const tvlCli = Cli.create('tvl', {
-  description: 'Total value locked queries.',
-});
 cli.command(tvlCli);
 
 const volumeCli = Cli.create('volume', {

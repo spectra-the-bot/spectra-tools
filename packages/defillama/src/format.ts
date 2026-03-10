@@ -35,6 +35,18 @@ export function formatUsd(value: number): string {
 }
 
 /**
+ * Format a pre-computed percentage change with sign prefix.
+ * E.g. 12.3 → "+12.30%", -5.1 → "-5.10%", null → "—".
+ */
+export function formatPct(value: number | null | undefined): string {
+  if (value == null) {
+    return '—';
+  }
+  const sign = value >= 0 ? '+' : '';
+  return `${sign}${value.toFixed(2)}%`;
+}
+
+/**
  * Format a number with comma separators.
  * E.g. 1234567.89 → "1,234,567.89".
  */

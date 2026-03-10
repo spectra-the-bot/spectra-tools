@@ -29,6 +29,38 @@ export const chainTvlSchema = z.object({
 
 export type ChainTvl = z.infer<typeof chainTvlSchema>;
 
+/** TVL history point from /protocol/<slug> tvl array */
+export const tvlHistoryPointSchema = z.object({
+  date: z.number(),
+  totalLiquidityUSD: z.number(),
+});
+
+export type TvlHistoryPoint = z.infer<typeof tvlHistoryPointSchema>;
+
+/** Protocol detail from /protocol/<slug> */
+export const protocolDetailSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  url: z.string().optional(),
+  description: z.string().optional(),
+  symbol: z.string().optional(),
+  category: z.string().nullable().optional(),
+  chains: z.array(z.string()).optional(),
+  tvl: z.array(tvlHistoryPointSchema).optional(),
+  currentChainTvls: z.record(z.string(), z.number()).optional(),
+  chainTvls: z
+    .record(
+      z.string(),
+      z.object({
+        tvl: z.array(tvlHistoryPointSchema).optional(),
+      }),
+    )
+    .optional(),
+  mcap: z.number().nullable().optional(),
+});
+
+export type ProtocolDetail = z.infer<typeof protocolDetailSchema>;
+
 /** Volume entry from /overview/dexs */
 export const volumeEntrySchema = z.object({
   name: z.string(),
