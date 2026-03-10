@@ -200,6 +200,7 @@ describe('design spec schema v2', () => {
         rankSpacing: 96,
         edgeRouting: 'spline',
         aspectRatio: 1.78,
+        diagramCenter: { x: 420, y: 210 },
       },
       elements: [
         {
@@ -227,6 +228,7 @@ describe('design spec schema v2', () => {
           type: 'connection',
           from: 'n1',
           to: 'n2',
+          routing: 'arc',
           width: 3,
           arrowSize: 14,
           opacity: 0.7,
@@ -242,6 +244,7 @@ describe('design spec schema v2', () => {
       expect(spec.layout.algorithm).toBe('stress');
       expect(spec.layout.edgeRouting).toBe('spline');
       expect(spec.layout.aspectRatio).toBe(1.78);
+      expect(spec.layout.diagramCenter).toEqual({ x: 420, y: 210 });
     }
 
     const node = spec.elements.find(
@@ -262,6 +265,7 @@ describe('design spec schema v2', () => {
     const connection = spec.elements.find((element) => element.type === 'connection');
     expect(connection).toBeDefined();
     if (connection?.type === 'connection') {
+      expect(connection.routing).toBe('arc');
       expect(connection.width).toBe(3);
       expect(connection.arrowSize).toBe(14);
       expect(connection.opacity).toBe(0.7);

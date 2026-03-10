@@ -28,6 +28,7 @@ export {
 export type { EdgeRoute, ElkLayoutResult, LayoutResult } from './layout/index.js';
 export { renderDrawCommands } from './renderers/draw.js';
 export {
+  arcRoute,
   bezierPointAt,
   computeDiagramCenter,
   curveRoute,
@@ -40,6 +41,7 @@ export {
   type ConnectionRenderOptions,
   type ConnectionRouting,
   type ConnectionStrokeStyle,
+  type CubicBezierSegment,
   type Point,
 } from './renderers/connection.js';
 export {

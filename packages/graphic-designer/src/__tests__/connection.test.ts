@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   type Point,
   type Rect,
+  arcRoute,
   bezierPointAt,
   computeDiagramCenter,
   curveRoute,
@@ -54,6 +55,16 @@ describe('connectionElementSchema', () => {
       routing: 'orthogonal',
     });
     expect(result.routing).toBe('orthogonal');
+  });
+
+  it('parses routing: arc', () => {
+    const result = connectionElementSchema.parse({
+      type: 'connection',
+      from: 'a',
+      to: 'b',
+      routing: 'arc',
+    });
+    expect(result.routing).toBe('arc');
   });
 
   it('rejects invalid routing value', () => {
@@ -195,6 +206,28 @@ describe('diagramSpecSchema', () => {
       expect(conn.tension).toBe(0.35);
     }
   });
+
+  it('accepts layout.diagramCenter override', () => {
+    const result = parseDiagramSpec({
+      version: 1,
+      canvas: { width: 800, height: 600 },
+      elements: [
+        { type: 'flow-node', id: 'a', label: 'A' },
+        { type: 'flow-node', id: 'b', label: 'B' },
+        { type: 'connection', from: 'a', to: 'b', routing: 'arc' },
+      ],
+      layout: {
+        mode: 'manual',
+        diagramCenter: { x: 420, y: 250 },
+        positions: {
+          a: { x: 100, y: 120, width: 180, height: 80 },
+          b: { x: 520, y: 120, width: 180, height: 80 },
+        },
+      },
+    });
+
+    expect(result.layout.diagramCenter).toEqual({ x: 420, y: 250 });
+  });
 });
 
 /* ── Geometry helpers ─────────────────────────────────────────── */
@@ -324,6 +357,55 @@ describe('curveRoute', () => {
     const lowDist = Math.hypot(cp1Low.x - diagramCenter.x, cp1Low.y - diagramCenter.y);
     const highDist = Math.hypot(cp1High.x - diagramCenter.x, cp1High.y - diagramCenter.y);
     expect(highDist).toBeGreaterThan(lowDist);
+  });
+});
+
+/* ── Arc routing ──────────────────────────────────────────────── */
+
+describe('arcRoute', () => {
+  const fromBounds: Rect = { x: 100, y: 100, width: 180, height: 80 };
+  const toBounds: Rect = { x: 500, y: 300, width: 180, height: 80 };
+
+  it('returns two cubic segments (kappa ellipse approximation)', () => {
+    const segments = arcRoute(fromBounds, toBounds, { x: 400, y: 300 }, 0.35);
+    expect(segments).toHaveLength(2);
+    for (const segment of segments) {
+      expect(segment).toHaveLength(4);
+      for (const point of segment) {
+        expect(Number.isFinite(point.x)).toBe(true);
+        expect(Number.isFinite(point.y)).toBe(true);
+      }
+    }
+  });
+
+  it('changes bow direction when diagramCenter override is on the opposite side', () => {
+    const [defaultFirst] = arcRoute(fromBounds, toBounds, { x: 390, y: 20 }, 0.35);
+    const [overrideFirst] = arcRoute(fromBounds, toBounds, { x: 390, y: 700 }, 0.35);
+
+    // midpoint of first segment is the segment end (pMid) for this split
+    const defaultTop = defaultFirst[3];
+    const overrideTop = overrideFirst[3];
+
+    expect(overrideTop.y).toBeLessThan(defaultTop.y);
+  });
+
+  it('start/end tangents are perpendicular to the chord in opposite directions', () => {
+    const [first, second] = arcRoute(fromBounds, toBounds, { x: 400, y: 300 }, 0.35);
+    const start = first[0];
+    const startCp = first[1];
+    const endCp = second[2];
+    const end = second[3];
+
+    const chord = { x: end.x - start.x, y: end.y - start.y };
+    const startTan = { x: startCp.x - start.x, y: startCp.y - start.y };
+    const endTan = { x: end.x - endCp.x, y: end.y - endCp.y };
+
+    const startDot = chord.x * startTan.x + chord.y * startTan.y;
+    const endDot = chord.x * endTan.x + chord.y * endTan.y;
+
+    expect(Math.abs(startDot)).toBeLessThan(1e-6);
+    expect(Math.abs(endDot)).toBeLessThan(1e-6);
+    expect(startTan.x * endTan.x + startTan.y * endTan.y).toBeLessThan(0);
   });
 });
 

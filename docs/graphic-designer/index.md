@@ -8,6 +8,9 @@ Use it to create:
 - flowcharts and diagrams
 - infographics and visual layouts
 
+Connection routing modes: `auto`, `orthogonal`, `curve`, `arc`.
+You can also set `layout.diagramCenter` to explicitly control curve/arc bow direction.
+
 It is designed for:
 - **developers** who need shareable code visuals without browser tools
 - **content creators** generating consistent, reproducible graphics

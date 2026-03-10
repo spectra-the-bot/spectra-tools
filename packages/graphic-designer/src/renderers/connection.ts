@@ -14,7 +14,7 @@ import type { ConnectionElement, Theme } from '../spec.schema.js';
 export type Point = PrimitivePoint;
 export type Rect = RendererRect;
 
-export type ConnectionRouting = 'auto' | 'orthogonal' | 'curve';
+export type ConnectionRouting = 'auto' | 'orthogonal' | 'curve' | 'arc';
 export type ConnectionArrow = 'none' | 'end' | 'start' | 'both';
 export type ConnectionStrokeStyle = 'solid' | 'dashed' | 'dotted';
 
@@ -31,6 +31,10 @@ export type ConnectionRenderOptions = {
   diagramCenter: Point;
   elkRoute?: Point[];
 };
+
+export type CubicBezierSegment = [Point, Point, Point, Point];
+
+const ELLIPSE_KAPPA = (4 * (Math.sqrt(2) - 1)) / 3;
 
 export function rectCenter(rect: Rect): Point {
   return {
@@ -101,6 +105,81 @@ export function curveRoute(
   return [p0, cp1, cp2, p3];
 }
 
+function dot(a: Point, b: Point): number {
+  return a.x * b.x + a.y * b.y;
+}
+
+function localToWorld(origin: Point, axisX: Point, axisY: Point, local: Point): Point {
+  return {
+    x: origin.x + axisX.x * local.x + axisY.x * local.y,
+    y: origin.y + axisX.y * local.x + axisY.y * local.y,
+  };
+}
+
+/**
+ * Approximate an outward-bowing half-ellipse with two cubic bezier segments.
+ *
+ * Uses the classic kappa constant (`4 * (sqrt(2) - 1) / 3`) for quarter-ellipse
+ * control points, producing a stable arc from source edge anchor to target edge
+ * anchor.
+ */
+export function arcRoute(
+  fromBounds: Rect,
+  toBounds: Rect,
+  diagramCenter: Point,
+  tension: number,
+): [CubicBezierSegment, CubicBezierSegment] {
+  const fromCenter = rectCenter(fromBounds);
+  const toCenter = rectCenter(toBounds);
+
+  const start = edgeAnchor(fromBounds, toCenter);
+  const end = edgeAnchor(toBounds, fromCenter);
+
+  const chord = { x: end.x - start.x, y: end.y - start.y };
+  const chordLength = Math.hypot(chord.x, chord.y);
+
+  if (chordLength < 1e-6) {
+    const mid = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
+    return [
+      [start, start, mid, mid],
+      [mid, mid, end, end],
+    ];
+  }
+
+  const axisX = { x: chord.x / chordLength, y: chord.y / chordLength };
+  let axisY = { x: -axisX.y, y: axisX.x };
+
+  const midpoint = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
+  const outwardHint = outwardNormal(midpoint, diagramCenter);
+  if (dot(axisY, outwardHint) < 0) {
+    axisY = { x: -axisY.x, y: -axisY.y };
+  }
+
+  const semiMajor = chordLength / 2;
+  const semiMinor = Math.max(12, chordLength * tension * 0.75);
+
+  const p0Local: Point = { x: -semiMajor, y: 0 };
+  const cp1Local: Point = { x: -semiMajor, y: ELLIPSE_KAPPA * semiMinor };
+  const cp2Local: Point = { x: -ELLIPSE_KAPPA * semiMajor, y: semiMinor };
+  const pMidLocal: Point = { x: 0, y: semiMinor };
+  const cp3Local: Point = { x: ELLIPSE_KAPPA * semiMajor, y: semiMinor };
+  const cp4Local: Point = { x: semiMajor, y: ELLIPSE_KAPPA * semiMinor };
+  const p3Local: Point = { x: semiMajor, y: 0 };
+
+  const p0 = localToWorld(midpoint, axisX, axisY, p0Local);
+  const cp1 = localToWorld(midpoint, axisX, axisY, cp1Local);
+  const cp2 = localToWorld(midpoint, axisX, axisY, cp2Local);
+  const pMid = localToWorld(midpoint, axisX, axisY, pMidLocal);
+  const cp3 = localToWorld(midpoint, axisX, axisY, cp3Local);
+  const cp4 = localToWorld(midpoint, axisX, axisY, cp4Local);
+  const p3 = localToWorld(midpoint, axisX, axisY, p3Local);
+
+  return [
+    [p0, cp1, cp2, pMid],
+    [pMid, cp3, cp4, p3],
+  ];
+}
+
 /**
  * Compute an orthogonal (right-angle) path between two rectangles.
  * Returns an array of waypoints forming a 3-segment path.
@@ -124,6 +203,17 @@ export function bezierPointAt(p0: Point, cp1: Point, cp2: Point, p3: Point, t: n
     x: mt * mt * mt * p0.x + 3 * mt * mt * t * cp1.x + 3 * mt * t * t * cp2.x + t * t * t * p3.x,
     y: mt * mt * mt * p0.y + 3 * mt * mt * t * cp1.y + 3 * mt * t * t * cp2.y + t * t * t * p3.y,
   };
+}
+
+function pointAlongArc(route: [CubicBezierSegment, CubicBezierSegment], t: number): Point {
+  const [first, second] = route;
+  if (t <= 0.5) {
+    const localT = Math.max(0, Math.min(1, t * 2));
+    return bezierPointAt(first[0], first[1], first[2], first[3], localT);
+  }
+
+  const localT = Math.max(0, Math.min(1, (t - 0.5) * 2));
+  return bezierPointAt(second[0], second[1], second[2], second[3], localT);
 }
 
 /**
@@ -255,6 +345,7 @@ export function renderConnection(
   toBounds: Rect,
   theme: Theme,
   edgeRoute?: EdgeRoute,
+  options?: { diagramCenter?: Point },
 ): RenderedElement[] {
   const routing: ConnectionRouting = conn.routing ?? 'auto';
   const strokeStyle: ConnectionStrokeStyle = conn.strokeStyle ?? conn.style ?? 'solid';
@@ -270,6 +361,7 @@ export function renderConnection(
   };
 
   const labelT = conn.labelPosition === 'start' ? 0.2 : conn.labelPosition === 'end' ? 0.8 : 0.5;
+  const diagramCenter = options?.diagramCenter ?? computeDiagramCenter([fromBounds, toBounds]);
 
   let linePoints: Point[];
   let startPoint: Point;
@@ -282,7 +374,6 @@ export function renderConnection(
   ctx.globalAlpha = conn.opacity;
 
   if (routing === 'curve') {
-    const diagramCenter = computeDiagramCenter([fromBounds, toBounds]);
     const [p0, cp1, cp2, p3] = curveRoute(fromBounds, toBounds, diagramCenter, tension);
 
     ctx.strokeStyle = style.color;
@@ -299,11 +390,31 @@ export function renderConnection(
     startAngle = Math.atan2(p0.y - cp1.y, p0.x - cp1.x);
     endAngle = Math.atan2(p3.y - cp2.y, p3.x - cp2.x);
     labelPoint = bezierPointAt(p0, cp1, cp2, p3, labelT);
+  } else if (routing === 'arc') {
+    const [first, second] = arcRoute(fromBounds, toBounds, diagramCenter, tension);
+    const [p0, cp1, cp2, pMid] = first;
+    const [, cp3, cp4, p3] = second;
+
+    ctx.strokeStyle = style.color;
+    ctx.lineWidth = style.width;
+    ctx.setLineDash(style.dash ?? []);
+    ctx.beginPath();
+    ctx.moveTo(p0.x, p0.y);
+    ctx.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, pMid.x, pMid.y);
+    ctx.bezierCurveTo(cp3.x, cp3.y, cp4.x, cp4.y, p3.x, p3.y);
+    ctx.stroke();
+
+    linePoints = [p0, cp1, cp2, pMid, cp3, cp4, p3];
+    startPoint = p0;
+    endPoint = p3;
+    startAngle = Math.atan2(p0.y - cp1.y, p0.x - cp1.x);
+    endAngle = Math.atan2(p3.y - cp4.y, p3.x - cp4.x);
+    labelPoint = pointAlongArc([first, second], labelT);
   } else {
-    linePoints =
-      edgeRoute && edgeRoute.points.length >= 2
-        ? edgeRoute.points
-        : orthogonalRoute(fromBounds, toBounds);
+    const useElkRoute = routing === 'auto' && (edgeRoute?.points.length ?? 0) >= 2;
+    linePoints = useElkRoute
+      ? (edgeRoute?.points ?? orthogonalRoute(fromBounds, toBounds))
+      : orthogonalRoute(fromBounds, toBounds);
 
     startPoint = linePoints[0];
     const startSegment = linePoints[1] ?? linePoints[0];
@@ -314,7 +425,7 @@ export function renderConnection(
       Math.atan2(startSegment.y - linePoints[0].y, startSegment.x - linePoints[0].x) + Math.PI;
     endAngle = Math.atan2(endPoint.y - endStart.y, endPoint.x - endStart.x);
 
-    if (edgeRoute && edgeRoute.points.length >= 2) {
+    if (useElkRoute) {
       drawCubicInterpolatedPath(ctx, linePoints, style);
     } else {
       drawOrthogonalPath(ctx, startPoint, endPoint, style);

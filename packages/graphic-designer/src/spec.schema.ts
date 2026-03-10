@@ -350,7 +350,7 @@ export const connectionElementSchema = z
     strokeWidth: z.number().min(0.5).max(10).default(2),
     arrowSize: z.number().min(4).max(32).optional(),
     opacity: z.number().min(0).max(1).default(1),
-    routing: z.enum(['auto', 'orthogonal', 'curve']).default('auto'),
+    routing: z.enum(['auto', 'orthogonal', 'curve', 'arc']).default('auto'),
     tension: z.number().min(0.1).max(0.8).default(0.35),
   })
   .strict();
@@ -441,6 +441,13 @@ const elementSchema = z.discriminatedUnion('type', [
   imageElementSchema,
 ]);
 
+const diagramCenterSchema = z
+  .object({
+    x: z.number(),
+    y: z.number(),
+  })
+  .strict();
+
 const autoLayoutConfigSchema = z
   .object({
     mode: z.literal('auto'),
@@ -458,6 +465,8 @@ const autoLayoutConfigSchema = z
     radialCompaction: z.enum(['none', 'radial', 'wedge']).optional(),
     /** Sort strategy for radial layout node ordering. Only relevant when algorithm is 'radial'. */
     radialSortBy: z.enum(['id', 'connections']).optional(),
+    /** Explicit center used by curve/arc connection routing. */
+    diagramCenter: diagramCenterSchema.optional(),
   })
   .strict();
 
@@ -469,6 +478,8 @@ const gridLayoutConfigSchema = z
     cardMinHeight: z.number().int().min(32).max(4096).optional(),
     cardMaxHeight: z.number().int().min(32).max(4096).optional(),
     equalHeight: z.boolean().default(false),
+    /** Explicit center used by curve/arc connection routing. */
+    diagramCenter: diagramCenterSchema.optional(),
   })
   .strict();
 
@@ -478,6 +489,8 @@ const stackLayoutConfigSchema = z
     direction: z.enum(['vertical', 'horizontal']).default('vertical'),
     gap: z.number().int().min(0).max(256).default(24),
     alignment: z.enum(['start', 'center', 'end', 'stretch']).default('stretch'),
+    /** Explicit center used by curve/arc connection routing. */
+    diagramCenter: diagramCenterSchema.optional(),
   })
   .strict();
 
@@ -494,6 +507,8 @@ const manualLayoutConfigSchema = z
   .object({
     mode: z.literal('manual'),
     positions: z.record(z.string().min(1), manualPositionSchema).default({}),
+    /** Explicit center used by curve/arc connection routing. */
+    diagramCenter: diagramCenterSchema.optional(),
   })
   .strict();
 
@@ -586,6 +601,7 @@ export const diagramLayoutSchema = z
   .object({
     mode: z.enum(['manual', 'auto']).default('manual'),
     positions: z.record(z.string(), diagramPositionSchema).optional(),
+    diagramCenter: diagramCenterSchema.optional(),
   })
   .strict();
 
