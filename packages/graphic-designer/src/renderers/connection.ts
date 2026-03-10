@@ -9,7 +9,7 @@ import {
 } from '../primitives/lines.js';
 import { drawTextLabel, resolveFont } from '../primitives/text.js';
 import type { RenderedElement, Rect as RendererRect } from '../renderer.js';
-import type { ConnectionElement, Theme } from '../spec.schema.js';
+import type { AnchorHint, ConnectionElement, Theme } from '../spec.schema.js';
 
 export type Point = PrimitivePoint;
 export type Rect = RendererRect;
@@ -68,6 +68,77 @@ export function edgeAnchor(bounds: Rect, target: Point): Point {
 }
 
 /**
+ * Resolve an anchor hint to a concrete point on the bounds rectangle.
+ *
+ * When no anchor is provided, falls back to the automatic `edgeAnchor()`
+ * calculation using `fallbackTarget` as the ray target.
+ *
+ * Named anchors (`top`, `bottom`, `left`, `right`, `center`) resolve to the
+ * midpoint of the corresponding edge (or the center of the bounds).
+ *
+ * Fractional anchors `{ x, y }` map the `[-1, 1]` range to the node bounds,
+ * where `(0, 0)` is the center, `(-1, -1)` is the top-left corner, and
+ * `(1, 1)` is the bottom-right corner.
+ */
+export function resolveAnchor(
+  bounds: Rect,
+  anchor: AnchorHint | undefined,
+  fallbackTarget: Point,
+): Point {
+  if (!anchor) return edgeAnchor(bounds, fallbackTarget);
+
+  if (typeof anchor === 'string') {
+    const c = rectCenter(bounds);
+    switch (anchor) {
+      case 'top':
+        return { x: c.x, y: bounds.y };
+      case 'bottom':
+        return { x: c.x, y: bounds.y + bounds.height };
+      case 'left':
+        return { x: bounds.x, y: c.y };
+      case 'right':
+        return { x: bounds.x + bounds.width, y: c.y };
+      case 'center':
+        return c;
+    }
+  }
+
+  // Fractional: map [-1,1] to node bounds
+  const c = rectCenter(bounds);
+  return {
+    x: c.x + anchor.x * (bounds.width / 2),
+    y: c.y + anchor.y * (bounds.height / 2),
+  };
+}
+
+/**
+ * Compute an outward normal direction for a given anchor hint.
+ *
+ * For named anchors, the normal points directly outward from the corresponding
+ * edge. For fractional anchors or when no anchor is provided, the normal is
+ * computed from the diagram center through the anchor point (same as the
+ * existing `outwardNormal` behavior).
+ */
+function anchorNormal(anchor: AnchorHint | undefined, point: Point, diagramCenter: Point): Point {
+  if (typeof anchor === 'string') {
+    switch (anchor) {
+      case 'top':
+        return { x: 0, y: -1 };
+      case 'bottom':
+        return { x: 0, y: 1 };
+      case 'left':
+        return { x: -1, y: 0 };
+      case 'right':
+        return { x: 1, y: 0 };
+      case 'center':
+        return outwardNormal(point, diagramCenter);
+    }
+  }
+
+  return outwardNormal(point, diagramCenter);
+}
+
+/**
  * Unit vector pointing outward from `diagramCenter` through `point`.
  */
 export function outwardNormal(point: Point, diagramCenter: Point): Point {
@@ -80,24 +151,30 @@ export function outwardNormal(point: Point, diagramCenter: Point): Point {
 /**
  * Compute a cubic bezier curve that bows outward from the diagram center.
  * Returns `[startPoint, controlPoint1, controlPoint2, endPoint]`.
+ *
+ * When `fromAnchor` or `toAnchor` hints are provided, they override the
+ * automatic edge anchor calculation and the outward normal is derived from
+ * the hint direction instead of from the diagram center.
  */
 export function curveRoute(
   fromBounds: Rect,
   toBounds: Rect,
   diagramCenter: Point,
   tension: number,
+  fromAnchor?: AnchorHint,
+  toAnchor?: AnchorHint,
 ): [Point, Point, Point, Point] {
   const fromCenter = rectCenter(fromBounds);
   const toCenter = rectCenter(toBounds);
 
-  const p0 = edgeAnchor(fromBounds, toCenter);
-  const p3 = edgeAnchor(toBounds, fromCenter);
+  const p0 = resolveAnchor(fromBounds, fromAnchor, toCenter);
+  const p3 = resolveAnchor(toBounds, toAnchor, fromCenter);
 
   const dist = Math.hypot(p3.x - p0.x, p3.y - p0.y);
   const offset = dist * tension;
 
-  const n0 = outwardNormal(p0, diagramCenter);
-  const n3 = outwardNormal(p3, diagramCenter);
+  const n0 = anchorNormal(fromAnchor, p0, diagramCenter);
+  const n3 = anchorNormal(toAnchor, p3, diagramCenter);
 
   const cp1: Point = { x: p0.x + n0.x * offset, y: p0.y + n0.y * offset };
   const cp2: Point = { x: p3.x + n3.x * offset, y: p3.y + n3.y * offset };
@@ -122,18 +199,23 @@ function localToWorld(origin: Point, axisX: Point, axisY: Point, local: Point): 
  * Uses the classic kappa constant (`4 * (sqrt(2) - 1) / 3`) for quarter-ellipse
  * control points, producing a stable arc from source edge anchor to target edge
  * anchor.
+ *
+ * When `fromAnchor` or `toAnchor` hints are provided, they override the
+ * automatic edge anchor calculation.
  */
 export function arcRoute(
   fromBounds: Rect,
   toBounds: Rect,
   diagramCenter: Point,
   tension: number,
+  fromAnchor?: AnchorHint,
+  toAnchor?: AnchorHint,
 ): [CubicBezierSegment, CubicBezierSegment] {
   const fromCenter = rectCenter(fromBounds);
   const toCenter = rectCenter(toBounds);
 
-  const start = edgeAnchor(fromBounds, toCenter);
-  const end = edgeAnchor(toBounds, fromCenter);
+  const start = resolveAnchor(fromBounds, fromAnchor, toCenter);
+  const end = resolveAnchor(toBounds, toAnchor, fromCenter);
 
   const chord = { x: end.x - start.x, y: end.y - start.y };
   const chordLength = Math.hypot(chord.x, chord.y);
@@ -183,13 +265,21 @@ export function arcRoute(
 /**
  * Compute an orthogonal (right-angle) path between two rectangles.
  * Returns an array of waypoints forming a 3-segment path.
+ *
+ * When `fromAnchor` or `toAnchor` hints are provided, they override the
+ * automatic edge anchor calculation.
  */
-export function orthogonalRoute(fromBounds: Rect, toBounds: Rect): Point[] {
+export function orthogonalRoute(
+  fromBounds: Rect,
+  toBounds: Rect,
+  fromAnchor?: AnchorHint,
+  toAnchor?: AnchorHint,
+): Point[] {
   const fromC = rectCenter(fromBounds);
   const toC = rectCenter(toBounds);
 
-  const p0 = edgeAnchor(fromBounds, toC);
-  const p3 = edgeAnchor(toBounds, fromC);
+  const p0 = resolveAnchor(fromBounds, fromAnchor, toC);
+  const p3 = resolveAnchor(toBounds, toAnchor, fromC);
 
   const midX = (p0.x + p3.x) / 2;
 
@@ -439,7 +529,14 @@ export function renderConnection(
   const arrowPlacement = conn.arrowPlacement ?? 'endpoint';
 
   if (routing === 'curve') {
-    const [p0, cp1, cp2, p3] = curveRoute(fromBounds, toBounds, diagramCenter, tension);
+    const [p0, cp1, cp2, p3] = curveRoute(
+      fromBounds,
+      toBounds,
+      diagramCenter,
+      tension,
+      conn.fromAnchor,
+      conn.toAnchor,
+    );
 
     ctx.strokeStyle = style.color;
     ctx.lineWidth = style.width;
@@ -475,7 +572,14 @@ export function renderConnection(
       }
     }
   } else if (routing === 'arc') {
-    const [first, second] = arcRoute(fromBounds, toBounds, diagramCenter, tension);
+    const [first, second] = arcRoute(
+      fromBounds,
+      toBounds,
+      diagramCenter,
+      tension,
+      conn.fromAnchor,
+      conn.toAnchor,
+    );
     const [p0, cp1, cp2, pMid] = first;
     const [, cp3, cp4, p3] = second;
 
@@ -515,10 +619,12 @@ export function renderConnection(
       }
     }
   } else {
-    const useElkRoute = routing === 'auto' && (edgeRoute?.points.length ?? 0) >= 2;
+    const hasAnchorHints = conn.fromAnchor !== undefined || conn.toAnchor !== undefined;
+    const useElkRoute =
+      routing === 'auto' && !hasAnchorHints && (edgeRoute?.points.length ?? 0) >= 2;
     linePoints = useElkRoute
-      ? (edgeRoute?.points ?? orthogonalRoute(fromBounds, toBounds))
-      : orthogonalRoute(fromBounds, toBounds);
+      ? (edgeRoute?.points ?? orthogonalRoute(fromBounds, toBounds, conn.fromAnchor, conn.toAnchor))
+      : orthogonalRoute(fromBounds, toBounds, conn.fromAnchor, conn.toAnchor);
 
     startPoint = linePoints[0];
     const startSegment = linePoints[1] ?? linePoints[0];

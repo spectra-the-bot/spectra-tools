@@ -13,6 +13,7 @@ import {
   orthogonalRoute,
   outwardNormal,
   rectCenter,
+  resolveAnchor,
 } from '../renderers/connection.js';
 import {
   connectionElementSchema,
@@ -167,6 +168,116 @@ describe('connectionElementSchema', () => {
       expect(result.arrow).toBe(arrow);
     }
   });
+
+  it('accepts named fromAnchor values', () => {
+    for (const anchor of ['top', 'bottom', 'left', 'right', 'center'] as const) {
+      const result = connectionElementSchema.parse({
+        type: 'connection',
+        from: 'a',
+        to: 'b',
+        fromAnchor: anchor,
+      });
+      expect(result.fromAnchor).toBe(anchor);
+    }
+  });
+
+  it('accepts named toAnchor values', () => {
+    for (const anchor of ['top', 'bottom', 'left', 'right', 'center'] as const) {
+      const result = connectionElementSchema.parse({
+        type: 'connection',
+        from: 'a',
+        to: 'b',
+        toAnchor: anchor,
+      });
+      expect(result.toAnchor).toBe(anchor);
+    }
+  });
+
+  it('accepts fractional fromAnchor object', () => {
+    const result = connectionElementSchema.parse({
+      type: 'connection',
+      from: 'a',
+      to: 'b',
+      fromAnchor: { x: 0.5, y: -0.5 },
+    });
+    expect(result.fromAnchor).toEqual({ x: 0.5, y: -0.5 });
+  });
+
+  it('accepts fractional toAnchor object', () => {
+    const result = connectionElementSchema.parse({
+      type: 'connection',
+      from: 'a',
+      to: 'b',
+      toAnchor: { x: -1, y: 1 },
+    });
+    expect(result.toAnchor).toEqual({ x: -1, y: 1 });
+  });
+
+  it('accepts both fromAnchor and toAnchor simultaneously', () => {
+    const result = connectionElementSchema.parse({
+      type: 'connection',
+      from: 'a',
+      to: 'b',
+      fromAnchor: 'top',
+      toAnchor: { x: 0, y: 1 },
+    });
+    expect(result.fromAnchor).toBe('top');
+    expect(result.toAnchor).toEqual({ x: 0, y: 1 });
+  });
+
+  it('defaults fromAnchor and toAnchor to undefined', () => {
+    const result = connectionElementSchema.parse({
+      type: 'connection',
+      from: 'a',
+      to: 'b',
+    });
+    expect(result.fromAnchor).toBeUndefined();
+    expect(result.toAnchor).toBeUndefined();
+  });
+
+  it('rejects invalid named anchor value', () => {
+    expect(() =>
+      connectionElementSchema.parse({
+        type: 'connection',
+        from: 'a',
+        to: 'b',
+        fromAnchor: 'top-left',
+      }),
+    ).toThrow();
+  });
+
+  it('rejects fractional anchor x out of range', () => {
+    expect(() =>
+      connectionElementSchema.parse({
+        type: 'connection',
+        from: 'a',
+        to: 'b',
+        fromAnchor: { x: 1.5, y: 0 },
+      }),
+    ).toThrow();
+  });
+
+  it('rejects fractional anchor y out of range', () => {
+    expect(() =>
+      connectionElementSchema.parse({
+        type: 'connection',
+        from: 'a',
+        to: 'b',
+        toAnchor: { x: 0, y: -1.5 },
+      }),
+    ).toThrow();
+  });
+
+  it('rejects fractional anchor with extra properties', () => {
+    expect(() =>
+      connectionElementSchema.parse({
+        type: 'connection',
+        from: 'a',
+        to: 'b',
+        fromAnchor: { x: 0, y: 0, z: 0 },
+      }),
+    ).toThrow();
+  });
 });
 
 describe('flowNodeElementSchema', () => {
@@ -315,6 +426,149 @@ describe('edgeAnchor', () => {
     const anchor = edgeAnchor(bounds, { x: 200, y: 150 });
     expect(anchor.x).toBe(200);
     expect(anchor.y).toBe(100);
+  });
+});
+
+/* ── resolveAnchor ────────────────────────────────────────────── */
+
+describe('resolveAnchor', () => {
+  const bounds: Rect = { x: 100, y: 100, width: 200, height: 100 };
+  // center is (200, 150)
+
+  it('falls back to edgeAnchor when anchor is undefined', () => {
+    const fallbackTarget: Point = { x: 500, y: 150 };
+    const result = resolveAnchor(bounds, undefined, fallbackTarget);
+    const expected = edgeAnchor(bounds, fallbackTarget);
+    expect(result.x).toBeCloseTo(expected.x);
+    expect(result.y).toBeCloseTo(expected.y);
+  });
+
+  it('resolves named anchor: top', () => {
+    const result = resolveAnchor(bounds, 'top', { x: 0, y: 0 });
+    expect(result.x).toBeCloseTo(200); // center x
+    expect(result.y).toBeCloseTo(100); // bounds.y
+  });
+
+  it('resolves named anchor: bottom', () => {
+    const result = resolveAnchor(bounds, 'bottom', { x: 0, y: 0 });
+    expect(result.x).toBeCloseTo(200); // center x
+    expect(result.y).toBeCloseTo(200); // bounds.y + bounds.height
+  });
+
+  it('resolves named anchor: left', () => {
+    const result = resolveAnchor(bounds, 'left', { x: 0, y: 0 });
+    expect(result.x).toBeCloseTo(100); // bounds.x
+    expect(result.y).toBeCloseTo(150); // center y
+  });
+
+  it('resolves named anchor: right', () => {
+    const result = resolveAnchor(bounds, 'right', { x: 0, y: 0 });
+    expect(result.x).toBeCloseTo(300); // bounds.x + bounds.width
+    expect(result.y).toBeCloseTo(150); // center y
+  });
+
+  it('resolves named anchor: center', () => {
+    const result = resolveAnchor(bounds, 'center', { x: 0, y: 0 });
+    expect(result.x).toBeCloseTo(200);
+    expect(result.y).toBeCloseTo(150);
+  });
+
+  it('resolves fractional anchor (0, 0) to center', () => {
+    const result = resolveAnchor(bounds, { x: 0, y: 0 }, { x: 0, y: 0 });
+    expect(result.x).toBeCloseTo(200);
+    expect(result.y).toBeCloseTo(150);
+  });
+
+  it('resolves fractional anchor (1, 0) to right edge center', () => {
+    const result = resolveAnchor(bounds, { x: 1, y: 0 }, { x: 0, y: 0 });
+    expect(result.x).toBeCloseTo(300); // center.x + 1 * width/2
+    expect(result.y).toBeCloseTo(150); // center.y
+  });
+
+  it('resolves fractional anchor (-1, -1) to top-left corner', () => {
+    const result = resolveAnchor(bounds, { x: -1, y: -1 }, { x: 0, y: 0 });
+    expect(result.x).toBeCloseTo(100); // center.x - 1 * width/2
+    expect(result.y).toBeCloseTo(100); // center.y - 1 * height/2
+  });
+
+  it('resolves fractional anchor (1, 1) to bottom-right corner', () => {
+    const result = resolveAnchor(bounds, { x: 1, y: 1 }, { x: 0, y: 0 });
+    expect(result.x).toBeCloseTo(300); // center.x + 1 * width/2
+    expect(result.y).toBeCloseTo(200); // center.y + 1 * height/2
+  });
+
+  it('resolves fractional anchor (0.5, -0.5) to quarter offsets', () => {
+    const result = resolveAnchor(bounds, { x: 0.5, y: -0.5 }, { x: 0, y: 0 });
+    expect(result.x).toBeCloseTo(250); // 200 + 0.5 * 100
+    expect(result.y).toBeCloseTo(125); // 150 - 0.5 * 50
+  });
+});
+
+/* ── resolveAnchor in routing functions ───────────────────────── */
+
+describe('anchor hints in routing functions', () => {
+  const fromBounds: Rect = { x: 100, y: 100, width: 180, height: 80 };
+  const toBounds: Rect = { x: 500, y: 300, width: 180, height: 80 };
+  const diagramCenter: Point = { x: 400, y: 300 };
+
+  it('curveRoute without anchors matches original behavior', () => {
+    const withAnchors = curveRoute(fromBounds, toBounds, diagramCenter, 0.35, undefined, undefined);
+    const withoutAnchors = curveRoute(fromBounds, toBounds, diagramCenter, 0.35);
+    for (let i = 0; i < 4; i++) {
+      expect(withAnchors[i].x).toBeCloseTo(withoutAnchors[i].x);
+      expect(withAnchors[i].y).toBeCloseTo(withoutAnchors[i].y);
+    }
+  });
+
+  it('curveRoute with fromAnchor "top" starts from top edge center', () => {
+    const [p0] = curveRoute(fromBounds, toBounds, diagramCenter, 0.35, 'top');
+    expect(p0.x).toBeCloseTo(190); // fromBounds center x
+    expect(p0.y).toBeCloseTo(100); // fromBounds.y (top)
+  });
+
+  it('curveRoute with toAnchor "left" ends at left edge center', () => {
+    const [, , , p3] = curveRoute(fromBounds, toBounds, diagramCenter, 0.35, undefined, 'left');
+    expect(p3.x).toBeCloseTo(500); // toBounds.x (left)
+    expect(p3.y).toBeCloseTo(340); // toBounds center y
+  });
+
+  it('arcRoute without anchors matches original behavior', () => {
+    const withAnchors = arcRoute(fromBounds, toBounds, diagramCenter, 0.35, undefined, undefined);
+    const withoutAnchors = arcRoute(fromBounds, toBounds, diagramCenter, 0.35);
+    // Compare start and end points
+    expect(withAnchors[0][0].x).toBeCloseTo(withoutAnchors[0][0].x);
+    expect(withAnchors[0][0].y).toBeCloseTo(withoutAnchors[0][0].y);
+    expect(withAnchors[1][3].x).toBeCloseTo(withoutAnchors[1][3].x);
+    expect(withAnchors[1][3].y).toBeCloseTo(withoutAnchors[1][3].y);
+  });
+
+  it('arcRoute with fromAnchor "bottom" starts from bottom edge', () => {
+    const [first] = arcRoute(fromBounds, toBounds, diagramCenter, 0.35, 'bottom');
+    expect(first[0].x).toBeCloseTo(190); // fromBounds center x
+    expect(first[0].y).toBeCloseTo(180); // fromBounds.y + height
+  });
+
+  it('orthogonalRoute without anchors matches original behavior', () => {
+    const withAnchors = orthogonalRoute(fromBounds, toBounds, undefined, undefined);
+    const withoutAnchors = orthogonalRoute(fromBounds, toBounds);
+    expect(withAnchors).toHaveLength(withoutAnchors.length);
+    for (let i = 0; i < withAnchors.length; i++) {
+      expect(withAnchors[i].x).toBeCloseTo(withoutAnchors[i].x);
+      expect(withAnchors[i].y).toBeCloseTo(withoutAnchors[i].y);
+    }
+  });
+
+  it('orthogonalRoute with fromAnchor "right" starts from right edge', () => {
+    const points = orthogonalRoute(fromBounds, toBounds, 'right');
+    expect(points[0].x).toBeCloseTo(280); // fromBounds.x + width
+    expect(points[0].y).toBeCloseTo(140); // fromBounds center y
+  });
+
+  it('orthogonalRoute with toAnchor fractional anchor', () => {
+    const points = orthogonalRoute(fromBounds, toBounds, undefined, { x: 0, y: -1 });
+    const lastPoint = points[points.length - 1];
+    expect(lastPoint.x).toBeCloseTo(590); // toBounds center x
+    expect(lastPoint.y).toBeCloseTo(300); // toBounds.y (top)
   });
 });
 
