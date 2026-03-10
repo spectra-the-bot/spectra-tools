@@ -12,6 +12,24 @@ import type { Rect, RenderedElement } from '../renderer.js';
 import type { FlowNodeElement, Theme } from '../spec.schema.js';
 import { blendColorWithOpacity } from '../utils/color.js';
 
+/** Badge pill constants. */
+const BADGE_FONT_SIZE = 10;
+const BADGE_FONT_WEIGHT = 600;
+const BADGE_LETTER_SPACING = 1;
+const BADGE_PADDING_X = 8;
+const BADGE_PADDING_Y = 3;
+const BADGE_BORDER_RADIUS = 12;
+const BADGE_DEFAULT_COLOR = '#FFFFFF';
+
+/**
+ * Height of a badge pill including its vertical padding.
+ * Used both for rendering and for size estimation.
+ */
+export const BADGE_PILL_HEIGHT = BADGE_FONT_SIZE + BADGE_PADDING_Y * 2;
+
+/** Extra vertical space added inside a node when `inside-top` badge is present. */
+export const BADGE_INSIDE_TOP_EXTRA = BADGE_PILL_HEIGHT + 6;
+
 /**
  * Draw the shape path for a flow-node without managing opacity or line width.
  * This is a pure shape dispatch helper so that the caller can orchestrate fill
@@ -58,6 +76,79 @@ function drawNodeShape(
   }
 }
 
+/**
+ * Measure text width with letter-spacing applied (manual per-character spacing
+ * to stay compatible with @napi-rs/canvas which doesn't support ctx.letterSpacing).
+ */
+function measureSpacedText(ctx: SKRSContext2D, text: string, letterSpacing: number): number {
+  const base = ctx.measureText(text).width;
+  const extraChars = [...text].length - 1;
+  return extraChars > 0 ? base + extraChars * letterSpacing : base;
+}
+
+/**
+ * Draw text with manual letter-spacing by rendering character-by-character.
+ */
+function drawSpacedText(
+  ctx: SKRSContext2D,
+  text: string,
+  centerX: number,
+  centerY: number,
+  letterSpacing: number,
+): void {
+  const chars = [...text];
+  if (chars.length === 0) return;
+
+  const totalWidth = measureSpacedText(ctx, text, letterSpacing);
+  let cursorX = centerX - totalWidth / 2;
+
+  ctx.textAlign = 'left';
+  for (let i = 0; i < chars.length; i++) {
+    ctx.fillText(chars[i], cursorX, centerY);
+    cursorX += ctx.measureText(chars[i]).width + (i < chars.length - 1 ? letterSpacing : 0);
+  }
+}
+
+/**
+ * Render a badge pill (rounded rectangle with text) at the given center
+ * position. Returns the measured pill width for downstream use.
+ */
+function renderBadgePill(
+  ctx: SKRSContext2D,
+  centerX: number,
+  centerY: number,
+  text: string,
+  textColor: string,
+  background: string,
+  monoFont: string,
+): number {
+  ctx.save();
+
+  // Measure text width with badge font.
+  applyFont(ctx, { size: BADGE_FONT_SIZE, weight: BADGE_FONT_WEIGHT, family: monoFont });
+  const textWidth = measureSpacedText(ctx, text, BADGE_LETTER_SPACING);
+
+  const pillWidth = textWidth + BADGE_PADDING_X * 2;
+  const pillHeight = BADGE_PILL_HEIGHT;
+  const pillX = centerX - pillWidth / 2;
+  const pillY = centerY - pillHeight / 2;
+
+  // Draw pill background.
+  ctx.fillStyle = background;
+  ctx.beginPath();
+  ctx.roundRect(pillX, pillY, pillWidth, pillHeight, BADGE_BORDER_RADIUS);
+  ctx.fill();
+
+  // Draw text centered in the pill.
+  ctx.fillStyle = textColor;
+  ctx.textBaseline = 'middle';
+  applyFont(ctx, { size: BADGE_FONT_SIZE, weight: BADGE_FONT_WEIGHT, family: monoFont });
+  drawSpacedText(ctx, text, centerX, centerY, BADGE_LETTER_SPACING);
+
+  ctx.restore();
+  return pillWidth;
+}
+
 export function renderFlowNode(
   ctx: SKRSContext2D,
   node: FlowNodeElement,
@@ -73,13 +164,15 @@ export function renderFlowNode(
   const labelFontSize = node.labelFontSize ?? 20;
   const fillOpacity = node.fillOpacity ?? 1;
 
+  const hasBadge = !!node.badgeText;
+  const badgePosition = node.badgePosition ?? 'inside-top';
+  const badgeColor = node.badgeColor ?? BADGE_DEFAULT_COLOR;
+  const badgeBackground = node.badgeBackground ?? borderColor ?? theme.accent;
+
   ctx.save();
   ctx.lineWidth = borderWidth;
 
   if (fillOpacity < 1) {
-    // Two-pass rendering: fill at reduced opacity, then stroke at full node
-    // opacity. Pass 1 draws the fill without a border. Pass 2 re-draws the
-    // shape with a transparent fill so only the stroke is visible.
     ctx.globalAlpha = node.opacity * fillOpacity;
     drawNodeShape(ctx, node.shape, bounds, fillColor, undefined, cornerRadius);
 
@@ -92,8 +185,13 @@ export function renderFlowNode(
 
   const headingFont = resolveFont(theme.fonts.heading, 'heading');
   const bodyFont = resolveFont(theme.fonts.body, 'body');
+  const monoFont = resolveFont(theme.fonts.mono, 'mono');
   const centerX = bounds.x + bounds.width / 2;
   const centerY = bounds.y + bounds.height / 2;
+
+  // When badge is inside-top, shift the text block down to make room.
+  const insideTopShift =
+    hasBadge && badgePosition === 'inside-top' ? BADGE_INSIDE_TOP_EXTRA / 2 : 0;
 
   // Compute text block metrics for vertical centering across 1/2/3 lines.
   const sublabelFontSize = Math.max(12, Math.round(labelFontSize * 0.68));
@@ -115,8 +213,8 @@ export function renderFlowNode(
 
   const labelY =
     lineCount === 1
-      ? centerY + labelFontSize * 0.3
-      : centerY - textBlockHeight / 2 + labelFontSize * 0.8;
+      ? centerY + labelFontSize * 0.3 + insideTopShift
+      : centerY - textBlockHeight / 2 + labelFontSize * 0.8 + insideTopShift;
 
   ctx.textAlign = 'center';
   applyFont(ctx, { size: labelFontSize, weight: 700, family: headingFont });
@@ -145,11 +243,37 @@ export function renderFlowNode(
     textBoundsHeight = 72;
   }
 
+  // Render badge pill.
+  if (hasBadge && node.badgeText) {
+    if (badgePosition === 'inside-top') {
+      // Inside the node at the top, above the label text.
+      const badgeCenterY = bounds.y + BADGE_PILL_HEIGHT / 2 + 8;
+      renderBadgePill(
+        ctx,
+        centerX,
+        badgeCenterY,
+        node.badgeText,
+        badgeColor,
+        badgeBackground,
+        monoFont,
+      );
+    } else {
+      // 'top': floating above the node, centered horizontally.
+      const badgeCenterY = bounds.y - BADGE_PILL_HEIGHT / 2 - 4;
+      renderBadgePill(
+        ctx,
+        centerX,
+        badgeCenterY,
+        node.badgeText,
+        badgeColor,
+        badgeBackground,
+        monoFont,
+      );
+    }
+  }
+
   ctx.restore();
 
-  // When fillOpacity < 1 the canvas background bleeds through, so the
-  // effective background colour for QA contrast checks is the fill blended
-  // with the theme background at the given fillOpacity.
   const effectiveBg =
     fillOpacity < 1 ? blendColorWithOpacity(fillColor, theme.background, fillOpacity) : fillColor;
 
