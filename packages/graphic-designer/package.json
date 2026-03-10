@@ -1,6 +1,6 @@
 {
   "name": "@spectratools/graphic-designer-cli",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "description": "Deterministic visual content generator — code screenshots, terminal shots, flowcharts, and infographics. No browser dependency.",
   "type": "module",
   "license": "MIT",
