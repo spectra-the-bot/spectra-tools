@@ -61,13 +61,17 @@ export const protocolDetailSchema = z.object({
 
 export type ProtocolDetail = z.infer<typeof protocolDetailSchema>;
 
-/** Volume entry from /overview/dexs */
+/** Volume entry from /overview/dexs or /overview/aggregators */
 export const volumeEntrySchema = z.object({
   name: z.string(),
   displayName: z.string().optional(),
+  slug: z.string().optional(),
+  category: z.string().nullable().optional(),
+  chains: z.array(z.string()).optional(),
   total24h: z.number().nullable().optional(),
   total7d: z.number().nullable().optional(),
   total30d: z.number().nullable().optional(),
+  totalAllTime: z.number().nullable().optional(),
   change_1d: z.number().nullable().optional(),
   change_7d: z.number().nullable().optional(),
   change_1m: z.number().nullable().optional(),
@@ -75,18 +79,68 @@ export const volumeEntrySchema = z.object({
 
 export type VolumeEntry = z.infer<typeof volumeEntrySchema>;
 
+/** Response from /overview/dexs or /overview/aggregators */
+export const volumeOverviewResponseSchema = z.object({
+  protocols: z.array(volumeEntrySchema),
+  allChains: z.array(z.string()).optional(),
+  chain: z.string().nullable().optional(),
+  total24h: z.number().nullable().optional(),
+  total7d: z.number().nullable().optional(),
+  total30d: z.number().nullable().optional(),
+  change_1d: z.number().nullable().optional(),
+});
+
+export type VolumeOverviewResponse = z.infer<typeof volumeOverviewResponseSchema>;
+
 /** Fee/revenue entry from /overview/fees */
 export const feeEntrySchema = z.object({
   name: z.string(),
   displayName: z.string().optional(),
+  slug: z.string().optional(),
+  category: z.string().nullable().optional(),
+  chains: z.array(z.string()).optional(),
   total24h: z.number().nullable().optional(),
   total7d: z.number().nullable().optional(),
   total30d: z.number().nullable().optional(),
   totalAllTime: z.number().nullable().optional(),
   change_1d: z.number().nullable().optional(),
+  change_7d: z.number().nullable().optional(),
+  change_1m: z.number().nullable().optional(),
 });
 
 export type FeeEntry = z.infer<typeof feeEntrySchema>;
+
+/** Response from /overview/fees */
+export const feeOverviewResponseSchema = z.object({
+  protocols: z.array(feeEntrySchema),
+  allChains: z.array(z.string()).optional(),
+  chain: z.string().nullable().optional(),
+  total24h: z.number().nullable().optional(),
+  total7d: z.number().nullable().optional(),
+  total30d: z.number().nullable().optional(),
+  change_1d: z.number().nullable().optional(),
+});
+
+export type FeeOverviewResponse = z.infer<typeof feeOverviewResponseSchema>;
+
+/** Detail response from /summary/dexs/<slug> or /summary/fees/<slug> */
+export const summaryDetailSchema = z.object({
+  name: z.string(),
+  displayName: z.string().optional(),
+  slug: z.string().optional(),
+  category: z.string().nullable().optional(),
+  chains: z.array(z.string()).optional(),
+  total24h: z.number().nullable().optional(),
+  total48hto24h: z.number().nullable().optional(),
+  total7d: z.number().nullable().optional(),
+  total30d: z.number().nullable().optional(),
+  totalAllTime: z.number().nullable().optional(),
+  change_1d: z.number().nullable().optional(),
+  change_7d: z.number().nullable().optional(),
+  change_1m: z.number().nullable().optional(),
+});
+
+export type SummaryDetail = z.infer<typeof summaryDetailSchema>;
 
 /* ── Price schemas (coins.llama.fi) ─────────────────────────── */
 
