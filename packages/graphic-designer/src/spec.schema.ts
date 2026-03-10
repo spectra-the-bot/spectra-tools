@@ -173,6 +173,18 @@ const drawGradientRectSchema = z
   })
   .strict();
 
+const drawGridSchema = z
+  .object({
+    type: z.literal('grid'),
+    spacing: z.number().min(5).max(200).default(40),
+    color: colorHexSchema.default('#1E2D4A'),
+    width: z.number().min(0.1).max(4).default(0.5),
+    opacity: z.number().min(0).max(1).default(0.2),
+    offsetX: z.number().default(0),
+    offsetY: z.number().default(0),
+  })
+  .strict();
+
 const drawCommandSchema = z.discriminatedUnion('type', [
   drawRectSchema,
   drawCircleSchema,
@@ -182,6 +194,7 @@ const drawCommandSchema = z.discriminatedUnion('type', [
   drawPathSchema,
   drawBadgeSchema,
   drawGradientRectSchema,
+  drawGridSchema,
 ]);
 
 /** Default canvas dimensions and padding (1200 × 675 px, 48 px padding). */
@@ -666,6 +679,7 @@ export type DrawBezier = z.infer<typeof drawBezierSchema>;
 export type DrawPath = z.infer<typeof drawPathSchema>;
 export type DrawBadge = z.infer<typeof drawBadgeSchema>;
 export type DrawGradientRect = z.infer<typeof drawGradientRectSchema>;
+export type DrawGrid = z.infer<typeof drawGridSchema>;
 export type DrawCommand = z.infer<typeof drawCommandSchema>;
 export type LayoutConfig = z.infer<typeof layoutConfigSchema>;
 export type AutoLayoutConfig = z.infer<typeof autoLayoutConfigSchema>;
