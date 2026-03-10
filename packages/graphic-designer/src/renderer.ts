@@ -8,7 +8,12 @@ import { drawGradientRect, drawRainbowRule, drawVignette } from './primitives/gr
 import { applyFont, resolveFont, wrapText } from './primitives/text.js';
 import { renderCard } from './renderers/card.js';
 import { renderCodeBlock } from './renderers/code.js';
-import { computeDiagramCenter, renderConnection } from './renderers/connection.js';
+import {
+  type EllipseParams,
+  computeDiagramCenter,
+  inferEllipseParams,
+  renderConnection,
+} from './renderers/connection.js';
 import { renderDrawCommands } from './renderers/draw.js';
 import { renderFlowNode } from './renderers/flow-node.js';
 import { renderImageElement } from './renderers/image.js';
@@ -563,15 +568,35 @@ export async function renderDesign(
     }
   }
 
+  const nodeBounds = spec.elements
+    .filter((element) => element.type !== 'connection')
+    .map((element) => elementRects.get(element.id))
+    .filter((rect): rect is Rect => rect != null);
+
   const diagramCenter =
     spec.layout.diagramCenter ??
-    computeDiagramCenter(
-      spec.elements
-        .filter((element) => element.type !== 'connection')
-        .map((element) => elementRects.get(element.id))
-        .filter((rect): rect is Rect => rect != null),
-      { x: spec.canvas.width / 2, y: spec.canvas.height / 2 },
-    );
+    computeDiagramCenter(nodeBounds, { x: spec.canvas.width / 2, y: spec.canvas.height / 2 });
+
+  // Pre-compute shared ellipse params for curveMode: 'ellipse' connections
+  const layoutEllipseRx =
+    'ellipseRx' in spec.layout
+      ? ((spec.layout as Record<string, unknown>).ellipseRx as number | undefined)
+      : undefined;
+  const layoutEllipseRy =
+    'ellipseRy' in spec.layout
+      ? ((spec.layout as Record<string, unknown>).ellipseRy as number | undefined)
+      : undefined;
+  const hasEllipseConnections = spec.elements.some(
+    (el) => el.type === 'connection' && (el.curveMode === 'ellipse' || el.routing === 'arc'),
+  );
+  const ellipseParams: EllipseParams | undefined = hasEllipseConnections
+    ? inferEllipseParams(
+        nodeBounds,
+        spec.layout.diagramCenter ?? diagramCenter,
+        layoutEllipseRx,
+        layoutEllipseRy,
+      )
+    : undefined;
 
   for (const element of spec.elements) {
     if (element.type !== 'connection') {
@@ -589,7 +614,15 @@ export async function renderDesign(
 
     const edgeRoute = edgeRoutes?.get(`${element.from}-${element.to}`);
     elements.push(
-      ...renderConnection(ctx, element, fromRect, toRect, theme, edgeRoute, { diagramCenter }),
+      ...renderConnection(
+        ctx,
+        element,
+        fromRect,
+        toRect,
+        theme,
+        edgeRoute,
+        ellipseParams ? { diagramCenter, ellipseParams } : { diagramCenter },
+      ),
     );
   }
 

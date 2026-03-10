@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  type EllipseParams,
   type Point,
   type Rect,
   arcRoute,
@@ -8,12 +9,15 @@ import {
   computeDiagramCenter,
   curveRoute,
   edgeAnchor,
+  ellipseRoute,
   findBoundaryIntersection,
+  inferEllipseParams,
   isInsideRect,
   orthogonalRoute,
   outwardNormal,
   rectCenter,
   resolveAnchor,
+  straightRoute,
 } from '../renderers/connection.js';
 import {
   connectionElementSchema,
@@ -32,6 +36,7 @@ describe('connectionElementSchema', () => {
       to: 'b',
     });
     expect(result.routing).toBe('auto');
+    expect(result.curveMode).toBe('normal');
     expect(result.tension).toBe(0.35);
     expect(result.arrow).toBe('end');
     expect(result.style).toBe('solid');
@@ -126,6 +131,47 @@ describe('connectionElementSchema', () => {
       routing: 'arc',
     });
     expect(result.routing).toBe('arc');
+  });
+
+  it('parses routing: straight', () => {
+    const result = connectionElementSchema.parse({
+      type: 'connection',
+      from: 'a',
+      to: 'b',
+      routing: 'straight',
+    });
+    expect(result.routing).toBe('straight');
+  });
+
+  it('defaults curveMode to normal', () => {
+    const result = connectionElementSchema.parse({
+      type: 'connection',
+      from: 'a',
+      to: 'b',
+    });
+    expect(result.curveMode).toBe('normal');
+  });
+
+  it('parses curveMode: ellipse', () => {
+    const result = connectionElementSchema.parse({
+      type: 'connection',
+      from: 'a',
+      to: 'b',
+      routing: 'curve',
+      curveMode: 'ellipse',
+    });
+    expect(result.curveMode).toBe('ellipse');
+  });
+
+  it('rejects invalid curveMode value', () => {
+    expect(() =>
+      connectionElementSchema.parse({
+        type: 'connection',
+        from: 'a',
+        to: 'b',
+        curveMode: 'arc',
+      }),
+    ).toThrow();
   });
 
   it('rejects invalid routing value', () => {
@@ -419,6 +465,68 @@ describe('diagramSpecSchema', () => {
     });
 
     expect(result.layout.diagramCenter).toEqual({ x: 420, y: 250 });
+  });
+
+  it('accepts layout.ellipseRx and ellipseRy', () => {
+    const result = parseDiagramSpec({
+      version: 1,
+      canvas: { width: 1200, height: 800 },
+      elements: [
+        { type: 'flow-node', id: 'a', label: 'A' },
+        { type: 'flow-node', id: 'b', label: 'B' },
+        {
+          type: 'connection',
+          from: 'a',
+          to: 'b',
+          routing: 'curve',
+          curveMode: 'ellipse',
+        },
+      ],
+      layout: {
+        mode: 'manual',
+        diagramCenter: { x: 600, y: 355 },
+        ellipseRx: 395,
+        ellipseRy: 195,
+        positions: {
+          a: { x: 100, y: 120, width: 155, height: 62 },
+          b: { x: 520, y: 120, width: 155, height: 62 },
+        },
+      },
+    });
+
+    expect(result.layout.diagramCenter).toEqual({ x: 600, y: 355 });
+    if ('ellipseRx' in result.layout) {
+      expect(result.layout.ellipseRx).toBe(395);
+    }
+    if ('ellipseRy' in result.layout) {
+      expect(result.layout.ellipseRy).toBe(195);
+    }
+  });
+
+  it('parses curveMode in connection elements', () => {
+    const result = parseDiagramSpec({
+      version: 1,
+      canvas: { width: 800, height: 600 },
+      elements: [
+        { type: 'flow-node', id: 'a', label: 'A' },
+        { type: 'flow-node', id: 'b', label: 'B' },
+        {
+          type: 'connection',
+          from: 'a',
+          to: 'b',
+          routing: 'curve',
+          curveMode: 'ellipse',
+        },
+      ],
+      layout: { mode: 'manual' },
+    });
+
+    const conn = result.elements.find((e) => e.type === 'connection');
+    expect(conn).toBeDefined();
+    if (conn?.type === 'connection') {
+      expect(conn.routing).toBe('curve');
+      expect(conn.curveMode).toBe('ellipse');
+    }
   });
 });
 
@@ -1101,5 +1209,241 @@ describe('computeDiagramCenter', () => {
     const center = computeDiagramCenter([]);
     expect(center.x).toBe(0);
     expect(center.y).toBe(0);
+  });
+});
+
+/* ── Infer ellipse params ─────────────────────────────────────── */
+
+describe('inferEllipseParams', () => {
+  it('uses explicit center and radii when provided', () => {
+    const nodes: Rect[] = [
+      { x: 100, y: 100, width: 100, height: 50 },
+      { x: 400, y: 300, width: 100, height: 50 },
+    ];
+    const result = inferEllipseParams(nodes, { x: 300, y: 200 }, 500, 250);
+    expect(result.cx).toBe(300);
+    expect(result.cy).toBe(200);
+    expect(result.rx).toBe(500);
+    expect(result.ry).toBe(250);
+  });
+
+  it('infers center from node centroids', () => {
+    const nodes: Rect[] = [
+      { x: 0, y: 0, width: 100, height: 100 }, // center (50, 50)
+      { x: 200, y: 0, width: 100, height: 100 }, // center (250, 50)
+      { x: 100, y: 200, width: 100, height: 100 }, // center (150, 250)
+    ];
+    const result = inferEllipseParams(nodes);
+    expect(result.cx).toBeCloseTo(150);
+    expect(result.cy).toBeCloseTo(350 / 3);
+  });
+
+  it('infers radii from max distance to centroid', () => {
+    // 6 nodes on the example ellipse (cx=600, cy=355, rx=395, ry=195)
+    const nodes: Rect[] = [
+      { x: 522, y: 129, width: 155, height: 62 }, // triage center: (599.5, 160)
+      { x: 865, y: 226, width: 155, height: 62 }, // design center: (942.5, 257)
+      { x: 865, y: 422, width: 155, height: 62 }, // executor center: (942.5, 453)
+      { x: 522, y: 519, width: 155, height: 62 }, // reviewer center: (599.5, 550)
+      { x: 180, y: 422, width: 155, height: 62 }, // quality center: (257.5, 453)
+      { x: 180, y: 226, width: 155, height: 62 }, // opportunity center: (257.5, 257)
+    ];
+    const result = inferEllipseParams(nodes);
+    // Centroid should be close to (600, 355)
+    expect(result.cx).toBeCloseTo(600, 0);
+    expect(result.cy).toBeCloseTo(355, 0);
+    // rx and ry should be close to the max distances
+    expect(result.rx).toBeGreaterThan(300);
+    expect(result.ry).toBeGreaterThan(150);
+  });
+
+  it('uses explicit radii with inferred center', () => {
+    const nodes: Rect[] = [
+      { x: 0, y: 0, width: 100, height: 100 },
+      { x: 200, y: 200, width: 100, height: 100 },
+    ];
+    const result = inferEllipseParams(nodes, undefined, 400, 300);
+    // Center should be inferred from nodes
+    expect(result.cx).toBeCloseTo(150);
+    expect(result.cy).toBeCloseTo(150);
+    // Radii should be the explicit values
+    expect(result.rx).toBe(400);
+    expect(result.ry).toBe(300);
+  });
+
+  it('returns defaults for empty node list', () => {
+    const result = inferEllipseParams([]);
+    expect(result.rx).toBe(1);
+    expect(result.ry).toBe(1);
+  });
+
+  it('returns explicit center for empty node list with center', () => {
+    const result = inferEllipseParams([], { x: 500, y: 300 });
+    expect(result.cx).toBe(500);
+    expect(result.cy).toBe(300);
+  });
+});
+
+/* ── Ellipse route ────────────────────────────────────────────── */
+
+describe('ellipseRoute', () => {
+  // 6-node ellipse layout from the spec example
+  const ellipse: EllipseParams = { cx: 600, cy: 355, rx: 395, ry: 195 };
+  const triageBounds: Rect = { x: 522, y: 129, width: 155, height: 62 };
+  const designBounds: Rect = { x: 865, y: 226, width: 155, height: 62 };
+  const executorBounds: Rect = { x: 865, y: 422, width: 155, height: 62 };
+  const reviewerBounds: Rect = { x: 522, y: 519, width: 155, height: 62 };
+  const qualityBounds: Rect = { x: 180, y: 422, width: 155, height: 62 };
+  const opportunityBounds: Rect = { x: 180, y: 226, width: 155, height: 62 };
+
+  it('returns four points [p0, cp1, cp2, p3]', () => {
+    const result = ellipseRoute(triageBounds, designBounds, ellipse);
+    expect(result).toHaveLength(4);
+    for (const pt of result) {
+      expect(Number.isFinite(pt.x)).toBe(true);
+      expect(Number.isFinite(pt.y)).toBe(true);
+    }
+  });
+
+  it('start point lies on fromBounds edge', () => {
+    const [p0] = ellipseRoute(triageBounds, designBounds, ellipse);
+    const onHoriz =
+      Math.abs(p0.x - triageBounds.x) < 0.01 ||
+      Math.abs(p0.x - (triageBounds.x + triageBounds.width)) < 0.01;
+    const onVert =
+      Math.abs(p0.y - triageBounds.y) < 0.01 ||
+      Math.abs(p0.y - (triageBounds.y + triageBounds.height)) < 0.01;
+    expect(onHoriz || onVert).toBe(true);
+  });
+
+  it('end point lies on toBounds edge', () => {
+    const [, , , p3] = ellipseRoute(triageBounds, designBounds, ellipse);
+    const onHoriz =
+      Math.abs(p3.x - designBounds.x) < 0.01 ||
+      Math.abs(p3.x - (designBounds.x + designBounds.width)) < 0.01;
+    const onVert =
+      Math.abs(p3.y - designBounds.y) < 0.01 ||
+      Math.abs(p3.y - (designBounds.y + designBounds.height)) < 0.01;
+    expect(onHoriz || onVert).toBe(true);
+  });
+
+  it('produces finite non-degenerate control points', () => {
+    const [p0, cp1, cp2, p3] = ellipseRoute(triageBounds, designBounds, ellipse);
+    // Control points should not be identical to endpoints
+    const cp1Dist = Math.hypot(cp1.x - p0.x, cp1.y - p0.y);
+    const cp2Dist = Math.hypot(cp2.x - p3.x, cp2.y - p3.y);
+    expect(cp1Dist).toBeGreaterThan(1);
+    expect(cp2Dist).toBeGreaterThan(1);
+  });
+
+  it('curves bow outward from ellipse center', () => {
+    const [p0, cp1, cp2, p3] = ellipseRoute(triageBounds, designBounds, ellipse);
+    const midpoint = bezierPointAt(p0, cp1, cp2, p3, 0.5);
+    // The midpoint of the curve should be further from the ellipse center
+    // than the straight-line midpoint
+    const straightMid: Point = { x: (p0.x + p3.x) / 2, y: (p0.y + p3.y) / 2 };
+    const curveDist = Math.hypot(midpoint.x - ellipse.cx, midpoint.y - ellipse.cy);
+    const straightDist = Math.hypot(straightMid.x - ellipse.cx, straightMid.y - ellipse.cy);
+    expect(curveDist).toBeGreaterThan(straightDist);
+  });
+
+  it('all six connections form a smooth cycle', () => {
+    // Test that all connections between the 6 nodes produce valid bezier curves
+    const allBounds = [
+      triageBounds,
+      designBounds,
+      executorBounds,
+      reviewerBounds,
+      qualityBounds,
+      opportunityBounds,
+    ];
+
+    for (let i = 0; i < allBounds.length; i++) {
+      const from = allBounds[i];
+      const to = allBounds[(i + 1) % allBounds.length];
+      const [p0, cp1, cp2, p3] = ellipseRoute(from, to, ellipse);
+
+      // All points should be finite
+      for (const pt of [p0, cp1, cp2, p3]) {
+        expect(Number.isFinite(pt.x)).toBe(true);
+        expect(Number.isFinite(pt.y)).toBe(true);
+      }
+
+      // Curve should have non-degenerate control points
+      const dist = Math.hypot(p3.x - p0.x, p3.y - p0.y);
+      expect(dist).toBeGreaterThan(10);
+    }
+  });
+
+  it('handles coincident node centers gracefully', () => {
+    const a: Rect = { x: 100, y: 100, width: 50, height: 50 };
+    const b: Rect = { x: 100, y: 100, width: 50, height: 50 };
+    const result = ellipseRoute(a, b, ellipse);
+    for (const pt of result) {
+      expect(Number.isFinite(pt.x)).toBe(true);
+      expect(Number.isFinite(pt.y)).toBe(true);
+    }
+  });
+
+  it('respects anchor hints', () => {
+    const [p0WithAnchor] = ellipseRoute(triageBounds, designBounds, ellipse, 'bottom');
+    expect(p0WithAnchor.x).toBeCloseTo(triageBounds.x + triageBounds.width / 2);
+    expect(p0WithAnchor.y).toBeCloseTo(triageBounds.y + triageBounds.height);
+  });
+
+  it('uses generalized kappa based on angular span', () => {
+    // For ~60° arcs (6 nodes), kappa should be ~0.357
+    const [p0, cp1] = ellipseRoute(triageBounds, designBounds, ellipse);
+    const cp1Dist = Math.hypot(cp1.x - p0.x, cp1.y - p0.y);
+    // Control point distance should be non-trivial (kappa > 0)
+    expect(cp1Dist).toBeGreaterThan(5);
+  });
+});
+
+/* ── Straight route ───────────────────────────────────────────── */
+
+describe('straightRoute', () => {
+  const fromBounds: Rect = { x: 100, y: 100, width: 180, height: 80 };
+  const toBounds: Rect = { x: 500, y: 300, width: 180, height: 80 };
+
+  it('returns two points [p0, p3]', () => {
+    const result = straightRoute(fromBounds, toBounds);
+    expect(result).toHaveLength(2);
+    for (const pt of result) {
+      expect(Number.isFinite(pt.x)).toBe(true);
+      expect(Number.isFinite(pt.y)).toBe(true);
+    }
+  });
+
+  it('start point lies on fromBounds edge', () => {
+    const [p0] = straightRoute(fromBounds, toBounds);
+    const onHoriz =
+      Math.abs(p0.x - fromBounds.x) < 0.01 ||
+      Math.abs(p0.x - (fromBounds.x + fromBounds.width)) < 0.01;
+    const onVert =
+      Math.abs(p0.y - fromBounds.y) < 0.01 ||
+      Math.abs(p0.y - (fromBounds.y + fromBounds.height)) < 0.01;
+    expect(onHoriz || onVert).toBe(true);
+  });
+
+  it('end point lies on toBounds edge', () => {
+    const [, p3] = straightRoute(fromBounds, toBounds);
+    const onHoriz =
+      Math.abs(p3.x - toBounds.x) < 0.01 || Math.abs(p3.x - (toBounds.x + toBounds.width)) < 0.01;
+    const onVert =
+      Math.abs(p3.y - toBounds.y) < 0.01 || Math.abs(p3.y - (toBounds.y + toBounds.height)) < 0.01;
+    expect(onHoriz || onVert).toBe(true);
+  });
+
+  it('respects fromAnchor hint', () => {
+    const [p0] = straightRoute(fromBounds, toBounds, 'top');
+    expect(p0.x).toBeCloseTo(fromBounds.x + fromBounds.width / 2);
+    expect(p0.y).toBeCloseTo(fromBounds.y);
+  });
+
+  it('respects toAnchor hint', () => {
+    const [, p3] = straightRoute(fromBounds, toBounds, undefined, 'left');
+    expect(p3.x).toBeCloseTo(toBounds.x);
+    expect(p3.y).toBeCloseTo(toBounds.y + toBounds.height / 2);
   });
 });

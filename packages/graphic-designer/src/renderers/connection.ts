@@ -737,63 +737,33 @@ export function renderConnection(
 
   const arrowPlacement = conn.arrowPlacement ?? 'endpoint';
 
-  if (routing === 'curve' && curveMode === 'ellipse') {
-    // Ellipse mode: trace arcs on a shared global ellipse
-    const ellipse = options?.ellipseParams ?? inferEllipseParams([fromBounds, toBounds]);
+  if (routing === 'curve') {
+    let p0: Point;
+    let cp1: Point;
+    let cp2: Point;
+    let p3: Point;
 
-    const [p0, cp1, cp2, p3] = ellipseRoute(
-      fromBounds,
-      toBounds,
-      ellipse,
-      conn.fromAnchor,
-      conn.toAnchor,
-    );
-
-    const stroke = resolveConnectionStroke(ctx, p0, p3, conn.fromColor, style.color, conn.toColor);
-
-    ctx.strokeStyle = stroke;
-    ctx.lineWidth = style.width;
-    ctx.setLineDash(style.dash ?? []);
-    ctx.beginPath();
-    ctx.moveTo(p0.x, p0.y);
-    ctx.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, p3.x, p3.y);
-    ctx.stroke();
-
-    linePoints = [p0, cp1, cp2, p3];
-    startPoint = p0;
-    endPoint = p3;
-    startAngle = Math.atan2(p0.y - cp1.y, p0.x - cp1.x);
-    endAngle = Math.atan2(p3.y - cp2.y, p3.x - cp2.x);
-    labelPoint = bezierPointAt(p0, cp1, cp2, p3, labelT);
-
-    if (arrowPlacement === 'boundary') {
-      if (conn.arrow === 'end' || conn.arrow === 'both') {
-        const tEnd = findBoundaryIntersection(p0, cp1, cp2, p3, toBounds, true);
-        if (tEnd !== undefined) {
-          endPoint = bezierPointAt(p0, cp1, cp2, p3, tEnd);
-          const tangent = bezierTangentAt(p0, cp1, cp2, p3, tEnd);
-          endAngle = Math.atan2(tangent.y, tangent.x);
-        }
-      }
-      if (conn.arrow === 'start' || conn.arrow === 'both') {
-        const tStart = findBoundaryIntersection(p0, cp1, cp2, p3, fromBounds, false);
-        if (tStart !== undefined) {
-          startPoint = bezierPointAt(p0, cp1, cp2, p3, tStart);
-          const tangent = bezierTangentAt(p0, cp1, cp2, p3, tStart);
-          startAngle = Math.atan2(tangent.y, tangent.x) + Math.PI;
-        }
-      }
+    if (curveMode === 'ellipse') {
+      // Ellipse mode: trace arcs on a shared global ellipse
+      const ellipse = options?.ellipseParams ?? inferEllipseParams([fromBounds, toBounds]);
+      [p0, cp1, cp2, p3] = ellipseRoute(
+        fromBounds,
+        toBounds,
+        ellipse,
+        conn.fromAnchor,
+        conn.toAnchor,
+      );
+    } else {
+      // Normal curve mode: outward-bowing via normals
+      [p0, cp1, cp2, p3] = curveRoute(
+        fromBounds,
+        toBounds,
+        diagramCenter,
+        tension,
+        conn.fromAnchor,
+        conn.toAnchor,
+      );
     }
-  } else if (routing === 'curve') {
-    // Normal curve mode: outward-bowing via normals
-    const [p0, cp1, cp2, p3] = curveRoute(
-      fromBounds,
-      toBounds,
-      diagramCenter,
-      tension,
-      conn.fromAnchor,
-      conn.toAnchor,
-    );
 
     const stroke = resolveConnectionStroke(ctx, p0, p3, conn.fromColor, style.color, conn.toColor);
 
@@ -850,6 +820,7 @@ export function renderConnection(
     endAngle = Math.atan2(p3.y - p0.y, p3.x - p0.x);
     labelPoint = pointAlongPolyline(linePoints, labelT);
   } else {
+    // routing === 'auto' | 'orthogonal'
     const hasAnchorHints = conn.fromAnchor !== undefined || conn.toAnchor !== undefined;
     const useElkRoute =
       routing === 'auto' && !hasAnchorHints && (edgeRoute?.points.length ?? 0) >= 2;
