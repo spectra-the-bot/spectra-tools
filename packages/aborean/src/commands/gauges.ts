@@ -1,14 +1,72 @@
+import { isAddress } from '@spectratools/cli-shared';
 import { Cli, z } from 'incur';
-import type { Address } from 'viem';
+import type { Abi, Address } from 'viem';
 
 import { clFactoryAbi, gaugeAbi, poolFactoryAbi, voterAbi } from '../contracts/abis.js';
 import { ABOREAN_CL_ADDRESSES, ABOREAN_V2_ADDRESSES } from '../contracts/addresses.js';
 import { createAboreanPublicClient } from '../contracts/client.js';
 import { ZERO_ADDRESS, asNum, relTime, toChecksum } from './_common.js';
+import { aboreanWriteTx, resolveAccount, writeEnv, writeOptions } from './_write-utils.js';
 
 const env = z.object({
   ABSTRACT_RPC_URL: z.string().optional().describe('Abstract RPC URL override'),
 });
+
+const erc20ApproveAbi: Abi = [
+  {
+    type: 'function',
+    name: 'approve',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'spender', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+    ],
+    outputs: [{ name: '', type: 'bool' }],
+  },
+  {
+    type: 'function',
+    name: 'allowance',
+    stateMutability: 'view',
+    inputs: [
+      { name: 'owner', type: 'address' },
+      { name: 'account', type: 'address' },
+    ],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+];
+
+const gaugeDepositAbi: Abi = [
+  {
+    type: 'function',
+    name: 'deposit',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: 'amount', type: 'uint256' }],
+    outputs: [],
+  },
+];
+
+const gaugeDepositWithTokenIdAbi: Abi = [
+  {
+    type: 'function',
+    name: 'deposit',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'amount', type: 'uint256' },
+      { name: 'tokenId', type: 'uint256' },
+    ],
+    outputs: [],
+  },
+];
+
+const gaugeWithdrawAbi: Abi = [
+  {
+    type: 'function',
+    name: 'withdraw',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: 'amount', type: 'uint256' }],
+    outputs: [],
+  },
+];
 
 type GaugePool = {
   pool: Address;
@@ -489,5 +547,218 @@ gauges.command('staked', {
             },
           },
     );
+  },
+});
+
+gauges.command('deposit', {
+  description:
+    'Deposit LP tokens into a gauge for staking rewards. Optionally attach a veNFT tokenId for boosted emissions. Approves the gauge to spend LP tokens if needed.',
+  options: z
+    .object({
+      gauge: z.string().describe('Gauge contract address'),
+      amount: z.string().describe('Amount of LP tokens to deposit (in wei)'),
+      'token-id': z.coerce
+        .number()
+        .int()
+        .nonnegative()
+        .optional()
+        .describe('veNFT token id for boosted emissions'),
+    })
+    .merge(writeOptions),
+  env: writeEnv,
+  output: z.object({
+    gauge: z.string(),
+    stakingToken: z.string(),
+    amount: z.string(),
+    tokenId: z.number().nullable(),
+    tx: z.union([
+      z.object({
+        txHash: z.string(),
+        blockNumber: z.number(),
+        gasUsed: z.string(),
+      }),
+      z.object({
+        dryRun: z.literal(true),
+        estimatedGas: z.string(),
+        simulationResult: z.unknown(),
+      }),
+    ]),
+  }),
+  examples: [
+    {
+      options: {
+        gauge: '0x0000000000000000000000000000000000000001',
+        amount: '1000000000000000000',
+        'dry-run': true,
+      },
+      description: 'Dry-run deposit 1e18 LP tokens into a gauge',
+    },
+    {
+      options: {
+        gauge: '0x0000000000000000000000000000000000000001',
+        amount: '1000000000000000000',
+        'token-id': 42,
+      },
+      description: 'Deposit with veNFT boost',
+    },
+  ],
+  async run(c) {
+    const gaugeAddress = c.options.gauge;
+
+    if (!isAddress(gaugeAddress)) {
+      return c.error({
+        code: 'INVALID_ADDRESS',
+        message: `Invalid gauge address: "${gaugeAddress}". Use a valid 0x-prefixed 20-byte hex address.`,
+      });
+    }
+
+    const amount = BigInt(c.options.amount);
+    if (amount <= 0n) {
+      return c.error({
+        code: 'INVALID_AMOUNT',
+        message: 'amount must be a positive integer in wei.',
+      });
+    }
+
+    const gauge = gaugeAddress as Address;
+    const client = createAboreanPublicClient(c.env.ABSTRACT_RPC_URL);
+
+    // Verify gauge is alive
+    const isAlive = (await client.readContract({
+      abi: voterAbi,
+      address: ABOREAN_V2_ADDRESSES.voter,
+      functionName: 'isAlive',
+      args: [gauge],
+    })) as boolean;
+
+    if (!isAlive) {
+      return c.error({
+        code: 'GAUGE_NOT_ALIVE',
+        message: `Gauge ${toChecksum(gauge)} is not alive.`,
+        retryable: false,
+      });
+    }
+
+    // Get staking token
+    const stakingToken = (await client.readContract({
+      abi: gaugeAbi,
+      address: gauge,
+      functionName: 'stakingToken',
+    })) as Address;
+
+    const account = resolveAccount(c.env);
+
+    // Approve gauge to spend LP tokens (skip for dry-run)
+    if (!c.options['dry-run']) {
+      const currentAllowance = (await client.readContract({
+        abi: erc20ApproveAbi,
+        address: stakingToken,
+        functionName: 'allowance',
+        args: [account.address, gauge],
+      })) as bigint;
+
+      if (currentAllowance < amount) {
+        await aboreanWriteTx({
+          env: c.env,
+          options: { ...c.options, 'dry-run': false },
+          address: stakingToken,
+          abi: erc20ApproveAbi,
+          functionName: 'approve',
+          args: [gauge, amount],
+        });
+      }
+    }
+
+    const tokenId = c.options['token-id'];
+
+    // Execute deposit
+    const tx = await aboreanWriteTx({
+      env: c.env,
+      options: c.options,
+      address: gauge,
+      abi: tokenId !== undefined ? gaugeDepositWithTokenIdAbi : gaugeDepositAbi,
+      functionName: 'deposit',
+      args: tokenId !== undefined ? [amount, BigInt(tokenId)] : [amount],
+    });
+
+    return c.ok({
+      gauge: toChecksum(gauge),
+      stakingToken: toChecksum(stakingToken),
+      amount: amount.toString(),
+      tokenId: tokenId !== undefined ? tokenId : null,
+      tx,
+    });
+  },
+});
+
+gauges.command('withdraw', {
+  description: 'Withdraw LP tokens from a gauge.',
+  options: z
+    .object({
+      gauge: z.string().describe('Gauge contract address'),
+      amount: z.string().describe('Amount of LP tokens to withdraw (in wei)'),
+    })
+    .merge(writeOptions),
+  env: writeEnv,
+  output: z.object({
+    gauge: z.string(),
+    amount: z.string(),
+    tx: z.union([
+      z.object({
+        txHash: z.string(),
+        blockNumber: z.number(),
+        gasUsed: z.string(),
+      }),
+      z.object({
+        dryRun: z.literal(true),
+        estimatedGas: z.string(),
+        simulationResult: z.unknown(),
+      }),
+    ]),
+  }),
+  examples: [
+    {
+      options: {
+        gauge: '0x0000000000000000000000000000000000000001',
+        amount: '1000000000000000000',
+        'dry-run': true,
+      },
+      description: 'Dry-run withdraw 1e18 LP tokens from a gauge',
+    },
+  ],
+  async run(c) {
+    const gaugeAddress = c.options.gauge;
+
+    if (!isAddress(gaugeAddress)) {
+      return c.error({
+        code: 'INVALID_ADDRESS',
+        message: `Invalid gauge address: "${gaugeAddress}". Use a valid 0x-prefixed 20-byte hex address.`,
+      });
+    }
+
+    const amount = BigInt(c.options.amount);
+    if (amount <= 0n) {
+      return c.error({
+        code: 'INVALID_AMOUNT',
+        message: 'amount must be a positive integer in wei.',
+      });
+    }
+
+    const gauge = gaugeAddress as Address;
+
+    const tx = await aboreanWriteTx({
+      env: c.env,
+      options: c.options,
+      address: gauge,
+      abi: gaugeWithdrawAbi,
+      functionName: 'withdraw',
+      args: [amount],
+    });
+
+    return c.ok({
+      gauge: toChecksum(gauge),
+      amount: amount.toString(),
+      tx,
+    });
   },
 });
