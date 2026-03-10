@@ -43,7 +43,18 @@ jobs:
         if: github.event_name == 'pull_request' && !startsWith(github.head_ref, 'changeset-release/')
         run: |
           git fetch --no-tags --depth=1 origin main
-          CHANGED_FILES="$(git diff --name-only origin/main...HEAD)"
+
+          MERGE_BASE="$(git merge-base origin/main HEAD || true)"
+          if [ -z "$MERGE_BASE" ]; then
+            echo "No merge base found with shallow history; fetching full history"
+            if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
+              git fetch --no-tags --unshallow
+            fi
+            git fetch --no-tags origin main
+            MERGE_BASE="$(git merge-base origin/main HEAD)"
+          fi
+
+          CHANGED_FILES="$(git diff --name-only "$MERGE_BASE"..HEAD)"
 
           if ! echo "$CHANGED_FILES" | grep -q "^packages/"; then
             echo "No package changes detected, skipping changeset check"
@@ -56,7 +67,7 @@ jobs:
             exit 0
           fi
 
-          if ! npx --yes @changesets/cli status --since origin/main; then
+          if ! npx --yes @changesets/cli status --since "$MERGE_BASE"; then
             echo "One or more packages were modified without a changeset. Run `npx changeset` to add one."
             exit 1
           fi
