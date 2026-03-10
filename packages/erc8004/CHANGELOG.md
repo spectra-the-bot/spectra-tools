@@ -1,5 +1,14 @@
 # @spectra-the-bot/erc8004-cli
 
+## 0.4.1
+
+### Patch Changes
+
+- [#386](https://github.com/spectra-the-bot/spectra-tools/pull/386) [`79c57d2`](https://github.com/spectra-the-bot/spectra-tools/commit/79c57d2d06293d929a59a92bcb09ee5a16397d3b) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Fix package-root export by building `src/index.ts` so `dist/index.js` exists in the published artifact.
+
+- Updated dependencies [[`e5e4724`](https://github.com/spectra-the-bot/spectra-tools/commit/e5e47248d538c261e0fa8436bd1ba7c3f2807aaf)]:
+  - @spectratools/cli-shared@0.1.2
+
 ## 0.4.0
 
 ### Minor Changes
