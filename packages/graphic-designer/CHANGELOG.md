@@ -1,5 +1,13 @@
 # @spectratools/graphic-designer-cli
 
+## 0.7.1
+
+### Patch Changes
+
+- [#336](https://github.com/spectra-the-bot/spectra-tools/pull/336) [`effc572`](https://github.com/spectra-the-bot/spectra-tools/commit/effc572995dc41f91660fd5921e03828997d9d98) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add optional shadow property to draw commands for drop-shadow and glow effects.
+
+- [#335](https://github.com/spectra-the-bot/spectra-tools/pull/335) [`5c4ec93`](https://github.com/spectra-the-bot/spectra-tools/commit/5c4ec93397c14d4dfe9c372ed17b276db60424f0) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add optional cx, cy, innerRadius, outerRadius fields to radial gradient-rect for custom gradient positioning.
+
 ## 0.7.0
 
 ### Minor Changes
