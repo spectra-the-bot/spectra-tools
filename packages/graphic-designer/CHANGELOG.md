@@ -1,5 +1,13 @@
 # @spectratools/graphic-designer-cli
 
+## 0.12.0
+
+### Minor Changes
+
+- [#366](https://github.com/spectra-the-bot/spectra-tools/pull/366) [`f59f140`](https://github.com/spectra-the-bot/spectra-tools/commit/f59f1401627c9d624aa840d1cbea884b20186964) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add optional strokeGradient field to draw bezier and line commands for gradient-colored strokes.
+
+- [#367](https://github.com/spectra-the-bot/spectra-tools/pull/367) [`f024f57`](https://github.com/spectra-the-bot/spectra-tools/commit/f024f570c74c2beb6f8b53983405ec088c67e05f) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add ellipse layout mode that positions flow nodes on a configurable elliptical path.
+
 ## 0.11.0
 
 ### Minor Changes
