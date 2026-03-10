@@ -121,6 +121,21 @@ export function contrastRatio(foreground: string, background: string): number {
 }
 
 /**
+ * Return an `rgba()` CSS string for a given hex color at the specified opacity.
+ *
+ * Useful for Canvas 2D properties like `shadowColor` where an alpha component
+ * controls the visual intensity.
+ *
+ * @param hexColor - A `#RRGGBB` or `#RRGGBBAA` hex color.
+ * @param opacity - Opacity multiplier in the range `[0, 1]`.
+ * @returns An `rgba(r, g, b, a)` string.
+ */
+export function withAlpha(hexColor: string, opacity: number): string {
+  const rgb = parseHexColor(hexColor);
+  return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity})`;
+}
+
+/**
  * Blend a foreground color with a background color at the given opacity using
  * standard alpha compositing (source-over).
  *

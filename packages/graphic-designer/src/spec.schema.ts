@@ -285,6 +285,16 @@ const cardElementSchema = z
   })
   .strict();
 
+const flowNodeShadowSchema = z
+  .object({
+    color: colorHexSchema.optional(),
+    blur: z.number().min(0).max(64).default(8),
+    offsetX: z.number().min(-32).max(32).default(0),
+    offsetY: z.number().min(-32).max(32).default(0),
+    opacity: z.number().min(0).max(1).default(0.3),
+  })
+  .strict();
+
 const flowNodeElementSchema = z
   .object({
     type: z.literal('flow-node'),
@@ -310,6 +320,7 @@ const flowNodeElementSchema = z
     badgeColor: colorHexSchema.optional(),
     badgeBackground: colorHexSchema.optional(),
     badgePosition: z.enum(['top', 'inside-top']).default('inside-top'),
+    shadow: flowNodeShadowSchema.optional(),
   })
   .strict();
 
@@ -567,6 +578,7 @@ export type DesignSpec = z.infer<typeof designSpecSchema>;
 export type Element = z.infer<typeof elementSchema>;
 export type CardElement = z.infer<typeof cardElementSchema>;
 export type FlowNodeElement = z.infer<typeof flowNodeElementSchema>;
+export type FlowNodeShadow = z.infer<typeof flowNodeShadowSchema>;
 export type ConnectionElement = z.infer<typeof connectionElementSchema>;
 export type CodeBlockStyle = z.infer<typeof codeBlockStyleSchema>;
 export type CodeBlockElement = z.infer<typeof codeBlockElementSchema>;
