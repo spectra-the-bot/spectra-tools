@@ -98,6 +98,7 @@ export {
   type DrawPath,
   type DrawPoint,
   type DrawRect,
+  type DrawShadow,
   type DrawText,
   type Element,
   type FlowNodeElement,

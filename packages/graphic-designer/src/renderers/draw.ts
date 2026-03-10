@@ -4,7 +4,7 @@ import { type Point, drawArrowhead, drawBezier, drawLine } from '../primitives/l
 import { roundRectPath } from '../primitives/shapes.js';
 import { applyFont, resolveFont } from '../primitives/text.js';
 import type { Rect, RenderedElement } from '../renderer.js';
-import type { DrawCommand, DrawFontFamily, Theme } from '../spec.schema.js';
+import type { DrawCommand, DrawFontFamily, DrawShadow, Theme } from '../spec.schema.js';
 import { type SvgPathOperation, parseSvgPath } from '../utils/svg-path.js';
 
 function withOpacity(ctx: SKRSContext2D, opacity: number, draw: () => void): void {
@@ -25,6 +25,14 @@ function expandRect(rect: Rect, amount: number): Rect {
     width: rect.width + amount * 2,
     height: rect.height + amount * 2,
   };
+}
+
+function applyDrawShadow(ctx: SKRSContext2D, shadow: DrawShadow | undefined): void {
+  if (!shadow) return;
+  ctx.shadowColor = shadow.color;
+  ctx.shadowBlur = shadow.blur;
+  ctx.shadowOffsetX = shadow.offsetX;
+  ctx.shadowOffsetY = shadow.offsetY;
 }
 
 function fromPoints(points: Point[]): Rect {
@@ -281,6 +289,7 @@ export function renderDrawCommands(
         };
 
         withOpacity(ctx, command.opacity, () => {
+          applyDrawShadow(ctx, command.shadow);
           roundRectPath(ctx, rect, command.radius);
           if (command.fill) {
             ctx.fillStyle = command.fill;
@@ -305,6 +314,7 @@ export function renderDrawCommands(
       }
       case 'circle': {
         withOpacity(ctx, command.opacity, () => {
+          applyDrawShadow(ctx, command.shadow);
           ctx.beginPath();
           ctx.arc(command.cx, command.cy, command.radius, 0, Math.PI * 2);
           ctx.closePath();
@@ -340,6 +350,7 @@ export function renderDrawCommands(
       case 'text': {
         const fontFamily = resolveDrawFont(theme, command.fontFamily);
         withOpacity(ctx, command.opacity, () => {
+          applyDrawShadow(ctx, command.shadow);
           applyFont(ctx, {
             size: command.fontSize,
             weight: command.fontWeight,
@@ -394,6 +405,7 @@ export function renderDrawCommands(
         const lineAngle = angleBetween(from, to);
 
         withOpacity(ctx, command.opacity, () => {
+          applyDrawShadow(ctx, command.shadow);
           drawLine(ctx, from, to, {
             color: command.color,
             width: command.width,
@@ -420,6 +432,7 @@ export function renderDrawCommands(
       case 'bezier': {
         const points = command.points;
         withOpacity(ctx, command.opacity, () => {
+          applyDrawShadow(ctx, command.shadow);
           drawBezier(ctx, points, {
             color: command.color,
             width: command.width,
@@ -460,6 +473,7 @@ export function renderDrawCommands(
         const baseBounds = pathBounds(operations);
 
         withOpacity(ctx, command.opacity, () => {
+          applyDrawShadow(ctx, command.shadow);
           applySvgOperations(ctx, operations);
           if (command.fill) {
             ctx.fillStyle = command.fill;
@@ -504,9 +518,18 @@ export function renderDrawCommands(
         };
 
         withOpacity(ctx, command.opacity, () => {
+          applyDrawShadow(ctx, command.shadow);
           roundRectPath(ctx, rect, command.borderRadius);
           ctx.fillStyle = command.background;
           ctx.fill();
+
+          // Clear shadow before text pass so the label doesn't get a double shadow.
+          if (command.shadow) {
+            ctx.shadowColor = 'transparent';
+            ctx.shadowBlur = 0;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 0;
+          }
 
           applyFont(ctx, {
             size: command.fontSize,
@@ -537,6 +560,7 @@ export function renderDrawCommands(
         };
 
         withOpacity(ctx, command.opacity, () => {
+          applyDrawShadow(ctx, command.shadow);
           drawGradientRect(ctx, rect, command.gradient, command.radius);
         });
 
