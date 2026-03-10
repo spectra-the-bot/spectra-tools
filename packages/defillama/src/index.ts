@@ -6,9 +6,13 @@ export {
   chainTvlSchema,
   type FeeEntry,
   feeEntrySchema,
+  type ProtocolDetail,
+  protocolDetailSchema,
   type ProtocolSummary,
   protocolSummarySchema,
+  type TvlHistoryPoint,
+  tvlHistoryPointSchema,
   type VolumeEntry,
   volumeEntrySchema,
 } from './types.js';
-export { formatDelta, formatNumber, formatUsd } from './format.js';
+export { formatDelta, formatNumber, formatPct, formatUsd } from './format.js';
