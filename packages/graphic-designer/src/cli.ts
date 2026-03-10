@@ -7,7 +7,12 @@ import { compareImages } from './compare.js';
 import { publishToGist } from './publish/gist.js';
 import { publishToGitHub } from './publish/github.js';
 import { readMetadata, runQa } from './qa.js';
-import { inferSidecarPath, renderDesign, writeRenderArtifacts } from './renderer.js';
+import {
+  type IterationMeta,
+  inferSidecarPath,
+  renderDesign,
+  writeRenderArtifacts,
+} from './renderer.js';
 import { type DesignSpec, parseDesignSpec } from './spec.schema.js';
 import {
   buildCardsSpec,
@@ -33,6 +38,14 @@ const renderOutputSchema = z.object({
   artifactHash: z.string(),
   specHash: z.string(),
   layoutMode: z.string(),
+  iteration: z
+    .object({
+      current: z.number().int().positive(),
+      max: z.number().int().positive(),
+      isLast: z.boolean(),
+      notes: z.string().optional(),
+    })
+    .optional(),
   qa: z.object({
     pass: z.boolean(),
     issueCount: z.number(),
@@ -137,11 +150,41 @@ function readCodeRange(code: string, start: number, end: number): string {
   return lines.slice(start - 1, end).join('\n');
 }
 
+function parseIterationMeta(options: {
+  iteration?: number;
+  maxIterations?: number;
+  iterationNotes?: string;
+  previousHash?: string;
+}): IterationMeta | undefined {
+  if (options.iteration == null) {
+    if (options.maxIterations != null || options.iterationNotes || options.previousHash) {
+      throw new Error(
+        '--iteration is required when using --max-iterations, --iteration-notes, or --previous-hash.',
+      );
+    }
+    return undefined;
+  }
+
+  if (options.maxIterations != null && options.maxIterations < options.iteration) {
+    throw new Error('--max-iterations must be greater than or equal to --iteration.');
+  }
+
+  return {
+    iteration: options.iteration,
+    ...(options.maxIterations != null ? { maxIterations: options.maxIterations } : {}),
+    ...(options.iterationNotes ? { notes: options.iterationNotes } : {}),
+    ...(options.previousHash ? { previousHash: options.previousHash } : {}),
+  };
+}
+
 async function runRenderPipeline(
   spec: DesignSpec,
-  options: { out: string; specOut?: string },
+  options: { out: string; specOut?: string; iteration?: IterationMeta },
 ): Promise<RenderOutput> {
-  const renderResult = await renderDesign(spec, { generatorVersion: pkg.version });
+  const renderResult = await renderDesign(spec, {
+    generatorVersion: pkg.version,
+    ...(options.iteration ? { iteration: options.iteration } : {}),
+  });
   const written = await writeRenderArtifacts(renderResult, options.out);
 
   const specPath = options.specOut ? resolve(options.specOut) : specPathFor(written.metadataPath);
@@ -161,6 +204,20 @@ async function runRenderPipeline(
     artifactHash: written.metadata.artifactHash,
     specHash: written.metadata.specHash,
     layoutMode: spec.layout.mode,
+    ...(written.metadata.iteration
+      ? {
+          iteration: {
+            current: written.metadata.iteration.iteration,
+            max: written.metadata.iteration.maxIterations ?? written.metadata.iteration.iteration,
+            isLast:
+              (written.metadata.iteration.maxIterations ?? written.metadata.iteration.iteration) ===
+              written.metadata.iteration.iteration,
+            ...(written.metadata.iteration.notes
+              ? { notes: written.metadata.iteration.notes }
+              : {}),
+          },
+        }
+      : {}),
     qa: {
       pass: qa.pass,
       issueCount: qa.issues.length,
@@ -178,6 +235,26 @@ cli.command('render', {
       .string()
       .optional()
       .describe('Optional explicit output path for normalized spec JSON'),
+    iteration: z
+      .number()
+      .int()
+      .positive()
+      .optional()
+      .describe('Optional iteration number for iterative workflows (1-indexed)'),
+    iterationNotes: z
+      .string()
+      .optional()
+      .describe('Optional notes for the current iteration metadata'),
+    maxIterations: z
+      .number()
+      .int()
+      .positive()
+      .optional()
+      .describe('Optional maximum planned iteration count'),
+    previousHash: z
+      .string()
+      .optional()
+      .describe('Optional artifact hash from the previous iteration'),
     allowQaFail: z.boolean().default(false).describe('Allow render success even if QA fails'),
   }),
   output: renderOutputSchema,
@@ -192,9 +269,28 @@ cli.command('render', {
   ],
   async run(c) {
     const spec = parseDesignSpec(await readJson(c.options.spec));
+
+    let iteration: IterationMeta | undefined;
+    try {
+      iteration = parseIterationMeta({
+        ...(c.options.iteration != null ? { iteration: c.options.iteration } : {}),
+        ...(c.options.maxIterations != null ? { maxIterations: c.options.maxIterations } : {}),
+        ...(c.options.iterationNotes ? { iterationNotes: c.options.iterationNotes } : {}),
+        ...(c.options.previousHash ? { previousHash: c.options.previousHash } : {}),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return c.error({
+        code: 'INVALID_ITERATION_OPTIONS',
+        message,
+        retryable: false,
+      });
+    }
+
     const runReport = await runRenderPipeline(spec, {
       out: c.options.out,
       ...(c.options.specOut ? { specOut: c.options.specOut } : {}),
+      ...(iteration ? { iteration } : {}),
     });
 
     if (!runReport.qa.pass && !c.options.allowQaFail) {

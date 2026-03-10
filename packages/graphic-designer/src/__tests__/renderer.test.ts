@@ -75,7 +75,30 @@ describe('renderer', () => {
 
     expect(first.metadata.specHash).toBe(second.metadata.specHash);
     expect(first.metadata.artifactHash).toBe(second.metadata.artifactHash);
+    expect(first.metadata.iteration).toBeUndefined();
+    expect(second.metadata.iteration).toBeUndefined();
     expect(first.png.equals(second.png)).toBe(true);
+  });
+
+  it('records iteration metadata when provided', async () => {
+    const spec = makeCardSpec();
+
+    const rendered = await renderDesign(spec, {
+      generatorVersion: 'test-1.0.0',
+      iteration: {
+        iteration: 2,
+        maxIterations: 4,
+        notes: 'Adjusted contrast and spacing.',
+        previousHash: 'abc123previoushash',
+      },
+    });
+
+    expect(rendered.metadata.iteration).toEqual({
+      iteration: 2,
+      maxIterations: 4,
+      notes: 'Adjusted contrast and spacing.',
+      previousHash: 'abc123previoushash',
+    });
   });
 
   it('writes image and metadata sidecar with deterministic naming strategy', async () => {
