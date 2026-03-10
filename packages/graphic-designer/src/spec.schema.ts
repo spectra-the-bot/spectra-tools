@@ -366,6 +366,15 @@ export const flowNodeElementSchema = z
     badgeBackground: colorHexSchema.optional(),
     badgePosition: z.enum(['top', 'inside-top']).default('inside-top'),
     shadow: flowNodeShadowSchema.optional(),
+
+    // Accent bar (left edge colored bar)
+    accentColor: colorHexSchema.optional(),
+    accentBarWidth: z.number().min(0).max(16).default(3),
+
+    // Inner glow (gradient overlay from accent color inward)
+    glowColor: colorHexSchema.optional(),
+    glowWidth: z.number().min(0).max(64).default(16),
+    glowOpacity: z.number().min(0).max(1).default(0.15),
   })
   .strict();
 
