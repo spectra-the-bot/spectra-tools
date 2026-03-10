@@ -1,5 +1,11 @@
 # @spectratools/graphic-designer-cli
 
+## 0.10.1
+
+### Patch Changes
+
+- [#362](https://github.com/spectra-the-bot/spectra-tools/pull/362) [`1e1921d`](https://github.com/spectra-the-bot/spectra-tools/commit/1e1921d168fbc70f2a07eb26c02d911b73915e50) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Fix connection style field priority: `style` now takes precedence over deprecated `strokeStyle`. When `strokeStyle` is provided, a deprecation warning is emitted advising use of `style` instead.
+
 ## 0.10.0
 
 ### Minor Changes
