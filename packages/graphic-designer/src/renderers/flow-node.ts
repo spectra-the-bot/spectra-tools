@@ -95,9 +95,28 @@ export function renderFlowNode(
   const centerX = bounds.x + bounds.width / 2;
   const centerY = bounds.y + bounds.height / 2;
 
-  const labelY = node.sublabel
-    ? centerY - Math.max(4, labelFontSize * 0.2)
-    : centerY + labelFontSize * 0.3;
+  // Compute text block metrics for vertical centering across 1/2/3 lines.
+  const sublabelFontSize = Math.max(12, Math.round(labelFontSize * 0.68));
+  const sublabel2FontSize = node.sublabel2FontSize ?? 11;
+  const sublabel2Color = node.sublabel2Color ?? sublabelColor;
+
+  const lineCount = node.sublabel2 ? 3 : node.sublabel ? 2 : 1;
+  const labelToSublabelGap = Math.max(20, sublabelFontSize + 6);
+  const sublabelToSublabel2Gap = sublabel2FontSize + 4;
+
+  let textBlockHeight: number;
+  if (lineCount === 1) {
+    textBlockHeight = labelFontSize;
+  } else if (lineCount === 2) {
+    textBlockHeight = labelFontSize + labelToSublabelGap;
+  } else {
+    textBlockHeight = labelFontSize + labelToSublabelGap + sublabelToSublabel2Gap;
+  }
+
+  const labelY =
+    lineCount === 1
+      ? centerY + labelFontSize * 0.3
+      : centerY - textBlockHeight / 2 + labelFontSize * 0.8;
 
   ctx.textAlign = 'center';
   applyFont(ctx, { size: labelFontSize, weight: 700, family: headingFont });
@@ -108,12 +127,22 @@ export function renderFlowNode(
   let textBoundsHeight = 36;
 
   if (node.sublabel) {
-    const sublabelFontSize = Math.max(12, Math.round(labelFontSize * 0.68));
     applyFont(ctx, { size: sublabelFontSize, weight: 500, family: bodyFont });
     ctx.fillStyle = sublabelColor;
-    ctx.fillText(node.sublabel, centerX, labelY + Math.max(20, sublabelFontSize + 6));
+    ctx.fillText(node.sublabel, centerX, labelY + labelToSublabelGap);
     textBoundsY = bounds.y + bounds.height / 2 - 24;
     textBoundsHeight = 56;
+  }
+
+  if (node.sublabel2) {
+    applyFont(ctx, { size: sublabel2FontSize, weight: 500, family: bodyFont });
+    ctx.fillStyle = sublabel2Color;
+    const sublabel2Y = node.sublabel
+      ? labelY + labelToSublabelGap + sublabelToSublabel2Gap
+      : labelY + labelToSublabelGap;
+    ctx.fillText(node.sublabel2, centerX, sublabel2Y);
+    textBoundsY = bounds.y + bounds.height / 2 - 30;
+    textBoundsHeight = 72;
   }
 
   ctx.restore();

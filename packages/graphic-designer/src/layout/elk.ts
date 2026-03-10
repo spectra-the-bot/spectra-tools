@@ -24,36 +24,40 @@ type Bounds = {
 };
 
 function estimateFlowNodeSize(node: FlowNodeElement): { width: number; height: number } {
+  // Extra height for sublabel2 (third text line).
+  const sublabel2Extra = node.sublabel2 ? (node.sublabel2FontSize ?? 11) + 4 : 0;
+
   if (node.width && node.height) {
-    return { width: node.width, height: node.height };
+    return { width: node.width, height: node.height + sublabel2Extra };
   }
 
   if (node.width) {
+    const baseHeight = node.shape === 'diamond' || node.shape === 'circle' ? node.width : 60;
     return {
       width: node.width,
-      height: node.shape === 'diamond' || node.shape === 'circle' ? node.width : 60,
+      height: baseHeight + sublabel2Extra,
     };
   }
 
   if (node.height) {
     return {
       width: node.shape === 'diamond' || node.shape === 'circle' ? node.height : 160,
-      height: node.height,
+      height: node.height + sublabel2Extra,
     };
   }
 
   switch (node.shape) {
     case 'diamond':
     case 'circle':
-      return { width: 100, height: 100 };
+      return { width: 100 + sublabel2Extra, height: 100 + sublabel2Extra };
     case 'pill':
-      return { width: 180, height: 56 };
+      return { width: 180, height: 56 + sublabel2Extra };
     case 'cylinder':
-      return { width: 140, height: 92 };
+      return { width: 140, height: 92 + sublabel2Extra };
     case 'parallelogram':
-      return { width: 180, height: 72 };
+      return { width: 180, height: 72 + sublabel2Extra };
     default:
-      return { width: 170, height: 64 };
+      return { width: 170, height: 64 + sublabel2Extra };
   }
 }
 
