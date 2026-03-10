@@ -206,6 +206,32 @@ const drawGridSchema = z
   })
   .strict();
 
+const drawTextRowSegmentSchema = z
+  .object({
+    text: z.string().min(1).max(500),
+    color: colorHexSchema.optional(),
+    fontSize: z.number().min(6).max(200).optional(),
+    fontWeight: z.number().int().min(100).max(900).optional(),
+    fontFamily: drawFontFamilySchema.optional(),
+  })
+  .strict();
+
+const drawTextRowSchema = z
+  .object({
+    type: z.literal('text-row'),
+    segments: z.array(drawTextRowSegmentSchema).min(1).max(20),
+    x: z.number(),
+    y: z.number(),
+    align: z.enum(['left', 'center', 'right']).default('center'),
+    baseline: z.enum(['top', 'middle', 'alphabetic', 'bottom']).default('alphabetic'),
+    defaultFontSize: z.number().min(6).max(200).default(16),
+    defaultFontWeight: z.number().int().min(100).max(900).default(400),
+    defaultFontFamily: drawFontFamilySchema.default('body'),
+    defaultColor: colorHexSchema.default('#FFFFFF'),
+    opacity: z.number().min(0).max(1).default(1),
+  })
+  .strict();
+
 const drawCommandSchema = z.discriminatedUnion('type', [
   drawRectSchema,
   drawCircleSchema,
@@ -216,6 +242,7 @@ const drawCommandSchema = z.discriminatedUnion('type', [
   drawBadgeSchema,
   drawGradientRectSchema,
   drawGridSchema,
+  drawTextRowSchema,
 ]);
 
 /** Default canvas dimensions and padding (1200 × 675 px, 48 px padding). */
@@ -725,6 +752,8 @@ export type DrawPath = z.infer<typeof drawPathSchema>;
 export type DrawBadge = z.infer<typeof drawBadgeSchema>;
 export type DrawGradientRect = z.infer<typeof drawGradientRectSchema>;
 export type DrawGrid = z.infer<typeof drawGridSchema>;
+export type DrawTextRow = z.infer<typeof drawTextRowSchema>;
+export type DrawTextRowSegment = z.infer<typeof drawTextRowSegmentSchema>;
 export type DrawCommand = z.infer<typeof drawCommandSchema>;
 export type LayoutConfig = z.infer<typeof layoutConfigSchema>;
 export type AutoLayoutConfig = z.infer<typeof autoLayoutConfigSchema>;

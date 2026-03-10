@@ -100,6 +100,8 @@ export {
   type DrawRect,
   type DrawShadow,
   type DrawText,
+  type DrawTextRow,
+  type DrawTextRowSegment,
   type Element,
   type FlowNodeElement,
   type Gradient,
