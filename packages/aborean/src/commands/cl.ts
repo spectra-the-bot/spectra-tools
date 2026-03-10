@@ -7,9 +7,18 @@ import {
   clPoolAbi,
   nonfungiblePositionManagerAbi,
   quoterV2Abi,
+  swapRouterAbi,
 } from '../contracts/abis.js';
 import { ABOREAN_CL_ADDRESSES } from '../contracts/addresses.js';
 import { createAboreanPublicClient } from '../contracts/client.js';
+import {
+  type FormattedWriteDryRunResult,
+  type FormattedWriteTxResult,
+  aboreanWriteTx,
+  resolveAccount,
+  writeEnv,
+  writeOptions,
+} from './_write-utils.js';
 
 const Q96 = 2n ** 96n;
 const MULTICALL_BATCH_SIZE = 100;
@@ -812,5 +821,192 @@ cl.command('quote', {
             },
           },
     );
+  },
+});
+
+const DEFAULT_SLIPPAGE_PERCENT = 0.5;
+const DEFAULT_DEADLINE_SECONDS = 300;
+
+const swapOutputSchema = z.object({
+  pool: z.string(),
+  tokenIn: tokenSchema,
+  tokenOut: tokenSchema,
+  amountIn: z.object({ raw: z.string(), decimal: z.string() }),
+  quotedAmountOut: z.object({ raw: z.string(), decimal: z.string() }),
+  amountOutMinimum: z.object({ raw: z.string(), decimal: z.string() }),
+  slippagePercent: z.number(),
+  deadlineSeconds: z.number(),
+  tx: z.union([
+    z.object({
+      txHash: z.string(),
+      blockNumber: z.number(),
+      gasUsed: z.string(),
+    }),
+    z.object({
+      dryRun: z.literal(true),
+      estimatedGas: z.string(),
+      simulationResult: z.unknown(),
+    }),
+  ]),
+});
+
+cl.command('swap', {
+  description: 'Execute a single-hop Slipstream swap via the CL SwapRouter.',
+  options: z.object({
+    'token-in': z.string().describe('Input token address'),
+    'token-out': z.string().describe('Output token address'),
+    'amount-in': z.string().describe('Input amount in wei'),
+    slippage: z.coerce
+      .number()
+      .default(DEFAULT_SLIPPAGE_PERCENT)
+      .describe('Slippage tolerance in percent (default: 0.5)'),
+    deadline: z.coerce
+      .number()
+      .int()
+      .default(DEFAULT_DEADLINE_SECONDS)
+      .describe('Transaction deadline in seconds from now (default: 300)'),
+    ...writeOptions.shape,
+  }),
+  env: writeEnv,
+  output: swapOutputSchema,
+  async run(c) {
+    const tokenIn = c.options['token-in'];
+    const tokenOut = c.options['token-out'];
+    const amountInWei = c.options['amount-in'];
+    const slippage = c.options.slippage;
+    const deadlineSeconds = c.options.deadline;
+
+    if (!isAddress(tokenIn) || !isAddress(tokenOut)) {
+      return c.error({
+        code: 'INVALID_ADDRESS',
+        message: 'token-in and token-out must both be valid 0x-prefixed 20-byte addresses.',
+      });
+    }
+
+    const inAddress = checksumAddress(tokenIn) as Address;
+    const outAddress = checksumAddress(tokenOut) as Address;
+
+    let amountInRaw: bigint;
+    try {
+      amountInRaw = BigInt(amountInWei);
+    } catch {
+      return c.error({
+        code: 'INVALID_AMOUNT',
+        message: `Invalid amount-in: "${amountInWei}". Provide a valid integer in wei.`,
+      });
+    }
+
+    if (amountInRaw <= 0n) {
+      return c.error({
+        code: 'INVALID_AMOUNT',
+        message: 'amount-in must be a positive integer.',
+      });
+    }
+
+    if (slippage < 0 || slippage > 100) {
+      return c.error({
+        code: 'INVALID_SLIPPAGE',
+        message: `Slippage must be between 0 and 100. Got: ${slippage}`,
+      });
+    }
+
+    // 1. Discover the best pool for this pair
+    const client = createAboreanPublicClient(c.env.ABSTRACT_RPC_URL);
+    const allPools = await listPoolAddresses(client);
+    const poolStates = await readPoolStates(client, allPools);
+
+    const pairPools = poolStates.filter((pool) => {
+      const a = normalizeAddress(pool.token0);
+      const b = normalizeAddress(pool.token1);
+      const tokenInNorm = normalizeAddress(inAddress);
+      const tokenOutNorm = normalizeAddress(outAddress);
+
+      return (a === tokenInNorm && b === tokenOutNorm) || (a === tokenOutNorm && b === tokenInNorm);
+    });
+
+    if (pairPools.length === 0) {
+      return c.error({
+        code: 'POOL_NOT_FOUND',
+        message: `No Slipstream pool found for pair ${inAddress}/${outAddress}.`,
+      });
+    }
+
+    const selectedPool = [...pairPools].sort((a, b) => {
+      if (a.liquidity === b.liquidity) return 0;
+      return a.liquidity > b.liquidity ? -1 : 1;
+    })[0];
+
+    // 2. Get token metadata
+    const tokenMeta = await readTokenMetadata(client, [inAddress, outAddress]);
+    const inMeta = tokenMeta.get(inAddress) ?? toTokenMetaFallback(inAddress);
+    const outMeta = tokenMeta.get(outAddress) ?? toTokenMetaFallback(outAddress);
+
+    // 3. Quote via QuoterV2 to get expected output
+    const quote = (await client.readContract({
+      abi: quoterV2Abi,
+      address: ABOREAN_CL_ADDRESSES.quoterV2,
+      functionName: 'quoteExactInputSingle',
+      args: [
+        {
+          tokenIn: inAddress,
+          tokenOut: outAddress,
+          amountIn: amountInRaw,
+          tickSpacing: selectedPool.tickSpacing,
+          sqrtPriceLimitX96: 0n,
+        },
+      ],
+    })) as readonly [bigint, bigint, number, bigint];
+
+    const quotedAmountOut = quote[0];
+
+    // 4. Compute minimum output with slippage tolerance
+    const slippageBps = BigInt(Math.round(slippage * 100));
+    const amountOutMinimum = quotedAmountOut - (quotedAmountOut * slippageBps) / 10000n;
+
+    // 5. Resolve sender account and compute deadline
+    const account = resolveAccount(c.env);
+    const deadlineTimestamp = BigInt(Math.floor(Date.now() / 1000) + deadlineSeconds);
+
+    // 6. Execute the swap via aboreanWriteTx
+    const txResult = await aboreanWriteTx({
+      env: c.env,
+      options: {
+        'dry-run': c.options['dry-run'],
+        'gas-limit': c.options['gas-limit'],
+        'max-fee': c.options['max-fee'],
+        nonce: c.options.nonce,
+      },
+      address: ABOREAN_CL_ADDRESSES.swapRouter as Address,
+      abi: swapRouterAbi,
+      functionName: 'exactInputSingle',
+      args: [
+        {
+          tokenIn: inAddress,
+          tokenOut: outAddress,
+          tickSpacing: selectedPool.tickSpacing,
+          recipient: account.address,
+          deadline: deadlineTimestamp,
+          amountIn: amountInRaw,
+          amountOutMinimum,
+          sqrtPriceLimitX96: 0n,
+        },
+      ],
+    });
+
+    const amountInDecimal = formatUnits(amountInRaw, inMeta.decimals);
+    const quotedOutDecimal = formatUnits(quotedAmountOut, outMeta.decimals);
+    const minOutDecimal = formatUnits(amountOutMinimum, outMeta.decimals);
+
+    return c.ok({
+      pool: checksumAddress(selectedPool.pool),
+      tokenIn: inMeta,
+      tokenOut: outMeta,
+      amountIn: { raw: amountInRaw.toString(), decimal: amountInDecimal },
+      quotedAmountOut: { raw: quotedAmountOut.toString(), decimal: quotedOutDecimal },
+      amountOutMinimum: { raw: amountOutMinimum.toString(), decimal: minOutDecimal },
+      slippagePercent: slippage,
+      deadlineSeconds,
+      tx: txResult as FormattedWriteTxResult | FormattedWriteDryRunResult,
+    });
   },
 });
