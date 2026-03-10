@@ -442,7 +442,8 @@ export const connectionElementSchema = z
     from: z.string().min(1).max(120),
     to: z.string().min(1).max(120),
     style: z.enum(['solid', 'dashed', 'dotted']).default('solid'),
-    strokeStyle: z.enum(['solid', 'dashed', 'dotted']).default('solid'),
+    /** @deprecated Use `style` instead. */
+    strokeStyle: z.enum(['solid', 'dashed', 'dotted']).optional(),
     arrow: z.enum(['end', 'start', 'both', 'none']).default('end'),
     label: z.string().min(1).max(200).optional(),
     labelPosition: z.enum(['start', 'middle', 'end']).default('middle'),
@@ -454,7 +455,8 @@ export const connectionElementSchema = z
     arrowSize: z.number().min(4).max(32).optional(),
     arrowPlacement: z.enum(['endpoint', 'boundary']).default('endpoint'),
     opacity: z.number().min(0).max(1).default(1),
-    routing: z.enum(['auto', 'orthogonal', 'curve', 'arc']).default('auto'),
+    routing: z.enum(['auto', 'orthogonal', 'curve', 'arc', 'straight']).default('auto'),
+    curveMode: z.enum(['normal', 'ellipse']).default('normal'),
     tension: z.number().min(0.1).max(0.8).default(0.35),
     fromAnchor: anchorHintSchema.optional(),
     toAnchor: anchorHintSchema.optional(),
@@ -615,6 +617,10 @@ const manualLayoutConfigSchema = z
     positions: z.record(z.string().min(1), manualPositionSchema).default({}),
     /** Explicit center used by curve/arc connection routing. */
     diagramCenter: diagramCenterSchema.optional(),
+    /** Horizontal radius for shared ellipse used by curveMode: 'ellipse'. */
+    ellipseRx: z.number().positive().optional(),
+    /** Vertical radius for shared ellipse used by curveMode: 'ellipse'. */
+    ellipseRy: z.number().positive().optional(),
   })
   .strict();
 
@@ -708,6 +714,10 @@ export const diagramLayoutSchema = z
     mode: z.enum(['manual', 'auto']).default('manual'),
     positions: z.record(z.string(), diagramPositionSchema).optional(),
     diagramCenter: diagramCenterSchema.optional(),
+    /** Horizontal radius for shared ellipse used by curveMode: 'ellipse'. */
+    ellipseRx: z.number().positive().optional(),
+    /** Vertical radius for shared ellipse used by curveMode: 'ellipse'. */
+    ellipseRy: z.number().positive().optional(),
   })
   .strict();
 
