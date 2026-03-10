@@ -48,6 +48,21 @@ describe('connectionElementSchema', () => {
     expect(result.arrowPlacement).toBe('endpoint');
   });
 
+  it('parses optional fromColor and toColor', () => {
+    const result = connectionElementSchema.parse({
+      type: 'connection',
+      from: 'a',
+      to: 'b',
+      color: '#7AA2FF',
+      fromColor: '#F97316',
+      toColor: '#22C55E',
+    });
+
+    expect(result.color).toBe('#7AA2FF');
+    expect(result.fromColor).toBe('#F97316');
+    expect(result.toColor).toBe('#22C55E');
+  });
+
   it('parses arrowPlacement: boundary', () => {
     const result = connectionElementSchema.parse({
       type: 'connection',
