@@ -1,4 +1,11 @@
-import { http, createPublicClient, defineChain } from 'viem';
+import {
+  http,
+  type Account,
+  type WalletClient,
+  createPublicClient,
+  createWalletClient,
+  defineChain,
+} from 'viem';
 
 export const abstractMainnet = defineChain({
   id: 2741,
@@ -17,6 +24,14 @@ export const abstractMainnet = defineChain({
 
 export function createAboreanPublicClient(rpcUrl?: string) {
   return createPublicClient({
+    chain: abstractMainnet,
+    transport: http(rpcUrl ?? process.env.ABSTRACT_RPC_URL ?? 'https://api.mainnet.abs.xyz'),
+  });
+}
+
+export function createAboreanWalletClient(account: Account, rpcUrl?: string): WalletClient {
+  return createWalletClient({
+    account,
     chain: abstractMainnet,
     transport: http(rpcUrl ?? process.env.ABSTRACT_RPC_URL ?? 'https://api.mainnet.abs.xyz'),
   });
