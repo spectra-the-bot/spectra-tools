@@ -1,5 +1,13 @@
 # @spectratools/aborean-cli
 
+## 0.8.0
+
+### Minor Changes
+
+- [#319](https://github.com/spectra-the-bot/spectra-tools/pull/319) [`85b5969`](https://github.com/spectra-the-bot/spectra-tools/commit/85b596913d29ac7e0255b7852449ab405a628975) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add cl swap command for Slipstream single-hop swap execution.
+
+- [#314](https://github.com/spectra-the-bot/spectra-tools/pull/314) [`d2f6d8c`](https://github.com/spectra-the-bot/spectra-tools/commit/d2f6d8c6785fdacf2ef85d303d76a27b906a576c) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add Aborean wallet/signer write-transaction foundations with PRIVATE_KEY resolution, dry-run handling, and write helper tests.
+
 ## 0.7.0
 
 ### Minor Changes

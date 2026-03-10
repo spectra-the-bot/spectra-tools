@@ -1,5 +1,19 @@
 # @spectratools/graphic-designer-cli
 
+## 0.5.0
+
+### Minor Changes
+
+- [#315](https://github.com/spectra-the-bot/spectra-tools/pull/315) [`cd6cfb2`](https://github.com/spectra-the-bot/spectra-tools/commit/cd6cfb2277ecf41f435b57775378b95bb92dbaf7) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add a design compare command with structural similarity scoring and per-region verdict reporting.
+
+- [#318](https://github.com/spectra-the-bot/spectra-tools/pull/318) [`59867e3`](https://github.com/spectra-the-bot/spectra-tools/commit/59867e361ae4dd3b561f238db1611ea44ccd45ba) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add optional --reference flag to design qa for reference image comparison.
+
+### Patch Changes
+
+- [#317](https://github.com/spectra-the-bot/spectra-tools/pull/317) [`14febde`](https://github.com/spectra-the-bot/spectra-tools/commit/14febde50f01ef098e8a13c3a3d62143aa14d9df) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add AGENT_WORKFLOW.md with self-check loop documentation and link from README.
+
+- [#309](https://github.com/spectra-the-bot/spectra-tools/pull/309) [`417821a`](https://github.com/spectra-the-bot/spectra-tools/commit/417821aced1dfdd32cfe12bb45e51f968cd7da61) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add shadow/glow effect support to flow-node elements via shadow property.
+
 ## 0.4.0
 
 ### Minor Changes
