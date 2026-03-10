@@ -64,6 +64,13 @@ export type LayoutSnapshot = {
   elements: RenderedElement[];
 };
 
+export type IterationMeta = {
+  iteration: number;
+  maxIterations?: number;
+  notes?: string;
+  previousHash?: string;
+};
+
 export type RenderMetadata = {
   schemaVersion: 2;
   generatorVersion: string;
@@ -73,11 +80,18 @@ export type RenderMetadata = {
   artifactBaseName: string;
   canvas: { width: number; height: number; scale: number };
   layout: LayoutSnapshot;
+  iteration?: IterationMeta;
 };
 
 export type RenderResult = {
   png: Buffer;
   metadata: RenderMetadata;
+};
+
+export type RenderDesignOptions = {
+  generatorVersion?: string;
+  renderedAt?: string;
+  iteration?: IterationMeta;
 };
 
 export type WrittenArtifacts = {
@@ -290,12 +304,14 @@ function drawAlignedTextBlock(
  *   Defaults to {@link DEFAULT_GENERATOR_VERSION}.
  * @param options.renderedAt - ISO-8601 timestamp for the render. Defaults to
  *   `new Date().toISOString()`.
+ * @param options.iteration - Optional iteration metadata for iterative
+ *   workflows.
  * @returns A {@link RenderResult} containing the PNG buffer and full render
  *   metadata (spec hash, artifact hash, layout snapshot, etc.).
  */
 export async function renderDesign(
   input: DesignSpec,
-  options: { generatorVersion?: string; renderedAt?: string } = {},
+  options: RenderDesignOptions = {},
 ): Promise<RenderResult> {
   loadFonts();
 
@@ -305,6 +321,24 @@ export async function renderDesign(
   const specHash = computeSpecHash(spec);
   const generatorVersion = options.generatorVersion ?? DEFAULT_GENERATOR_VERSION;
   const renderedAt = options.renderedAt ?? new Date().toISOString();
+  const iteration = options.iteration;
+
+  if (iteration) {
+    if (!Number.isInteger(iteration.iteration) || iteration.iteration <= 0) {
+      throw new Error('Iteration metadata requires iteration to be a positive integer.');
+    }
+
+    if (
+      iteration.maxIterations != null &&
+      (!Number.isInteger(iteration.maxIterations) || iteration.maxIterations <= 0)
+    ) {
+      throw new Error('Iteration metadata requires maxIterations to be a positive integer.');
+    }
+
+    if (iteration.maxIterations != null && iteration.maxIterations < iteration.iteration) {
+      throw new Error('Iteration metadata requires maxIterations to be >= iteration.');
+    }
+  }
 
   const renderScale = resolveRenderScale(spec);
   const canvas = createCanvas(spec.canvas.width * renderScale, spec.canvas.height * renderScale);
@@ -608,6 +642,7 @@ export async function renderDesign(
       safeFrame,
       elements,
     },
+    ...(iteration ? { iteration } : {}),
   };
 
   return {
