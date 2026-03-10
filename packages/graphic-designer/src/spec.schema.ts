@@ -63,6 +63,13 @@ const drawShadowSchema = z
 
 const drawFontFamilySchema = z.enum(['heading', 'body', 'mono']);
 
+const strokeGradientSchema = z
+  .object({
+    from: colorHexSchema,
+    to: colorHexSchema,
+  })
+  .strict();
+
 const drawRectSchema = z
   .object({
     type: z.literal('rect'),
@@ -120,6 +127,7 @@ const drawLineSchema = z
     x2: z.number(),
     y2: z.number(),
     color: colorHexSchema.default('#FFFFFF'),
+    strokeGradient: strokeGradientSchema.optional(),
     width: z.number().min(0.5).max(32).default(2),
     dash: z.array(z.number()).max(6).optional(),
     arrow: z.enum(['none', 'end', 'start', 'both']).default('none'),
@@ -161,6 +169,7 @@ const drawBezierSchema = z
     type: z.literal('bezier'),
     points: z.array(drawPointSchema).min(2).max(20),
     color: colorHexSchema.default('#FFFFFF'),
+    strokeGradient: strokeGradientSchema.optional(),
     width: z.number().min(0.5).max(32).default(2),
     dash: z.array(z.number()).max(6).optional(),
     arrow: z.enum(['none', 'end', 'start', 'both']).default('none'),
@@ -787,6 +796,7 @@ export type ShapeElement = z.infer<typeof shapeElementSchema>;
 export type ImageElement = z.infer<typeof imageElementSchema>;
 export type DrawShadow = z.infer<typeof drawShadowSchema>;
 export type DrawFontFamily = z.infer<typeof drawFontFamilySchema>;
+export type DrawStrokeGradient = z.infer<typeof strokeGradientSchema>;
 export type DrawPoint = z.infer<typeof drawPointSchema>;
 export type DrawRect = z.infer<typeof drawRectSchema>;
 export type DrawCircle = z.infer<typeof drawCircleSchema>;

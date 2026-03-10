@@ -8,6 +8,7 @@ import type {
   DrawCommand,
   DrawFontFamily,
   DrawShadow,
+  DrawStrokeGradient,
   DrawTextRowSegment,
   Theme,
 } from '../spec.schema.js';
@@ -57,6 +58,46 @@ function fromPoints(points: Point[]): Rect {
 
 function resolveDrawFont(theme: Theme, family: DrawFontFamily): string {
   return resolveFont(theme.fonts[family], family);
+}
+
+type DrawStrokeStyle = string | ReturnType<SKRSContext2D['createLinearGradient']>;
+
+function createDrawStrokeGradient(
+  ctx: SKRSContext2D,
+  start: Point,
+  end: Point,
+  strokeGradient: DrawStrokeGradient,
+): ReturnType<SKRSContext2D['createLinearGradient']> {
+  const gradient = ctx.createLinearGradient(start.x, start.y, end.x, end.y);
+  gradient.addColorStop(0, strokeGradient.from);
+  gradient.addColorStop(1, strokeGradient.to);
+  return gradient;
+}
+
+function resolveDrawStroke(
+  ctx: SKRSContext2D,
+  start: Point,
+  end: Point,
+  color: string,
+  strokeGradient: DrawStrokeGradient | undefined,
+): DrawStrokeStyle {
+  if (!strokeGradient) {
+    return color;
+  }
+
+  return createDrawStrokeGradient(ctx, start, end, strokeGradient);
+}
+
+function resolveArrowFill(
+  color: string,
+  strokeGradient: DrawStrokeGradient | undefined,
+  position: 'start' | 'end',
+): string {
+  if (!strokeGradient) {
+    return color;
+  }
+
+  return position === 'start' ? strokeGradient.from : strokeGradient.to;
 }
 
 function measureSpacedTextWidth(ctx: SKRSContext2D, text: string, letterSpacing: number): number {
@@ -413,20 +454,33 @@ export function renderDrawCommands(
         const from: Point = { x: command.x1, y: command.y1 };
         const to: Point = { x: command.x2, y: command.y2 };
         const lineAngle = angleBetween(from, to);
+        const stroke = resolveDrawStroke(ctx, from, to, command.color, command.strokeGradient);
 
         withOpacity(ctx, command.opacity, () => {
           applyDrawShadow(ctx, command.shadow);
           drawLine(ctx, from, to, {
-            color: command.color,
+            color: stroke,
             width: command.width,
             ...(command.dash ? { dash: command.dash } : {}),
           });
 
           if (command.arrow === 'end' || command.arrow === 'both') {
-            drawArrowhead(ctx, to, lineAngle, command.arrowSize, command.color);
+            drawArrowhead(
+              ctx,
+              to,
+              lineAngle,
+              command.arrowSize,
+              resolveArrowFill(command.color, command.strokeGradient, 'end'),
+            );
           }
           if (command.arrow === 'start' || command.arrow === 'both') {
-            drawArrowhead(ctx, from, lineAngle + Math.PI, command.arrowSize, command.color);
+            drawArrowhead(
+              ctx,
+              from,
+              lineAngle + Math.PI,
+              command.arrowSize,
+              resolveArrowFill(command.color, command.strokeGradient, 'start'),
+            );
           }
         });
 
@@ -435,7 +489,7 @@ export function renderDrawCommands(
           id,
           kind: 'draw',
           bounds: expandRect(fromPoints([from, to]), Math.max(command.width / 2, arrowPadding)),
-          foregroundColor: command.color,
+          foregroundColor: command.strokeGradient?.from ?? command.color,
         });
         break;
       }
@@ -471,10 +525,18 @@ export function renderDrawCommands(
       }
       case 'bezier': {
         const points = command.points;
+        const stroke = resolveDrawStroke(
+          ctx,
+          points[0],
+          points[points.length - 1],
+          command.color,
+          command.strokeGradient,
+        );
+
         withOpacity(ctx, command.opacity, () => {
           applyDrawShadow(ctx, command.shadow);
           drawBezier(ctx, points, {
-            color: command.color,
+            color: stroke,
             width: command.width,
             ...(command.dash ? { dash: command.dash } : {}),
           });
@@ -491,11 +553,17 @@ export function renderDrawCommands(
               points[points.length - 1],
               endAngle,
               command.arrowSize,
-              command.color,
+              resolveArrowFill(command.color, command.strokeGradient, 'end'),
             );
           }
           if (command.arrow === 'start' || command.arrow === 'both') {
-            drawArrowhead(ctx, points[0], startAngle + Math.PI, command.arrowSize, command.color);
+            drawArrowhead(
+              ctx,
+              points[0],
+              startAngle + Math.PI,
+              command.arrowSize,
+              resolveArrowFill(command.color, command.strokeGradient, 'start'),
+            );
           }
         });
 
@@ -504,7 +572,7 @@ export function renderDrawCommands(
           id,
           kind: 'draw',
           bounds: expandRect(fromPoints(points), Math.max(command.width / 2, arrowPadding)),
-          foregroundColor: command.color,
+          foregroundColor: command.strokeGradient?.from ?? command.color,
         });
         break;
       }
