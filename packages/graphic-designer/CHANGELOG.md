@@ -1,5 +1,11 @@
 # @spectratools/graphic-designer-cli
 
+## 0.11.0
+
+### Minor Changes
+
+- [#363](https://github.com/spectra-the-bot/spectra-tools/pull/363) [`9bbba8b`](https://github.com/spectra-the-bot/spectra-tools/commit/9bbba8b637a6175dfccde52f2a69ef130e02ade8) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add `curveMode` field to connection routing: `ellipse` mode traces arcs on a shared global ellipse using generalized kappa for smooth bezier curves. Add `ellipseRx`/`ellipseRy` layout parameters for explicit ellipse sizing, with automatic inference from node positions as fallback. Add `routing: 'straight'` for direct line connections. Deprecate `routing: 'arc'` as alias for `routing: 'curve', curveMode: 'ellipse'`.
+
 ## 0.10.1
 
 ### Patch Changes
