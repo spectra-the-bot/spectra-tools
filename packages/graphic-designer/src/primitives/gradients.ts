@@ -11,6 +11,10 @@ type LinearGradientSpec = {
 
 type RadialGradientSpec = {
   type: 'radial';
+  cx?: number | undefined;
+  cy?: number | undefined;
+  innerRadius?: number | undefined;
+  outerRadius?: number | undefined;
   stops: GradientStop[];
 };
 
@@ -136,12 +140,12 @@ export function drawGradientRect(
     gradient.type === 'linear'
       ? createLinearRectGradient(ctx, rect, gradient.angle ?? 180)
       : ctx.createRadialGradient(
-          rect.x + rect.width / 2,
-          rect.y + rect.height / 2,
-          0,
-          rect.x + rect.width / 2,
-          rect.y + rect.height / 2,
-          Math.max(rect.width, rect.height) / 2,
+          gradient.cx ?? rect.x + rect.width / 2,
+          gradient.cy ?? rect.y + rect.height / 2,
+          gradient.innerRadius ?? 0,
+          gradient.cx ?? rect.x + rect.width / 2,
+          gradient.cy ?? rect.y + rect.height / 2,
+          gradient.outerRadius ?? Math.max(rect.width, rect.height) / 2,
         );
 
   addGradientStops(fill, gradient.stops);
