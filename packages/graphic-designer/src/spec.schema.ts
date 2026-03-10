@@ -300,7 +300,16 @@ export const flowNodeElementSchema = z
     type: z.literal('flow-node'),
     id: z.string().min(1).max(120),
     shape: z
-      .enum(['box', 'rounded-box', 'diamond', 'circle', 'pill', 'cylinder', 'parallelogram', 'hexagon'])
+      .enum([
+        'box',
+        'rounded-box',
+        'diamond',
+        'circle',
+        'pill',
+        'cylinder',
+        'parallelogram',
+        'hexagon',
+      ])
       .default('rounded-box'),
     label: z.string().min(1).max(200),
     sublabel: z.string().min(1).max(300).optional(),

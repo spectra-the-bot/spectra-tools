@@ -8,7 +8,7 @@ import {
   drawOrthogonalPath,
 } from '../primitives/lines.js';
 import { drawTextLabel, resolveFont } from '../primitives/text.js';
-import type { Rect as RendererRect, RenderedElement } from '../renderer.js';
+import type { RenderedElement, Rect as RendererRect } from '../renderer.js';
 import type { ConnectionElement, Theme } from '../spec.schema.js';
 
 export type Point = PrimitivePoint;
@@ -148,7 +148,9 @@ export function computeDiagramCenter(nodeBounds: Rect[], canvasCenter?: Point): 
   };
 }
 
-function dashFromStyle(style: ConnectionStrokeStyle | ConnectionElement['style']): number[] | undefined {
+function dashFromStyle(
+  style: ConnectionStrokeStyle | ConnectionElement['style'],
+): number[] | undefined {
   switch (style) {
     case 'dashed':
       return [10, 6];
@@ -308,7 +310,8 @@ export function renderConnection(
     const endStart = linePoints[linePoints.length - 2] ?? linePoints[0];
     endPoint = linePoints[linePoints.length - 1] ?? linePoints[0];
 
-    startAngle = Math.atan2(startSegment.y - linePoints[0].y, startSegment.x - linePoints[0].x) + Math.PI;
+    startAngle =
+      Math.atan2(startSegment.y - linePoints[0].y, startSegment.x - linePoints[0].x) + Math.PI;
     endAngle = Math.atan2(endPoint.y - endStart.y, endPoint.x - endStart.x);
 
     if (edgeRoute && edgeRoute.points.length >= 2) {
