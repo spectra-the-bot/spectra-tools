@@ -299,6 +299,97 @@ describe('layout engine', () => {
     expect(explicit.mode).toBe('manual');
   });
 
+  it('computes radial layout without radial-specific options (backward compat)', async () => {
+    const elements = parseDesignSpec({
+      elements: [
+        { type: 'flow-node', id: 'center', shape: 'circle', label: 'Center' },
+        { type: 'flow-node', id: 'a', shape: 'box', label: 'A' },
+        { type: 'flow-node', id: 'b', shape: 'box', label: 'B' },
+        { type: 'flow-node', id: 'c', shape: 'box', label: 'C' },
+        { type: 'connection', from: 'center', to: 'a' },
+        { type: 'connection', from: 'center', to: 'b' },
+        { type: 'connection', from: 'center', to: 'c' },
+      ],
+    }).elements;
+
+    const result = await computeElkLayout(
+      elements,
+      {
+        mode: 'auto',
+        algorithm: 'radial',
+        direction: 'TB',
+        nodeSpacing: 80,
+        rankSpacing: 120,
+        edgeRouting: 'polyline',
+      },
+      safeFrame,
+    );
+
+    for (const nodeId of ['center', 'a', 'b', 'c']) {
+      expect(result.positions.get(nodeId)).toBeDefined();
+    }
+  });
+
+  it('computes radial layout with radial-specific options', async () => {
+    const elements = parseDesignSpec({
+      elements: [
+        { type: 'flow-node', id: 'root', shape: 'circle', label: 'Root' },
+        { type: 'flow-node', id: 'leaf1', shape: 'box', label: 'Leaf 1' },
+        { type: 'flow-node', id: 'leaf2', shape: 'box', label: 'Leaf 2' },
+        { type: 'connection', from: 'root', to: 'leaf1' },
+        { type: 'connection', from: 'root', to: 'leaf2' },
+      ],
+    }).elements;
+
+    const result = await computeElkLayout(
+      elements,
+      {
+        mode: 'auto',
+        algorithm: 'radial',
+        direction: 'TB',
+        nodeSpacing: 80,
+        rankSpacing: 120,
+        edgeRouting: 'polyline',
+        radialRoot: 'root',
+        radialRadius: 250,
+        radialCompaction: 'wedge',
+        radialSortBy: 'connections',
+      },
+      safeFrame,
+    );
+
+    for (const nodeId of ['root', 'leaf1', 'leaf2']) {
+      expect(result.positions.get(nodeId)).toBeDefined();
+    }
+  });
+
+  it('radial options are ignored for non-radial algorithms', async () => {
+    const elements = parseDesignSpec({
+      elements: [
+        { type: 'flow-node', id: 'a', shape: 'box', label: 'A' },
+        { type: 'flow-node', id: 'b', shape: 'box', label: 'B' },
+        { type: 'connection', from: 'a', to: 'b' },
+      ],
+    }).elements;
+
+    // Should not throw even if radial fields are on a non-radial config
+    const result = await computeElkLayout(
+      elements,
+      {
+        mode: 'auto',
+        algorithm: 'layered',
+        direction: 'TB',
+        nodeSpacing: 80,
+        rankSpacing: 120,
+        edgeRouting: 'polyline',
+      },
+      safeFrame,
+    );
+
+    expect(result.positions.get('a')).toBeDefined();
+    expect(result.positions.get('b')).toBeDefined();
+  });
+
   it('lays out mixed auto-flow and non-flow elements together', async () => {
     const elements = parseDesignSpec({
       elements: [

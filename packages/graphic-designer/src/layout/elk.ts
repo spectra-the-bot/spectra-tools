@@ -216,6 +216,45 @@ function directionToElk(direction: AutoLayoutConfig['direction']): string {
   }
 }
 
+function radialCompactionToElk(
+  compaction: NonNullable<AutoLayoutConfig['radialCompaction']>,
+): string {
+  switch (compaction) {
+    case 'radial':
+      return 'RADIAL_COMPACTION';
+    case 'wedge':
+      return 'WEDGE_COMPACTION';
+    default:
+      return 'NONE';
+  }
+}
+
+function radialSortByToElk(sortBy: NonNullable<AutoLayoutConfig['radialSortBy']>): string {
+  switch (sortBy) {
+    case 'connections':
+      return 'POLAR_COORDINATE';
+    default:
+      return 'ID';
+  }
+}
+
+function buildRadialOptions(config: AutoLayoutConfig): Record<string, string> {
+  const options: Record<string, string> = {};
+  if (config.radialRoot) {
+    options['elk.radial.centerOnRoot'] = 'true';
+  }
+  if (config.radialRadius != null) {
+    options['elk.radial.radius'] = String(config.radialRadius);
+  }
+  if (config.radialCompaction) {
+    options['elk.radial.compaction.strategy'] = radialCompactionToElk(config.radialCompaction);
+  }
+  if (config.radialSortBy) {
+    options['elk.radial.orderId'] = radialSortByToElk(config.radialSortBy);
+  }
+  return options;
+}
+
 function fallbackForNoFlowNodes(nonFlow: Element[], safeFrame: Rect): LayoutResult {
   const fallbackConfig: StackLayoutConfig = {
     mode: 'stack',
@@ -263,6 +302,18 @@ export async function computeElkLayout(
 
   const edgeIdToRouteKey = new Map<string, string>();
 
+  const radialOptions = config.algorithm === 'radial' ? buildRadialOptions(config) : {};
+
+  // When radialRoot is specified, place the root node first so ELK uses it as
+  // the center of the radial layout.
+  const orderedFlowNodes =
+    config.radialRoot && config.algorithm === 'radial'
+      ? [
+          ...flowNodes.filter((node) => node.id === config.radialRoot),
+          ...flowNodes.filter((node) => node.id !== config.radialRoot),
+        ]
+      : flowNodes;
+
   const elkGraph: ElkNode = {
     id: 'root',
     layoutOptions: {
@@ -275,8 +326,9 @@ export async function computeElkLayout(
       ...(config.algorithm === 'stress'
         ? { 'elk.stress.desiredEdgeLength': String(config.rankSpacing + config.nodeSpacing) }
         : {}),
+      ...radialOptions,
     },
-    children: flowNodes.map((node) => {
+    children: orderedFlowNodes.map((node) => {
       const size = elkNodeSizes.get(node.id) ?? { width: 160, height: 60 };
       return {
         id: node.id,

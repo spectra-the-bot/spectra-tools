@@ -424,6 +424,14 @@ const autoLayoutConfigSchema = z
     rankSpacing: z.number().int().min(0).max(512).default(120),
     edgeRouting: z.enum(['orthogonal', 'polyline', 'spline']).default('polyline'),
     aspectRatio: z.number().min(0.5).max(3).optional(),
+    /** ID of the root node for radial layout. Only relevant when algorithm is 'radial'. */
+    radialRoot: z.string().min(1).max(120).optional(),
+    /** Fixed radius in pixels for radial layout. Only relevant when algorithm is 'radial'. */
+    radialRadius: z.number().positive().optional(),
+    /** Compaction strategy for radial layout. Only relevant when algorithm is 'radial'. */
+    radialCompaction: z.enum(['none', 'radial', 'wedge']).optional(),
+    /** Sort strategy for radial layout node ordering. Only relevant when algorithm is 'radial'. */
+    radialSortBy: z.enum(['id', 'connections']).optional(),
   })
   .strict();
 

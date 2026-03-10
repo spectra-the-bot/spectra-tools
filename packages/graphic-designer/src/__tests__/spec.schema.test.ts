@@ -359,4 +359,172 @@ describe('design spec schema v2', () => {
       }),
     ).toThrow();
   });
+
+  describe('radial layout config', () => {
+    it('accepts radial-specific options in auto layout config', () => {
+      const spec = parseDesignSpec({
+        layout: {
+          mode: 'auto',
+          algorithm: 'radial',
+          direction: 'TB',
+          nodeSpacing: 80,
+          rankSpacing: 120,
+          edgeRouting: 'polyline',
+          radialRoot: 'center-node',
+          radialRadius: 200,
+          radialCompaction: 'wedge',
+          radialSortBy: 'connections',
+        },
+        elements: [
+          { type: 'flow-node', id: 'center-node', shape: 'circle', label: 'Center' },
+          { type: 'flow-node', id: 'outer-1', shape: 'box', label: 'Outer 1' },
+          { type: 'connection', from: 'center-node', to: 'outer-1' },
+        ],
+      });
+
+      expect(spec.layout.mode).toBe('auto');
+      if (spec.layout.mode === 'auto') {
+        expect(spec.layout.algorithm).toBe('radial');
+        expect(spec.layout.radialRoot).toBe('center-node');
+        expect(spec.layout.radialRadius).toBe(200);
+        expect(spec.layout.radialCompaction).toBe('wedge');
+        expect(spec.layout.radialSortBy).toBe('connections');
+      }
+    });
+
+    it('accepts radial options with all compaction variants', () => {
+      for (const compaction of ['none', 'radial', 'wedge'] as const) {
+        const spec = parseDesignSpec({
+          layout: {
+            mode: 'auto',
+            algorithm: 'radial',
+            radialCompaction: compaction,
+          },
+          elements: [
+            { type: 'flow-node', id: 'a', shape: 'box', label: 'A' },
+            { type: 'flow-node', id: 'b', shape: 'box', label: 'B' },
+            { type: 'connection', from: 'a', to: 'b' },
+          ],
+        });
+
+        if (spec.layout.mode === 'auto') {
+          expect(spec.layout.radialCompaction).toBe(compaction);
+        }
+      }
+    });
+
+    it('accepts radial options with all sortBy variants', () => {
+      for (const sortBy of ['id', 'connections'] as const) {
+        const spec = parseDesignSpec({
+          layout: {
+            mode: 'auto',
+            algorithm: 'radial',
+            radialSortBy: sortBy,
+          },
+          elements: [
+            { type: 'flow-node', id: 'a', shape: 'box', label: 'A' },
+            { type: 'flow-node', id: 'b', shape: 'box', label: 'B' },
+            { type: 'connection', from: 'a', to: 'b' },
+          ],
+        });
+
+        if (spec.layout.mode === 'auto') {
+          expect(spec.layout.radialSortBy).toBe(sortBy);
+        }
+      }
+    });
+
+    it('radial options are optional and default to undefined', () => {
+      const spec = parseDesignSpec({
+        layout: {
+          mode: 'auto',
+          algorithm: 'radial',
+        },
+        elements: [
+          { type: 'flow-node', id: 'a', shape: 'box', label: 'A' },
+          { type: 'flow-node', id: 'b', shape: 'box', label: 'B' },
+          { type: 'connection', from: 'a', to: 'b' },
+        ],
+      });
+
+      if (spec.layout.mode === 'auto') {
+        expect(spec.layout.radialRoot).toBeUndefined();
+        expect(spec.layout.radialRadius).toBeUndefined();
+        expect(spec.layout.radialCompaction).toBeUndefined();
+        expect(spec.layout.radialSortBy).toBeUndefined();
+      }
+    });
+
+    it('backward compat: non-radial algorithms ignore radial options', () => {
+      const spec = parseDesignSpec({
+        layout: {
+          mode: 'auto',
+          algorithm: 'layered',
+        },
+        elements: [
+          { type: 'flow-node', id: 'a', shape: 'box', label: 'A' },
+          { type: 'flow-node', id: 'b', shape: 'box', label: 'B' },
+          { type: 'connection', from: 'a', to: 'b' },
+        ],
+      });
+
+      if (spec.layout.mode === 'auto') {
+        expect(spec.layout.algorithm).toBe('layered');
+        expect(spec.layout.radialRoot).toBeUndefined();
+        expect(spec.layout.radialRadius).toBeUndefined();
+        expect(spec.layout.radialCompaction).toBeUndefined();
+        expect(spec.layout.radialSortBy).toBeUndefined();
+      }
+    });
+
+    it('rejects invalid radialCompaction value', () => {
+      expect(() =>
+        parseDesignSpec({
+          layout: {
+            mode: 'auto',
+            algorithm: 'radial',
+            radialCompaction: 'invalid',
+          },
+          elements: [{ type: 'flow-node', id: 'a', shape: 'box', label: 'A' }],
+        }),
+      ).toThrow();
+    });
+
+    it('rejects invalid radialSortBy value', () => {
+      expect(() =>
+        parseDesignSpec({
+          layout: {
+            mode: 'auto',
+            algorithm: 'radial',
+            radialSortBy: 'invalid',
+          },
+          elements: [{ type: 'flow-node', id: 'a', shape: 'box', label: 'A' }],
+        }),
+      ).toThrow();
+    });
+
+    it('rejects non-positive radialRadius', () => {
+      expect(() =>
+        parseDesignSpec({
+          layout: {
+            mode: 'auto',
+            algorithm: 'radial',
+            radialRadius: 0,
+          },
+          elements: [{ type: 'flow-node', id: 'a', shape: 'box', label: 'A' }],
+        }),
+      ).toThrow();
+
+      expect(() =>
+        parseDesignSpec({
+          layout: {
+            mode: 'auto',
+            algorithm: 'radial',
+            radialRadius: -10,
+          },
+          elements: [{ type: 'flow-node', id: 'a', shape: 'box', label: 'A' }],
+        }),
+      ).toThrow();
+    });
+  });
 });
