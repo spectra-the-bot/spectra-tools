@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import sharp from 'sharp';
 import { resolveRenderScale } from './code-style.js';
+import type { CompareImagesReport } from './compare.js';
 import type { Rect, RenderMetadata, RenderedElement } from './renderer.js';
 import { type DesignSpec, deriveSafeFrame, parseDesignSpec } from './spec.schema.js';
 import { contrastRatio } from './utils/color.js';
@@ -17,11 +18,18 @@ export type QaIssue = {
     | 'FOOTER_SPACING'
     | 'TEXT_TRUNCATED'
     | 'MISSING_LAYOUT'
-    | 'DRAW_OUT_OF_BOUNDS';
+    | 'DRAW_OUT_OF_BOUNDS'
+    | 'REFERENCE_MISMATCH';
   severity: QaSeverity;
   message: string;
   elementId?: string;
   details?: Record<string, number | string | boolean>;
+};
+
+export type QaReferenceResult = {
+  similarity: number;
+  verdict: 'match' | 'close' | 'mismatch';
+  regions: Array<{ label: string; similarity: number; description?: string }>;
 };
 
 export type QaReport = {
@@ -41,6 +49,7 @@ export type QaReport = {
     footerSpacingPx?: number;
   };
   issues: QaIssue[];
+  reference?: QaReferenceResult;
 };
 
 function rectWithin(outer: Rect, inner: Rect): boolean {
@@ -127,6 +136,7 @@ export async function runQa(options: {
   imagePath: string;
   spec: DesignSpec;
   metadata?: RenderMetadata;
+  referencePath?: string;
 }): Promise<QaReport> {
   const spec = parseDesignSpec(options.spec);
   const imagePath = resolve(options.imagePath);
@@ -297,6 +307,35 @@ export async function runQa(options: {
     }
   }
 
+  let referenceResult: QaReferenceResult | undefined;
+
+  if (options.referencePath) {
+    const { compareImages } = await import('./compare.js');
+    const comparison: CompareImagesReport = await compareImages(options.referencePath, imagePath);
+
+    referenceResult = {
+      similarity: comparison.similarity,
+      verdict: comparison.verdict,
+      regions: comparison.regions.map((region) => ({
+        label: region.label,
+        similarity: region.similarity,
+      })),
+    };
+
+    if (comparison.verdict === 'mismatch') {
+      const severity: QaSeverity = comparison.similarity < 0.5 ? 'error' : 'warning';
+      issues.push({
+        code: 'REFERENCE_MISMATCH',
+        severity,
+        message: `Reference image comparison ${severity === 'error' ? 'failed' : 'warned'}: similarity ${comparison.similarity.toFixed(4)} with verdict "${comparison.verdict}".`,
+        details: {
+          similarity: comparison.similarity,
+          verdict: comparison.verdict,
+        },
+      });
+    }
+  }
+
   const footerSpacingPx = options.metadata?.layout.elements
     ? (() => {
         const footer = options.metadata.layout.elements.find((element) => element.id === 'footer');
@@ -333,5 +372,6 @@ export async function runQa(options: {
       ...(footerSpacingPx !== undefined ? { footerSpacingPx } : {}),
     },
     issues,
+    ...(referenceResult ? { reference: referenceResult } : {}),
   };
 }

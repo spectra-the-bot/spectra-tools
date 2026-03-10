@@ -31,6 +31,7 @@ export {
   readMetadata,
   runQa,
   type QaIssue,
+  type QaReferenceResult,
   type QaReport,
   type QaSeverity,
 } from './qa.js';
