@@ -436,6 +436,8 @@ export function renderConnection(
   ctx.save();
   ctx.globalAlpha = conn.opacity;
 
+  const arrowPlacement = conn.arrowPlacement ?? 'endpoint';
+
   if (routing === 'curve') {
     const [p0, cp1, cp2, p3] = curveRoute(fromBounds, toBounds, diagramCenter, tension);
 
@@ -453,6 +455,25 @@ export function renderConnection(
     startAngle = Math.atan2(p0.y - cp1.y, p0.x - cp1.x);
     endAngle = Math.atan2(p3.y - cp2.y, p3.x - cp2.x);
     labelPoint = bezierPointAt(p0, cp1, cp2, p3, labelT);
+
+    if (arrowPlacement === 'boundary') {
+      if (conn.arrow === 'end' || conn.arrow === 'both') {
+        const tEnd = findBoundaryIntersection(p0, cp1, cp2, p3, toBounds, true);
+        if (tEnd !== undefined) {
+          endPoint = bezierPointAt(p0, cp1, cp2, p3, tEnd);
+          const tangent = bezierTangentAt(p0, cp1, cp2, p3, tEnd);
+          endAngle = Math.atan2(tangent.y, tangent.x);
+        }
+      }
+      if (conn.arrow === 'start' || conn.arrow === 'both') {
+        const tStart = findBoundaryIntersection(p0, cp1, cp2, p3, fromBounds, false);
+        if (tStart !== undefined) {
+          startPoint = bezierPointAt(p0, cp1, cp2, p3, tStart);
+          const tangent = bezierTangentAt(p0, cp1, cp2, p3, tStart);
+          startAngle = Math.atan2(tangent.y, tangent.x) + Math.PI;
+        }
+      }
+    }
   } else if (routing === 'arc') {
     const [first, second] = arcRoute(fromBounds, toBounds, diagramCenter, tension);
     const [p0, cp1, cp2, pMid] = first;
@@ -473,6 +494,26 @@ export function renderConnection(
     startAngle = Math.atan2(p0.y - cp1.y, p0.x - cp1.x);
     endAngle = Math.atan2(p3.y - cp4.y, p3.x - cp4.x);
     labelPoint = pointAlongArc([first, second], labelT);
+
+    if (arrowPlacement === 'boundary') {
+      if (conn.arrow === 'end' || conn.arrow === 'both') {
+        const [, s_cp3, s_cp4, s_p3] = second;
+        const tEnd = findBoundaryIntersection(pMid, s_cp3, s_cp4, s_p3, toBounds, true);
+        if (tEnd !== undefined) {
+          endPoint = bezierPointAt(pMid, s_cp3, s_cp4, s_p3, tEnd);
+          const tangent = bezierTangentAt(pMid, s_cp3, s_cp4, s_p3, tEnd);
+          endAngle = Math.atan2(tangent.y, tangent.x);
+        }
+      }
+      if (conn.arrow === 'start' || conn.arrow === 'both') {
+        const tStart = findBoundaryIntersection(p0, cp1, cp2, pMid, fromBounds, false);
+        if (tStart !== undefined) {
+          startPoint = bezierPointAt(p0, cp1, cp2, pMid, tStart);
+          const tangent = bezierTangentAt(p0, cp1, cp2, pMid, tStart);
+          startAngle = Math.atan2(tangent.y, tangent.x) + Math.PI;
+        }
+      }
+    }
   } else {
     const useElkRoute = routing === 'auto' && (edgeRoute?.points.length ?? 0) >= 2;
     linePoints = useElkRoute

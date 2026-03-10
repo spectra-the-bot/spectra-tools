@@ -349,6 +349,7 @@ export const connectionElementSchema = z
     width: z.number().min(0.5).max(10).optional(),
     strokeWidth: z.number().min(0.5).max(10).default(2),
     arrowSize: z.number().min(4).max(32).optional(),
+    arrowPlacement: z.enum(['endpoint', 'boundary']).default('endpoint'),
     opacity: z.number().min(0).max(1).default(1),
     routing: z.enum(['auto', 'orthogonal', 'curve', 'arc']).default('auto'),
     tension: z.number().min(0.1).max(0.8).default(0.35),
