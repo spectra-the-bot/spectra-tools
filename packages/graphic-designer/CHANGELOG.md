@@ -1,5 +1,21 @@
 # @spectratools/graphic-designer-cli
 
+## 0.4.0
+
+### Minor Changes
+
+- [#278](https://github.com/spectra-the-bot/spectra-tools/pull/278) [`c65fe96`](https://github.com/spectra-the-bot/spectra-tools/commit/c65fe961c423d2fdc1fd3bb0ec389fa4073688bb) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add support for rgba() and rgb() color syntax in addition to hex colors.
+
+- [#280](https://github.com/spectra-the-bot/spectra-tools/pull/280) [`f39c6d8`](https://github.com/spectra-the-bot/spectra-tools/commit/f39c6d8838c5dd03602b7f3f203c40502817b24a) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add fillOpacity property to flow-node elements for translucent fill support.
+
+- [#282](https://github.com/spectra-the-bot/spectra-tools/pull/282) [`e911176`](https://github.com/spectra-the-bot/spectra-tools/commit/e9111763a17f3a7e37db2b24fa60bc791b8b094d) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add sublabel2, sublabel2Color, sublabel2FontSize properties to flow-node elements for three-line text support.
+
+- [#281](https://github.com/spectra-the-bot/spectra-tools/pull/281) [`1623c0e`](https://github.com/spectra-the-bot/spectra-tools/commit/1623c0e8741f07898b9aa6e7c50a8236d562cad7) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add badgeText, badgeColor, badgeBackground, badgePosition properties to flow-node elements for inline badge/tag rendering.
+
+### Patch Changes
+
+- [#292](https://github.com/spectra-the-bot/spectra-tools/pull/292) [`f785643`](https://github.com/spectra-the-bot/spectra-tools/commit/f7856437ac414e8ee6a5467b6bda1f61343e0133) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add radialRoot, radialRadius, radialCompaction, radialSortBy options to ELK radial layout configuration.
+
 ## 0.3.2
 
 ### Patch Changes
