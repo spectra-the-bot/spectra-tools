@@ -1,5 +1,6 @@
+import { isAddress } from '@spectratools/cli-shared';
 import { Cli, z } from 'incur';
-import type { Address } from 'viem';
+import type { Abi, Address } from 'viem';
 
 import {
   clFactoryAbi,
@@ -12,6 +13,21 @@ import {
 import { ABOREAN_CL_ADDRESSES, ABOREAN_V2_ADDRESSES } from '../contracts/addresses.js';
 import { createAboreanPublicClient } from '../contracts/client.js';
 import { ZERO_ADDRESS, asNum, clampPositive, relTime, toChecksum } from './_common.js';
+import { aboreanWriteTx, writeEnv, writeOptions } from './_write-utils.js';
+
+const voterVoteAbi: Abi = [
+  {
+    type: 'function',
+    name: 'vote',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'tokenId', type: 'uint256' },
+      { name: '_poolVote', type: 'address[]' },
+      { name: '_weights', type: 'uint256[]' },
+    ],
+    outputs: [],
+  },
+];
 
 const env = z.object({
   ABSTRACT_RPC_URL: z.string().optional().describe('Abstract RPC URL override'),
@@ -490,5 +506,156 @@ voter.command('bribes', {
             },
           },
     );
+  },
+});
+
+voter.command('vote', {
+  description:
+    'Cast votes for gauge(s) using a veNFT. Weights are relative and will be normalized by the Voter contract. Each pool address must have an active gauge.',
+  options: z
+    .object({
+      'token-id': z.coerce.number().int().nonnegative().describe('veNFT token id to vote with'),
+      pools: z.string().describe('Comma-separated pool addresses to vote for'),
+      weights: z.string().describe('Comma-separated relative weights (matching pool order)'),
+    })
+    .merge(writeOptions),
+  env: writeEnv,
+  output: z.object({
+    tokenId: z.number(),
+    pools: z.array(z.string()),
+    weights: z.array(z.string()),
+    tx: z.union([
+      z.object({
+        txHash: z.string(),
+        blockNumber: z.number(),
+        gasUsed: z.string(),
+      }),
+      z.object({
+        dryRun: z.literal(true),
+        estimatedGas: z.string(),
+        simulationResult: z.unknown(),
+      }),
+    ]),
+  }),
+  examples: [
+    {
+      options: {
+        'token-id': 1,
+        pools: '0x0000000000000000000000000000000000000001',
+        weights: '100',
+        'dry-run': true,
+      },
+      description: 'Dry-run vote for a single pool with weight 100',
+    },
+    {
+      options: {
+        'token-id': 1,
+        pools:
+          '0x0000000000000000000000000000000000000001,0x0000000000000000000000000000000000000002',
+        weights: '60,40',
+        'dry-run': true,
+      },
+      description: 'Dry-run vote for two pools with relative weights',
+    },
+  ],
+  async run(c) {
+    const poolAddresses = c.options.pools.split(',').map((s) => s.trim());
+    const weightValues = c.options.weights.split(',').map((s) => s.trim());
+
+    if (poolAddresses.length === 0 || poolAddresses[0] === '') {
+      return c.error({
+        code: 'INVALID_INPUT',
+        message: 'At least one pool address is required.',
+      });
+    }
+
+    if (poolAddresses.length !== weightValues.length) {
+      return c.error({
+        code: 'INVALID_INPUT',
+        message: `Pool count (${poolAddresses.length}) and weight count (${weightValues.length}) must match.`,
+      });
+    }
+
+    for (const addr of poolAddresses) {
+      if (!isAddress(addr)) {
+        return c.error({
+          code: 'INVALID_ADDRESS',
+          message: `Invalid pool address: "${addr}". Use valid 0x-prefixed 20-byte hex addresses.`,
+        });
+      }
+    }
+
+    const parsedWeights: bigint[] = [];
+    for (const w of weightValues) {
+      const parsed = BigInt(w);
+      if (parsed <= 0n) {
+        return c.error({
+          code: 'INVALID_INPUT',
+          message: `Weight must be a positive integer, got: "${w}".`,
+        });
+      }
+      parsedWeights.push(parsed);
+    }
+
+    const client = createAboreanPublicClient(c.env.ABSTRACT_RPC_URL);
+
+    // Verify all pools have active gauges
+    const gaugeResults = (await client.multicall({
+      allowFailure: false,
+      contracts: poolAddresses.map((pool) => ({
+        abi: voterAbi,
+        address: ABOREAN_V2_ADDRESSES.voter,
+        functionName: 'gauges',
+        args: [pool as Address] as const,
+      })),
+    })) as Address[];
+
+    for (let i = 0; i < gaugeResults.length; i++) {
+      if (gaugeResults[i].toLowerCase() === ZERO_ADDRESS.toLowerCase()) {
+        return c.error({
+          code: 'GAUGE_NOT_FOUND',
+          message: `No gauge exists for pool ${poolAddresses[i]}.`,
+          retryable: false,
+        });
+      }
+    }
+
+    const aliveResults = (await client.multicall({
+      allowFailure: false,
+      contracts: gaugeResults.map((gauge) => ({
+        abi: voterAbi,
+        address: ABOREAN_V2_ADDRESSES.voter,
+        functionName: 'isAlive',
+        args: [gauge] as const,
+      })),
+    })) as boolean[];
+
+    for (let i = 0; i < aliveResults.length; i++) {
+      if (!aliveResults[i]) {
+        return c.error({
+          code: 'GAUGE_NOT_ALIVE',
+          message: `Gauge for pool ${poolAddresses[i]} is not alive.`,
+          retryable: false,
+        });
+      }
+    }
+
+    const tokenId = BigInt(c.options['token-id']);
+
+    const tx = await aboreanWriteTx({
+      env: c.env,
+      options: c.options,
+      address: ABOREAN_V2_ADDRESSES.voter as Address,
+      abi: voterVoteAbi,
+      functionName: 'vote',
+      args: [tokenId, poolAddresses as Address[], parsedWeights],
+    });
+
+    return c.ok({
+      tokenId: c.options['token-id'],
+      pools: poolAddresses.map((p) => toChecksum(p)),
+      weights: parsedWeights.map((w) => w.toString()),
+      tx,
+    });
   },
 });
