@@ -4,7 +4,13 @@ import { type Point, drawArrowhead, drawBezier, drawLine } from '../primitives/l
 import { roundRectPath } from '../primitives/shapes.js';
 import { applyFont, resolveFont } from '../primitives/text.js';
 import type { Rect, RenderedElement } from '../renderer.js';
-import type { DrawCommand, DrawFontFamily, DrawShadow, Theme } from '../spec.schema.js';
+import type {
+  DrawCommand,
+  DrawFontFamily,
+  DrawShadow,
+  DrawTextRowSegment,
+  Theme,
+} from '../spec.schema.js';
 import { type SvgPathOperation, parseSvgPath } from '../utils/svg-path.js';
 
 function withOpacity(ctx: SKRSContext2D, opacity: number, draw: () => void): void {
@@ -603,6 +609,98 @@ export function renderDrawCommands(
           bounds: { x: 0, y: 0, width: canvasWidth, height: canvasHeight },
           foregroundColor: command.color,
           allowOverlap: true,
+        });
+        break;
+      }
+      case 'text-row': {
+        const segments = command.segments;
+        if (segments.length === 0) break;
+
+        // Helper to resolve per-segment properties with command-level defaults.
+        const resolveSegment = (seg: DrawTextRowSegment) => ({
+          text: seg.text,
+          fontSize: seg.fontSize ?? command.defaultFontSize,
+          fontWeight: seg.fontWeight ?? command.defaultFontWeight,
+          fontFamily: resolveDrawFont(theme, seg.fontFamily ?? command.defaultFontFamily),
+          color: seg.color ?? command.defaultColor,
+        });
+
+        // --- Measurement pass ---
+        // Measure each segment's width and track max ascent/descent for bounds.
+        const measured: { width: number; resolved: ReturnType<typeof resolveSegment> }[] = [];
+        let totalWidth = 0;
+        let maxAscent = 0;
+        let maxDescent = 0;
+
+        for (const seg of segments) {
+          const resolved = resolveSegment(seg);
+          applyFont(ctx, {
+            size: resolved.fontSize,
+            weight: resolved.fontWeight,
+            family: resolved.fontFamily,
+          });
+          const metrics = ctx.measureText(resolved.text);
+          const width = metrics.width;
+          const ascent = metrics.actualBoundingBoxAscent || 0;
+          const descent = metrics.actualBoundingBoxDescent || 0;
+          totalWidth += width;
+          maxAscent = Math.max(maxAscent, ascent);
+          maxDescent = Math.max(maxDescent, descent);
+          measured.push({ width, resolved });
+        }
+
+        // --- Positioning ---
+        let cursorX: number;
+        if (command.align === 'center') {
+          cursorX = command.x - totalWidth / 2;
+        } else if (command.align === 'right') {
+          cursorX = command.x - totalWidth;
+        } else {
+          cursorX = command.x;
+        }
+
+        // --- Rendering pass (wrapped in opacity) ---
+        const startX = cursorX;
+        withOpacity(ctx, command.opacity, () => {
+          ctx.textBaseline = command.baseline;
+          for (const { width, resolved } of measured) {
+            applyFont(ctx, {
+              size: resolved.fontSize,
+              weight: resolved.fontWeight,
+              family: resolved.fontFamily,
+            });
+            ctx.fillStyle = resolved.color;
+            ctx.textAlign = 'left';
+            ctx.fillText(resolved.text, cursorX, command.y);
+            cursorX += width;
+          }
+        });
+
+        // --- Bounds computation ---
+        const height = Math.max(1, maxAscent + maxDescent);
+        let topY: number;
+        if (command.baseline === 'top') {
+          topY = command.y;
+        } else if (command.baseline === 'middle') {
+          topY = command.y - height / 2;
+        } else if (command.baseline === 'bottom') {
+          topY = command.y - height;
+        } else {
+          // alphabetic
+          topY = command.y - maxAscent;
+        }
+
+        rendered.push({
+          id,
+          kind: 'draw',
+          bounds: {
+            x: startX,
+            y: topY,
+            width: Math.max(1, totalWidth),
+            height,
+          },
+          foregroundColor: command.defaultColor,
+          backgroundColor: theme.background,
         });
         break;
       }
