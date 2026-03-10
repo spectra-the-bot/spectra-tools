@@ -2,13 +2,16 @@ import type { SKRSContext2D } from '@napi-rs/canvas';
 
 export type Point = { x: number; y: number };
 
+export type StrokeStyle = string | ReturnType<SKRSContext2D['createLinearGradient']>;
+
 export type LineStyle = {
-  color: string;
+  color: StrokeStyle;
   width: number;
   dash?: number[];
 };
 
-export type ArrowStyle = LineStyle & {
+export type ArrowStyle = Omit<LineStyle, 'color'> & {
+  color: string;
   headSize: number;
 };
 
