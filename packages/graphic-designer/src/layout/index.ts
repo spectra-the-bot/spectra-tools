@@ -1,6 +1,7 @@
 import type { Rect } from '../renderer.js';
 import type { Element, LayoutConfig } from '../spec.schema.js';
 import { computeElkLayout } from './elk.js';
+import { computeEllipseLayout } from './ellipse.js';
 import { computeGridLayout } from './grid.js';
 import { computeStackLayout } from './stack.js';
 import type { LayoutResult } from './types.js';
@@ -68,6 +69,8 @@ export async function computeLayout(
       return computeGridLayout(elements, layout, safeFrame);
     case 'stack':
       return computeStackLayout(elements, layout, safeFrame);
+    case 'ellipse':
+      return computeEllipseLayout(elements, layout, safeFrame);
     case 'manual':
       return computeManualLayout(elements, layout, safeFrame);
     default:
