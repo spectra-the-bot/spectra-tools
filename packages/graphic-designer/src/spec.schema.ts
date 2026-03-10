@@ -614,6 +614,23 @@ const stackLayoutConfigSchema = z
   })
   .strict();
 
+const ellipseLayoutConfigSchema = z
+  .object({
+    mode: z.literal('ellipse'),
+    cx: z.number().optional(),
+    cy: z.number().optional(),
+    rx: z.number().positive(),
+    ry: z.number().positive(),
+    startAngle: z.number().default(-90),
+    /** Explicit center used by curve/arc connection routing. */
+    diagramCenter: diagramCenterSchema.optional(),
+    /** Horizontal radius for shared ellipse used by curveMode: 'ellipse'. */
+    ellipseRx: z.number().positive().optional(),
+    /** Vertical radius for shared ellipse used by curveMode: 'ellipse'. */
+    ellipseRy: z.number().positive().optional(),
+  })
+  .strict();
+
 const manualPositionSchema = z
   .object({
     x: z.number().int(),
@@ -640,6 +657,7 @@ const layoutConfigSchema = z.discriminatedUnion('mode', [
   autoLayoutConfigSchema,
   gridLayoutConfigSchema,
   stackLayoutConfigSchema,
+  ellipseLayoutConfigSchema,
   manualLayoutConfigSchema,
 ]);
 
@@ -805,6 +823,7 @@ export type LayoutConfig = z.infer<typeof layoutConfigSchema>;
 export type AutoLayoutConfig = z.infer<typeof autoLayoutConfigSchema>;
 export type GridLayoutConfig = z.infer<typeof gridLayoutConfigSchema>;
 export type StackLayoutConfig = z.infer<typeof stackLayoutConfigSchema>;
+export type EllipseLayoutConfig = z.infer<typeof ellipseLayoutConfigSchema>;
 export type ManualLayoutConfig = z.infer<typeof manualLayoutConfigSchema>;
 export type ConstraintSpec = z.infer<typeof constraintsSchema>;
 export type Theme = z.infer<typeof themeSchema>;

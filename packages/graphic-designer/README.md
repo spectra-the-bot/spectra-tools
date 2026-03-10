@@ -125,6 +125,7 @@ Plus a **freestyle draw layer** with 8 draw command types: `rect`, `circle`, `te
 - **auto** — ELK.js layout engine (layered, stress, force, radial, box algorithms)
 - **grid** — column-based grid layout
 - **stack** — vertical or horizontal stack
+- **ellipse** — evenly spaced nodes on a configurable ellipse
 - **manual** — explicit x/y coordinates
 
 ### Connection Routing Modes
@@ -137,6 +138,36 @@ Per-connection `routing` supports:
 - `arc` — outward elliptical arc (kappa-bezier approximation)
 
 `layout.diagramCenter` can optionally override the center point used by `curve` and `arc` routing. When omitted, center is derived from the laid-out element centroid (fallback: canvas center).
+
+### Hexagonal Preset via Ellipse Layout
+
+A six-node hexagonal arrangement is just an ellipse layout with equal angular spacing and matching routing hints:
+
+```ts
+const spec = parseDesignSpec({
+  version: 2,
+  theme: 'dark',
+  elements: [
+    { type: 'flow-node', id: 'triage', label: 'Triage', shape: 'rounded-box' },
+    { type: 'flow-node', id: 'design', label: 'Design', shape: 'rounded-box' },
+    { type: 'flow-node', id: 'build', label: 'Build', shape: 'rounded-box' },
+    { type: 'flow-node', id: 'test', label: 'Test', shape: 'rounded-box' },
+    { type: 'flow-node', id: 'deploy', label: 'Deploy', shape: 'rounded-box' },
+    { type: 'flow-node', id: 'observe', label: 'Observe', shape: 'rounded-box' },
+  ],
+  layout: {
+    mode: 'ellipse',
+    cx: 600,
+    cy: 340,
+    rx: 280,
+    ry: 180,
+    startAngle: -90,
+    diagramCenter: { x: 600, y: 340 },
+    ellipseRx: 280,
+    ellipseRy: 180,
+  },
+});
+```
 
 ## Programmatic Usage
 
@@ -157,7 +188,17 @@ const spec = parseDesignSpec({
     { type: 'flow-node', id: 'b', label: 'End', shape: 'rounded-box', color: '#059669' },
     { type: 'connection', from: 'a', to: 'b', label: 'next', routing: 'arc' },
   ],
-  layout: { mode: 'auto', algorithm: 'layered', diagramCenter: { x: 600, y: 340 } },
+  layout: {
+    mode: 'ellipse',
+    cx: 600,
+    cy: 340,
+    rx: 280,
+    ry: 180,
+    startAngle: -90,
+    diagramCenter: { x: 600, y: 340 },
+    ellipseRx: 280,
+    ellipseRy: 180,
+  },
 });
 
 const render = await renderDesign(spec, { generatorVersion: '0.3.0' });
