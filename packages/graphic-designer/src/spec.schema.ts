@@ -575,6 +575,10 @@ const autoLayoutConfigSchema = z
     radialSortBy: z.enum(['id', 'connections']).optional(),
     /** Explicit center used by curve/arc connection routing. */
     diagramCenter: diagramCenterSchema.optional(),
+    /** Horizontal radius for shared ellipse used by curveMode: 'ellipse'. */
+    ellipseRx: z.number().positive().optional(),
+    /** Vertical radius for shared ellipse used by curveMode: 'ellipse'. */
+    ellipseRy: z.number().positive().optional(),
   })
   .strict();
 
@@ -588,6 +592,10 @@ const gridLayoutConfigSchema = z
     equalHeight: z.boolean().default(false),
     /** Explicit center used by curve/arc connection routing. */
     diagramCenter: diagramCenterSchema.optional(),
+    /** Horizontal radius for shared ellipse used by curveMode: 'ellipse'. */
+    ellipseRx: z.number().positive().optional(),
+    /** Vertical radius for shared ellipse used by curveMode: 'ellipse'. */
+    ellipseRy: z.number().positive().optional(),
   })
   .strict();
 
@@ -599,6 +607,10 @@ const stackLayoutConfigSchema = z
     alignment: z.enum(['start', 'center', 'end', 'stretch']).default('stretch'),
     /** Explicit center used by curve/arc connection routing. */
     diagramCenter: diagramCenterSchema.optional(),
+    /** Horizontal radius for shared ellipse used by curveMode: 'ellipse'. */
+    ellipseRx: z.number().positive().optional(),
+    /** Vertical radius for shared ellipse used by curveMode: 'ellipse'. */
+    ellipseRy: z.number().positive().optional(),
   })
   .strict();
 
