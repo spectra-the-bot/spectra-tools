@@ -52,6 +52,15 @@ const radialGradientSchema = z
 
 const gradientSchema = z.discriminatedUnion('type', [linearGradientSchema, radialGradientSchema]);
 
+const drawShadowSchema = z
+  .object({
+    color: colorHexSchema.default('rgba(0,0,0,0.5)'),
+    blur: z.number().min(0).max(64).default(10),
+    offsetX: z.number().default(0),
+    offsetY: z.number().default(4),
+  })
+  .strict();
+
 const drawFontFamilySchema = z.enum(['heading', 'body', 'mono']);
 
 const drawRectSchema = z
@@ -66,6 +75,7 @@ const drawRectSchema = z
     strokeWidth: z.number().min(0).max(32).default(0),
     radius: z.number().min(0).max(256).default(0),
     opacity: z.number().min(0).max(1).default(1),
+    shadow: drawShadowSchema.optional(),
   })
   .strict();
 
@@ -79,6 +89,7 @@ const drawCircleSchema = z
     stroke: colorHexSchema.optional(),
     strokeWidth: z.number().min(0).max(32).default(0),
     opacity: z.number().min(0).max(1).default(1),
+    shadow: drawShadowSchema.optional(),
   })
   .strict();
 
@@ -97,6 +108,7 @@ const drawTextSchema = z
     letterSpacing: z.number().min(-10).max(50).default(0),
     maxWidth: z.number().positive().optional(),
     opacity: z.number().min(0).max(1).default(1),
+    shadow: drawShadowSchema.optional(),
   })
   .strict();
 
@@ -113,6 +125,7 @@ const drawLineSchema = z
     arrow: z.enum(['none', 'end', 'start', 'both']).default('none'),
     arrowSize: z.number().min(4).max(32).default(10),
     opacity: z.number().min(0).max(1).default(1),
+    shadow: drawShadowSchema.optional(),
   })
   .strict();
 
@@ -133,6 +146,7 @@ const drawBezierSchema = z
     arrow: z.enum(['none', 'end', 'start', 'both']).default('none'),
     arrowSize: z.number().min(4).max(32).default(10),
     opacity: z.number().min(0).max(1).default(1),
+    shadow: drawShadowSchema.optional(),
   })
   .strict();
 
@@ -144,6 +158,7 @@ const drawPathSchema = z
     stroke: colorHexSchema.optional(),
     strokeWidth: z.number().min(0).max(32).default(0),
     opacity: z.number().min(0).max(1).default(1),
+    shadow: drawShadowSchema.optional(),
   })
   .strict();
 
@@ -161,6 +176,7 @@ const drawBadgeSchema = z
     paddingY: z.number().min(0).max(32).default(4),
     borderRadius: z.number().min(0).max(64).default(12),
     opacity: z.number().min(0).max(1).default(1),
+    shadow: drawShadowSchema.optional(),
   })
   .strict();
 
@@ -174,6 +190,7 @@ const drawGradientRectSchema = z
     gradient: gradientSchema,
     radius: z.number().min(0).max(256).default(0),
     opacity: z.number().min(0).max(1).default(1),
+    shadow: drawShadowSchema.optional(),
   })
   .strict();
 
@@ -687,6 +704,7 @@ export type TerminalElement = z.infer<typeof terminalElementSchema>;
 export type TextElement = z.infer<typeof textElementSchema>;
 export type ShapeElement = z.infer<typeof shapeElementSchema>;
 export type ImageElement = z.infer<typeof imageElementSchema>;
+export type DrawShadow = z.infer<typeof drawShadowSchema>;
 export type DrawFontFamily = z.infer<typeof drawFontFamilySchema>;
 export type DrawPoint = z.infer<typeof drawPointSchema>;
 export type DrawRect = z.infer<typeof drawRectSchema>;
