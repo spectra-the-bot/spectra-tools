@@ -1010,3 +1010,524 @@ cl.command('swap', {
     });
   },
 });
+
+// ---------------------------------------------------------------------------
+// NonfungiblePositionManager ABI fragments for position operations
+// ---------------------------------------------------------------------------
+
+const nfpmMintAbi = [
+  {
+    type: 'function',
+    name: 'mint',
+    stateMutability: 'payable',
+    inputs: [
+      {
+        name: 'params',
+        type: 'tuple',
+        components: [
+          { name: 'token0', type: 'address' },
+          { name: 'token1', type: 'address' },
+          { name: 'tickSpacing', type: 'int24' },
+          { name: 'tickLower', type: 'int24' },
+          { name: 'tickUpper', type: 'int24' },
+          { name: 'amount0Desired', type: 'uint256' },
+          { name: 'amount1Desired', type: 'uint256' },
+          { name: 'amount0Min', type: 'uint256' },
+          { name: 'amount1Min', type: 'uint256' },
+          { name: 'recipient', type: 'address' },
+          { name: 'deadline', type: 'uint256' },
+          { name: 'sqrtPriceX96', type: 'uint160' },
+        ],
+      },
+    ],
+    outputs: [
+      { name: 'tokenId', type: 'uint256' },
+      { name: 'liquidity', type: 'uint128' },
+      { name: 'amount0', type: 'uint256' },
+      { name: 'amount1', type: 'uint256' },
+    ],
+  },
+] as const;
+
+const nfpmDecreaseLiquidityAbi = [
+  {
+    type: 'function',
+    name: 'decreaseLiquidity',
+    stateMutability: 'payable',
+    inputs: [
+      {
+        name: 'params',
+        type: 'tuple',
+        components: [
+          { name: 'tokenId', type: 'uint256' },
+          { name: 'liquidity', type: 'uint128' },
+          { name: 'amount0Min', type: 'uint256' },
+          { name: 'amount1Min', type: 'uint256' },
+          { name: 'deadline', type: 'uint256' },
+        ],
+      },
+    ],
+    outputs: [
+      { name: 'amount0', type: 'uint256' },
+      { name: 'amount1', type: 'uint256' },
+    ],
+  },
+] as const;
+
+const nfpmCollectAbi = [
+  {
+    type: 'function',
+    name: 'collect',
+    stateMutability: 'payable',
+    inputs: [
+      {
+        name: 'params',
+        type: 'tuple',
+        components: [
+          { name: 'tokenId', type: 'uint256' },
+          { name: 'recipient', type: 'address' },
+          { name: 'amount0Max', type: 'uint128' },
+          { name: 'amount1Max', type: 'uint128' },
+        ],
+      },
+    ],
+    outputs: [
+      { name: 'amount0', type: 'uint256' },
+      { name: 'amount1', type: 'uint256' },
+    ],
+  },
+] as const;
+
+const nfpmBurnAbi = [
+  {
+    type: 'function',
+    name: 'burn',
+    stateMutability: 'payable',
+    inputs: [{ name: 'tokenId', type: 'uint256' }],
+    outputs: [],
+  },
+] as const;
+
+const erc20ApproveAbi = [
+  {
+    type: 'function',
+    name: 'approve',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'spender', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+    ],
+    outputs: [{ name: '', type: 'bool' }],
+  },
+  {
+    type: 'function',
+    name: 'allowance',
+    stateMutability: 'view',
+    inputs: [
+      { name: 'owner', type: 'address' },
+      { name: 'account', type: 'address' },
+    ],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+] as const;
+
+const amountSchema = z.object({
+  raw: z.string(),
+  decimal: z.string(),
+});
+
+// ---------------------------------------------------------------------------
+// cl add-position
+// ---------------------------------------------------------------------------
+
+cl.command('add-position', {
+  description:
+    'Mint a new concentrated liquidity position via the NonfungiblePositionManager. Approves both tokens if needed. Supports --dry-run.',
+  options: z.object({
+    'token-a': z.string().describe('First token address'),
+    'token-b': z.string().describe('Second token address'),
+    'tick-spacing': z.coerce.number().int().describe('Pool tick spacing'),
+    'tick-lower': z.coerce.number().int().describe('Lower tick boundary'),
+    'tick-upper': z.coerce.number().int().describe('Upper tick boundary'),
+    'amount-0': z.string().describe('Desired amount of token0 in wei'),
+    'amount-1': z.string().describe('Desired amount of token1 in wei'),
+    slippage: z.coerce
+      .number()
+      .default(0.5)
+      .describe('Slippage tolerance in percent (default: 0.5)'),
+    deadline: z.coerce
+      .number()
+      .int()
+      .default(300)
+      .describe('Transaction deadline in seconds from now (default: 300)'),
+    ...writeOptions.shape,
+  }),
+  env: writeEnv,
+  output: z.object({
+    pool: z.string(),
+    token0: tokenSchema,
+    token1: tokenSchema,
+    tickSpacing: z.number(),
+    tickLower: z.number(),
+    tickUpper: z.number(),
+    amount0Desired: amountSchema,
+    amount1Desired: amountSchema,
+    amount0Min: amountSchema,
+    amount1Min: amountSchema,
+    slippagePercent: z.number(),
+    tx: z.union([
+      z.object({
+        txHash: z.string(),
+        blockNumber: z.number(),
+        gasUsed: z.string(),
+      }),
+      z.object({
+        dryRun: z.literal(true),
+        estimatedGas: z.string(),
+        simulationResult: z.unknown(),
+      }),
+    ]),
+  }),
+  async run(c) {
+    const tokenARaw = c.options['token-a'];
+    const tokenBRaw = c.options['token-b'];
+
+    if (!isAddress(tokenARaw) || !isAddress(tokenBRaw)) {
+      return c.error({
+        code: 'INVALID_ADDRESS',
+        message: 'token-a and token-b must both be valid 0x-prefixed 20-byte addresses.',
+      });
+    }
+
+    // Sort tokens: token0 < token1 (by address)
+    const addrA = checksumAddress(tokenARaw) as Address;
+    const addrB = checksumAddress(tokenBRaw) as Address;
+    const [token0, token1] =
+      addrA.toLowerCase() < addrB.toLowerCase() ? [addrA, addrB] : [addrB, addrA];
+
+    let amount0Desired: bigint;
+    let amount1Desired: bigint;
+    try {
+      // Map amounts based on token order
+      const amountForA = BigInt(c.options['amount-0']);
+      const amountForB = BigInt(c.options['amount-1']);
+      if (addrA.toLowerCase() < addrB.toLowerCase()) {
+        amount0Desired = amountForA;
+        amount1Desired = amountForB;
+      } else {
+        amount0Desired = amountForB;
+        amount1Desired = amountForA;
+      }
+    } catch {
+      return c.error({
+        code: 'INVALID_AMOUNT',
+        message: 'amount-0 and amount-1 must be valid integers in wei.',
+      });
+    }
+
+    if (amount0Desired <= 0n && amount1Desired <= 0n) {
+      return c.error({
+        code: 'INVALID_AMOUNT',
+        message: 'At least one of amount-0 or amount-1 must be positive.',
+      });
+    }
+
+    // Verify pool exists
+    const client = createAboreanPublicClient(c.env.ABSTRACT_RPC_URL);
+    const allPools = await listPoolAddresses(client);
+    const poolStates = await readPoolStates(client, allPools);
+
+    const matchingPool = poolStates.find(
+      (pool) =>
+        normalizeAddress(pool.token0) === normalizeAddress(token0) &&
+        normalizeAddress(pool.token1) === normalizeAddress(token1) &&
+        pool.tickSpacing === c.options['tick-spacing'],
+    );
+
+    if (!matchingPool) {
+      return c.error({
+        code: 'POOL_NOT_FOUND',
+        message: `No Slipstream pool found for ${checksumAddress(token0)}/${checksumAddress(token1)} with tick spacing ${c.options['tick-spacing']}.`,
+      });
+    }
+
+    // Fetch token metadata
+    const tokenMeta = await readTokenMetadata(client, [token0, token1]);
+    const meta0 = tokenMeta.get(token0) ?? toTokenMetaFallback(token0);
+    const meta1 = tokenMeta.get(token1) ?? toTokenMetaFallback(token1);
+
+    // Compute min amounts from slippage
+    const slippageBps = BigInt(Math.round(c.options.slippage * 100));
+    const amount0Min = amount0Desired - (amount0Desired * slippageBps) / 10000n;
+    const amount1Min = amount1Desired - (amount1Desired * slippageBps) / 10000n;
+
+    const deadlineTimestamp = BigInt(Math.floor(Date.now() / 1000) + c.options.deadline);
+    const account = resolveAccount(c.env);
+    const nfpmAddress = ABOREAN_CL_ADDRESSES.nonfungiblePositionManager as Address;
+
+    // Approve both tokens if needed (skip in dry-run)
+    if (!c.options['dry-run']) {
+      for (const [token, amount] of [
+        [token0, amount0Desired],
+        [token1, amount1Desired],
+      ] as const) {
+        if (amount <= 0n) continue;
+        const currentAllowance = (await client.readContract({
+          abi: erc20ApproveAbi,
+          address: token,
+          functionName: 'allowance',
+          args: [account.address, nfpmAddress],
+        })) as bigint;
+
+        if (currentAllowance < amount) {
+          await aboreanWriteTx({
+            env: c.env,
+            options: { ...c.options, 'dry-run': false },
+            address: token,
+            abi: erc20ApproveAbi as unknown as import('viem').Abi,
+            functionName: 'approve',
+            args: [nfpmAddress, amount],
+          });
+        }
+      }
+    }
+
+    // Execute mint
+    const txResult = await aboreanWriteTx({
+      env: c.env,
+      options: {
+        'dry-run': c.options['dry-run'],
+        'gas-limit': c.options['gas-limit'],
+        'max-fee': c.options['max-fee'],
+        nonce: c.options.nonce,
+      },
+      address: nfpmAddress,
+      abi: nfpmMintAbi as unknown as import('viem').Abi,
+      functionName: 'mint',
+      args: [
+        {
+          token0,
+          token1,
+          tickSpacing: c.options['tick-spacing'],
+          tickLower: c.options['tick-lower'],
+          tickUpper: c.options['tick-upper'],
+          amount0Desired,
+          amount1Desired,
+          amount0Min,
+          amount1Min,
+          recipient: account.address,
+          deadline: deadlineTimestamp,
+          sqrtPriceX96: 0n,
+        },
+      ],
+    });
+
+    return c.ok({
+      pool: checksumAddress(matchingPool.pool),
+      token0: meta0,
+      token1: meta1,
+      tickSpacing: c.options['tick-spacing'],
+      tickLower: c.options['tick-lower'],
+      tickUpper: c.options['tick-upper'],
+      amount0Desired: {
+        raw: amount0Desired.toString(),
+        decimal: formatUnits(amount0Desired, meta0.decimals),
+      },
+      amount1Desired: {
+        raw: amount1Desired.toString(),
+        decimal: formatUnits(amount1Desired, meta1.decimals),
+      },
+      amount0Min: {
+        raw: amount0Min.toString(),
+        decimal: formatUnits(amount0Min, meta0.decimals),
+      },
+      amount1Min: {
+        raw: amount1Min.toString(),
+        decimal: formatUnits(amount1Min, meta1.decimals),
+      },
+      slippagePercent: c.options.slippage,
+      tx: txResult as FormattedWriteTxResult | FormattedWriteDryRunResult,
+    });
+  },
+});
+
+// ---------------------------------------------------------------------------
+// cl remove-position
+// ---------------------------------------------------------------------------
+
+cl.command('remove-position', {
+  description:
+    'Remove (close) a concentrated liquidity position. Decreases liquidity to zero, collects all tokens, and burns the NFT. Supports --dry-run.',
+  options: z.object({
+    'token-id': z.string().describe('Position NFT token ID'),
+    slippage: z.coerce
+      .number()
+      .default(0.5)
+      .describe('Slippage tolerance in percent (default: 0.5)'),
+    deadline: z.coerce
+      .number()
+      .int()
+      .default(300)
+      .describe('Transaction deadline in seconds from now (default: 300)'),
+    ...writeOptions.shape,
+  }),
+  env: writeEnv,
+  output: z.object({
+    tokenId: z.string(),
+    pair: z.string(),
+    token0: tokenSchema,
+    token1: tokenSchema,
+    tickLower: z.number(),
+    tickUpper: z.number(),
+    liquidity: z.string(),
+    slippagePercent: z.number(),
+    tx: z.union([
+      z.object({
+        txHash: z.string(),
+        blockNumber: z.number(),
+        gasUsed: z.string(),
+      }),
+      z.object({
+        dryRun: z.literal(true),
+        estimatedGas: z.string(),
+        simulationResult: z.unknown(),
+      }),
+    ]),
+  }),
+  async run(c) {
+    let tokenId: bigint;
+    try {
+      tokenId = BigInt(c.options['token-id']);
+    } catch {
+      return c.error({
+        code: 'INVALID_TOKEN_ID',
+        message: `Invalid token-id: "${c.options['token-id']}". Provide a valid integer.`,
+      });
+    }
+
+    if (tokenId <= 0n) {
+      return c.error({
+        code: 'INVALID_TOKEN_ID',
+        message: 'token-id must be a positive integer.',
+      });
+    }
+
+    const client = createAboreanPublicClient(c.env.ABSTRACT_RPC_URL);
+    const nfpmAddress = ABOREAN_CL_ADDRESSES.nonfungiblePositionManager as Address;
+
+    // Read position data
+    let positionData: readonly [
+      bigint,
+      Address,
+      Address,
+      Address,
+      number,
+      number,
+      number,
+      bigint,
+      bigint,
+      bigint,
+      bigint,
+      bigint,
+    ];
+    try {
+      positionData = (await client.readContract({
+        abi: nonfungiblePositionManagerAbi,
+        address: nfpmAddress,
+        functionName: 'positions',
+        args: [tokenId],
+      })) as typeof positionData;
+    } catch {
+      return c.error({
+        code: 'POSITION_NOT_FOUND',
+        message: `Position with tokenId ${tokenId.toString()} not found.`,
+      });
+    }
+
+    const token0 = positionData[2];
+    const token1 = positionData[3];
+    const tickLower = positionData[5];
+    const tickUpper = positionData[6];
+    const liquidity = positionData[7];
+
+    if (liquidity === 0n) {
+      return c.error({
+        code: 'ZERO_LIQUIDITY',
+        message: `Position ${tokenId.toString()} has zero liquidity. Nothing to remove.`,
+      });
+    }
+
+    // Fetch token metadata
+    const tokenMeta = await readTokenMetadata(client, [token0, token1]);
+    const meta0 = tokenMeta.get(token0) ?? toTokenMetaFallback(token0);
+    const meta1 = tokenMeta.get(token1) ?? toTokenMetaFallback(token1);
+
+    const account = resolveAccount(c.env);
+    const deadlineTimestamp = BigInt(Math.floor(Date.now() / 1000) + c.options.deadline);
+
+    // Step 1: decreaseLiquidity to zero
+    const txResult = await aboreanWriteTx({
+      env: c.env,
+      options: {
+        'dry-run': c.options['dry-run'],
+        'gas-limit': c.options['gas-limit'],
+        'max-fee': c.options['max-fee'],
+        nonce: c.options.nonce,
+      },
+      address: nfpmAddress,
+      abi: nfpmDecreaseLiquidityAbi as unknown as import('viem').Abi,
+      functionName: 'decreaseLiquidity',
+      args: [
+        {
+          tokenId,
+          liquidity,
+          amount0Min: 0n,
+          amount1Min: 0n,
+          deadline: deadlineTimestamp,
+        },
+      ],
+    });
+
+    // Step 2 & 3: collect and burn (skip if dry-run)
+    if (!c.options['dry-run']) {
+      const maxUint128 = (1n << 128n) - 1n;
+
+      await aboreanWriteTx({
+        env: c.env,
+        options: { ...c.options, 'dry-run': false },
+        address: nfpmAddress,
+        abi: nfpmCollectAbi as unknown as import('viem').Abi,
+        functionName: 'collect',
+        args: [
+          {
+            tokenId,
+            recipient: account.address,
+            amount0Max: maxUint128,
+            amount1Max: maxUint128,
+          },
+        ],
+      });
+
+      await aboreanWriteTx({
+        env: c.env,
+        options: { ...c.options, 'dry-run': false },
+        address: nfpmAddress,
+        abi: nfpmBurnAbi as unknown as import('viem').Abi,
+        functionName: 'burn',
+        args: [tokenId],
+      });
+    }
+
+    return c.ok({
+      tokenId: tokenId.toString(),
+      pair: `${meta0.symbol}/${meta1.symbol}`,
+      token0: meta0,
+      token1: meta1,
+      tickLower,
+      tickUpper,
+      liquidity: liquidity.toString(),
+      slippagePercent: c.options.slippage,
+      tx: txResult as FormattedWriteTxResult | FormattedWriteDryRunResult,
+    });
+  },
+});

@@ -1040,3 +1040,425 @@ pools.command('swap', {
     });
   },
 });
+
+// ---------------------------------------------------------------------------
+// V2 Router ABI fragments for liquidity operations
+// ---------------------------------------------------------------------------
+
+const v2RouterAddLiquidityAbi: Abi = [
+  {
+    type: 'function',
+    name: 'addLiquidity',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'tokenA', type: 'address' },
+      { name: 'tokenB', type: 'address' },
+      { name: 'stable', type: 'bool' },
+      { name: 'amountADesired', type: 'uint256' },
+      { name: 'amountBDesired', type: 'uint256' },
+      { name: 'amountAMin', type: 'uint256' },
+      { name: 'amountBMin', type: 'uint256' },
+      { name: 'to', type: 'address' },
+      { name: 'deadline', type: 'uint256' },
+    ],
+    outputs: [
+      { name: 'amountA', type: 'uint256' },
+      { name: 'amountB', type: 'uint256' },
+      { name: 'liquidity', type: 'uint256' },
+    ],
+  },
+];
+
+const v2RouterRemoveLiquidityAbi: Abi = [
+  {
+    type: 'function',
+    name: 'removeLiquidity',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'tokenA', type: 'address' },
+      { name: 'tokenB', type: 'address' },
+      { name: 'stable', type: 'bool' },
+      { name: 'liquidity', type: 'uint256' },
+      { name: 'amountAMin', type: 'uint256' },
+      { name: 'amountBMin', type: 'uint256' },
+      { name: 'to', type: 'address' },
+      { name: 'deadline', type: 'uint256' },
+    ],
+    outputs: [
+      { name: 'amountA', type: 'uint256' },
+      { name: 'amountB', type: 'uint256' },
+    ],
+  },
+];
+
+// ---------------------------------------------------------------------------
+// pools add-liquidity
+// ---------------------------------------------------------------------------
+
+pools.command('add-liquidity', {
+  description:
+    'Add liquidity to a V2 pool. Approves both tokens to the router if needed, then calls addLiquidity. Supports --dry-run.',
+  options: z
+    .object({
+      'token-a': z.string().describe('First token address'),
+      'token-b': z.string().describe('Second token address'),
+      'amount-a': z.string().describe('Desired amount of token A in wei'),
+      'amount-b': z.string().describe('Desired amount of token B in wei'),
+      slippage: z.coerce
+        .number()
+        .min(0)
+        .max(100)
+        .default(DEFAULT_SLIPPAGE_PERCENT)
+        .describe('Slippage tolerance in percent (default: 0.5)'),
+      deadline: z.coerce
+        .number()
+        .int()
+        .positive()
+        .default(DEFAULT_DEADLINE_SECONDS)
+        .describe('Transaction deadline in seconds from now (default: 300)'),
+      stable: z.boolean().default(false).describe('Target stable pool (default: volatile)'),
+    })
+    .merge(writeOptions),
+  env: writeEnv,
+  output: z.object({
+    pool: z.string(),
+    stable: z.boolean(),
+    tokenA: tokenSchema,
+    tokenB: tokenSchema,
+    amountADesired: amountSchema,
+    amountBDesired: amountSchema,
+    amountAMin: amountSchema,
+    amountBMin: amountSchema,
+    slippagePercent: z.number(),
+    tx: z.union([
+      z.object({
+        txHash: z.string(),
+        blockNumber: z.number(),
+        gasUsed: z.string(),
+      }),
+      z.object({
+        dryRun: z.literal(true),
+        estimatedGas: z.string(),
+        simulationResult: z.unknown(),
+      }),
+    ]),
+  }),
+  async run(c) {
+    const tokenARaw = c.options['token-a'];
+    const tokenBRaw = c.options['token-b'];
+
+    if (!isAddress(tokenARaw) || !isAddress(tokenBRaw)) {
+      return c.error({
+        code: 'INVALID_ADDRESS',
+        message: 'token-a and token-b must both be valid 0x-prefixed 20-byte addresses.',
+      });
+    }
+
+    const tokenA = toAddress(tokenARaw);
+    const tokenB = toAddress(tokenBRaw);
+
+    let amountADesired: bigint;
+    let amountBDesired: bigint;
+    try {
+      amountADesired = BigInt(c.options['amount-a']);
+      amountBDesired = BigInt(c.options['amount-b']);
+    } catch {
+      return c.error({
+        code: 'INVALID_AMOUNT',
+        message: 'amount-a and amount-b must be valid integers in wei.',
+      });
+    }
+
+    if (amountADesired <= 0n || amountBDesired <= 0n) {
+      return c.error({
+        code: 'INVALID_AMOUNT',
+        message: 'amount-a and amount-b must be positive integers.',
+      });
+    }
+
+    const client = createAboreanPublicClient(c.env.ABSTRACT_RPC_URL);
+
+    // Verify pool exists
+    const poolAddress = (await client.readContract({
+      abi: poolFactoryAbi,
+      address: ABOREAN_V2_ADDRESSES.poolFactory,
+      functionName: 'getPool',
+      args: [tokenA, tokenB, c.options.stable],
+    })) as Address;
+
+    if (poolAddress.toLowerCase() === ZERO_ADDRESS.toLowerCase()) {
+      return c.error({
+        code: 'POOL_NOT_FOUND',
+        message: `No ${c.options.stable ? 'stable' : 'volatile'} V2 pool found for pair ${checksumAddress(tokenA)}/${checksumAddress(tokenB)}.`,
+      });
+    }
+
+    // Fetch token metadata
+    const tokenMeta = await readTokenMetadata(client, [tokenA, tokenB]);
+    const aMeta = tokenMeta.get(tokenA.toLowerCase()) ?? fallbackTokenMeta(tokenA);
+    const bMeta = tokenMeta.get(tokenB.toLowerCase()) ?? fallbackTokenMeta(tokenB);
+
+    // Compute min amounts from slippage
+    const slippageBps = Math.round(c.options.slippage * 100);
+    const amountAMin = (amountADesired * BigInt(10_000 - slippageBps)) / 10_000n;
+    const amountBMin = (amountBDesired * BigInt(10_000 - slippageBps)) / 10_000n;
+
+    const deadlineTimestamp = BigInt(Math.floor(Date.now() / 1000) + c.options.deadline);
+    const account = resolveAccount(c.env);
+
+    // Approve both tokens if needed (skip in dry-run)
+    if (!c.options['dry-run']) {
+      for (const [token, amount] of [
+        [tokenA, amountADesired],
+        [tokenB, amountBDesired],
+      ] as const) {
+        const currentAllowance = (await client.readContract({
+          abi: erc20ApproveAbi,
+          address: token,
+          functionName: 'allowance',
+          args: [account.address, ABOREAN_V2_ADDRESSES.router],
+        })) as bigint;
+
+        if (currentAllowance < amount) {
+          await aboreanWriteTx({
+            env: c.env,
+            options: { ...c.options, 'dry-run': false },
+            address: token,
+            abi: erc20ApproveAbi,
+            functionName: 'approve',
+            args: [ABOREAN_V2_ADDRESSES.router, amount],
+          });
+        }
+      }
+    }
+
+    // Execute addLiquidity
+    const tx = await aboreanWriteTx({
+      env: c.env,
+      options: c.options,
+      address: ABOREAN_V2_ADDRESSES.router,
+      abi: v2RouterAddLiquidityAbi,
+      functionName: 'addLiquidity',
+      args: [
+        tokenA,
+        tokenB,
+        c.options.stable,
+        amountADesired,
+        amountBDesired,
+        amountAMin,
+        amountBMin,
+        account.address,
+        deadlineTimestamp,
+      ],
+    });
+
+    return c.ok({
+      pool: checksumAddress(poolAddress),
+      stable: c.options.stable,
+      tokenA: aMeta,
+      tokenB: bMeta,
+      amountADesired: {
+        raw: amountADesired.toString(),
+        decimal: formatUnits(amountADesired, aMeta.decimals),
+      },
+      amountBDesired: {
+        raw: amountBDesired.toString(),
+        decimal: formatUnits(amountBDesired, bMeta.decimals),
+      },
+      amountAMin: {
+        raw: amountAMin.toString(),
+        decimal: formatUnits(amountAMin, aMeta.decimals),
+      },
+      amountBMin: {
+        raw: amountBMin.toString(),
+        decimal: formatUnits(amountBMin, bMeta.decimals),
+      },
+      slippagePercent: c.options.slippage,
+      tx,
+    });
+  },
+});
+
+// ---------------------------------------------------------------------------
+// pools remove-liquidity
+// ---------------------------------------------------------------------------
+
+pools.command('remove-liquidity', {
+  description:
+    'Remove liquidity from a V2 pool. Approves the LP token to the router if needed, then calls removeLiquidity. Supports --dry-run.',
+  options: z
+    .object({
+      'token-a': z.string().describe('First token address of the pair'),
+      'token-b': z.string().describe('Second token address of the pair'),
+      liquidity: z.string().describe('Amount of LP tokens to burn (in wei)'),
+      slippage: z.coerce
+        .number()
+        .min(0)
+        .max(100)
+        .default(DEFAULT_SLIPPAGE_PERCENT)
+        .describe('Slippage tolerance in percent (default: 0.5)'),
+      deadline: z.coerce
+        .number()
+        .int()
+        .positive()
+        .default(DEFAULT_DEADLINE_SECONDS)
+        .describe('Transaction deadline in seconds from now (default: 300)'),
+      stable: z.boolean().default(false).describe('Target stable pool (default: volatile)'),
+    })
+    .merge(writeOptions),
+  env: writeEnv,
+  output: z.object({
+    pool: z.string(),
+    stable: z.boolean(),
+    tokenA: tokenSchema,
+    tokenB: tokenSchema,
+    liquidity: amountSchema,
+    amountAMin: amountSchema,
+    amountBMin: amountSchema,
+    slippagePercent: z.number(),
+    tx: z.union([
+      z.object({
+        txHash: z.string(),
+        blockNumber: z.number(),
+        gasUsed: z.string(),
+      }),
+      z.object({
+        dryRun: z.literal(true),
+        estimatedGas: z.string(),
+        simulationResult: z.unknown(),
+      }),
+    ]),
+  }),
+  async run(c) {
+    const tokenARaw = c.options['token-a'];
+    const tokenBRaw = c.options['token-b'];
+
+    if (!isAddress(tokenARaw) || !isAddress(tokenBRaw)) {
+      return c.error({
+        code: 'INVALID_ADDRESS',
+        message: 'token-a and token-b must both be valid 0x-prefixed 20-byte addresses.',
+      });
+    }
+
+    const tokenA = toAddress(tokenARaw);
+    const tokenB = toAddress(tokenBRaw);
+
+    let liquidityAmount: bigint;
+    try {
+      liquidityAmount = BigInt(c.options.liquidity);
+    } catch {
+      return c.error({
+        code: 'INVALID_AMOUNT',
+        message: 'liquidity must be a valid integer in wei.',
+      });
+    }
+
+    if (liquidityAmount <= 0n) {
+      return c.error({
+        code: 'INVALID_AMOUNT',
+        message: 'liquidity must be a positive integer.',
+      });
+    }
+
+    const client = createAboreanPublicClient(c.env.ABSTRACT_RPC_URL);
+
+    // Verify pool exists
+    const poolAddress = (await client.readContract({
+      abi: poolFactoryAbi,
+      address: ABOREAN_V2_ADDRESSES.poolFactory,
+      functionName: 'getPool',
+      args: [tokenA, tokenB, c.options.stable],
+    })) as Address;
+
+    if (poolAddress.toLowerCase() === ZERO_ADDRESS.toLowerCase()) {
+      return c.error({
+        code: 'POOL_NOT_FOUND',
+        message: `No ${c.options.stable ? 'stable' : 'volatile'} V2 pool found for pair ${checksumAddress(tokenA)}/${checksumAddress(tokenB)}.`,
+      });
+    }
+
+    // Read pool state to calculate proportional output amounts
+    const [poolStates] = await readPoolStates(client, [poolAddress]);
+    const tokenMeta = await readTokenMetadata(client, [tokenA, tokenB]);
+    const aMeta = tokenMeta.get(tokenA.toLowerCase()) ?? fallbackTokenMeta(tokenA);
+    const bMeta = tokenMeta.get(tokenB.toLowerCase()) ?? fallbackTokenMeta(tokenB);
+
+    // Compute expected amounts from reserves and total supply
+    const totalSupply = poolStates.totalSupply;
+    const isTokenAToken0 = tokenA.toLowerCase() === poolStates.token0.toLowerCase();
+    const reserveA = isTokenAToken0 ? poolStates.reserve0 : poolStates.reserve1;
+    const reserveB = isTokenAToken0 ? poolStates.reserve1 : poolStates.reserve0;
+
+    const expectedAmountA = totalSupply > 0n ? (liquidityAmount * reserveA) / totalSupply : 0n;
+    const expectedAmountB = totalSupply > 0n ? (liquidityAmount * reserveB) / totalSupply : 0n;
+
+    // Compute min amounts from slippage
+    const slippageBps = Math.round(c.options.slippage * 100);
+    const amountAMin = (expectedAmountA * BigInt(10_000 - slippageBps)) / 10_000n;
+    const amountBMin = (expectedAmountB * BigInt(10_000 - slippageBps)) / 10_000n;
+
+    const deadlineTimestamp = BigInt(Math.floor(Date.now() / 1000) + c.options.deadline);
+    const account = resolveAccount(c.env);
+
+    // Approve LP token to router if needed (skip in dry-run)
+    if (!c.options['dry-run']) {
+      const currentAllowance = (await client.readContract({
+        abi: erc20ApproveAbi,
+        address: poolAddress,
+        functionName: 'allowance',
+        args: [account.address, ABOREAN_V2_ADDRESSES.router],
+      })) as bigint;
+
+      if (currentAllowance < liquidityAmount) {
+        await aboreanWriteTx({
+          env: c.env,
+          options: { ...c.options, 'dry-run': false },
+          address: poolAddress,
+          abi: erc20ApproveAbi,
+          functionName: 'approve',
+          args: [ABOREAN_V2_ADDRESSES.router, liquidityAmount],
+        });
+      }
+    }
+
+    // Execute removeLiquidity
+    const tx = await aboreanWriteTx({
+      env: c.env,
+      options: c.options,
+      address: ABOREAN_V2_ADDRESSES.router,
+      abi: v2RouterRemoveLiquidityAbi,
+      functionName: 'removeLiquidity',
+      args: [
+        tokenA,
+        tokenB,
+        c.options.stable,
+        liquidityAmount,
+        amountAMin,
+        amountBMin,
+        account.address,
+        deadlineTimestamp,
+      ],
+    });
+
+    return c.ok({
+      pool: checksumAddress(poolAddress),
+      stable: c.options.stable,
+      tokenA: aMeta,
+      tokenB: bMeta,
+      liquidity: {
+        raw: liquidityAmount.toString(),
+        decimal: formatUnits(liquidityAmount, 18),
+      },
+      amountAMin: {
+        raw: amountAMin.toString(),
+        decimal: formatUnits(amountAMin, aMeta.decimals),
+      },
+      amountBMin: {
+        raw: amountBMin.toString(),
+        decimal: formatUnits(amountBMin, bMeta.decimals),
+      },
+      slippagePercent: c.options.slippage,
+      tx,
+    });
+  },
+});
