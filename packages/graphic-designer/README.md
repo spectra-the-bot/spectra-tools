@@ -178,6 +178,12 @@ design-v2-g<version>-s<specHash>.spec.json  # normalized validated spec
 
 Custom theme overrides are supported via the `themeOverrides` field in DesignSpec.
 
+## Agent Workflow
+
+For AI agents using this tool in a self-correcting loop,
+see [AGENT_WORKFLOW.md](./AGENT_WORKFLOW.md) for the recommended
+render → compare → QA → iterate workflow.
+
 ## Credits
 
 - Code screenshot styling inspired by [Carbon](https://carbon.now.sh) (MIT)
