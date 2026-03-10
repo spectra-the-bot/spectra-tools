@@ -76,6 +76,19 @@ design qa --in ./output/design-v2-*.png --spec ./output/design-v2-*.spec.json
 design publish --in ./output/design-v2-*.png --target gist
 ```
 
+### Compare Rendered Output to Target
+
+```bash
+design compare \
+  --target ./designs/reference.png \
+  --rendered ./output/design-v2-g0.4.0-sabc123.png \
+  --grid 3 \
+  --threshold 0.8 \
+  --format json
+```
+
+Returns overall similarity, per-region (A1..Cn) similarity scores, and verdict (`match`, `close`, `mismatch`).
+
 ## Carbon-Style Rendering
 
 Code and terminal screenshots use design parameters inspired by [Carbon](https://carbon.now.sh) (MIT):

@@ -1,5 +1,12 @@
 export { cli } from './cli.js';
 export {
+  compareImages,
+  type CompareImagesOptions,
+  type CompareImagesReport,
+  type CompareRegionScore,
+  type CompareVerdict,
+} from './compare.js';
+export {
   buildFlowchartSpec,
   buildCodeSpec,
   buildTerminalSpec,
