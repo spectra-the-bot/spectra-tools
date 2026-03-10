@@ -115,7 +115,30 @@ function setupPoolDiscoveryMocks() {
 describe('cl swap', () => {
   beforeEach(() => {
     vi.resetModules();
-    vi.clearAllMocks();
+    vi.resetAllMocks();
+
+    (mockPublicClient.estimateContractGas as ReturnType<typeof vi.fn>).mockResolvedValue(150000n);
+    (mockPublicClient.simulateContract as ReturnType<typeof vi.fn>).mockResolvedValue({
+      result: 2900000n,
+    });
+    (mockPublicClient.waitForTransactionReceipt as ReturnType<typeof vi.fn>).mockResolvedValue({
+      transactionHash: MOCK_HASH,
+      blockNumber: 100n,
+      gasUsed: 145000n,
+      status: 'success',
+      from: '0x0000000000000000000000000000000000000000' as Address,
+      to: '0x0000000000000000000000000000000000000000' as Address,
+      effectiveGasPrice: 1000000000n,
+      blockHash: '0x0000000000000000000000000000000000000000000000000000000000000000',
+      contractAddress: null,
+      cumulativeGasUsed: 145000n,
+      logs: [],
+      logsBloom: '0x',
+      transactionIndex: 0,
+      type: 'eip1559',
+    } as unknown as TransactionReceipt);
+    (mockWalletClient.writeContract as ReturnType<typeof vi.fn>).mockResolvedValue(MOCK_HASH);
+
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-03-10T00:00:00Z'));
   });
