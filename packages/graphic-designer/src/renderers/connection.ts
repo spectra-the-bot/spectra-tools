@@ -13,9 +13,17 @@ import type { AnchorHint, ConnectionElement, Theme } from '../spec.schema.js';
 export type Point = PrimitivePoint;
 export type Rect = RendererRect;
 
-export type ConnectionRouting = 'auto' | 'orthogonal' | 'curve' | 'arc';
+export type ConnectionRouting = 'auto' | 'orthogonal' | 'curve' | 'arc' | 'straight';
+export type ConnectionCurveMode = 'normal' | 'ellipse';
 export type ConnectionArrow = 'none' | 'end' | 'start' | 'both';
 export type ConnectionStrokeStyle = 'solid' | 'dashed' | 'dotted';
+
+export type EllipseParams = {
+  cx: number;
+  cy: number;
+  rx: number;
+  ry: number;
+};
 
 export type ConnectionRenderOptions = {
   fromBounds: Rect;
@@ -262,6 +270,147 @@ export function arcRoute(
 }
 
 /**
+ * Infer ellipse parameters from the bounding boxes of all flow-node elements.
+ *
+ * When explicit `ellipseRx`/`ellipseRy` are provided they are used directly.
+ * Otherwise the ellipse is fitted by computing the centroid of all node centers
+ * as the center, with `rx` and `ry` derived from the maximum horizontal and
+ * vertical distance from the centroid to any node center.
+ */
+export function inferEllipseParams(
+  nodeBounds: Rect[],
+  explicitCenter?: Point,
+  explicitRx?: number,
+  explicitRy?: number,
+): EllipseParams {
+  if (nodeBounds.length === 0) {
+    return {
+      cx: explicitCenter?.x ?? 0,
+      cy: explicitCenter?.y ?? 0,
+      rx: explicitRx ?? 1,
+      ry: explicitRy ?? 1,
+    };
+  }
+
+  const centers = nodeBounds.map(rectCenter);
+
+  const cx = explicitCenter?.x ?? centers.reduce((sum, c) => sum + c.x, 0) / centers.length;
+  const cy = explicitCenter?.y ?? centers.reduce((sum, c) => sum + c.y, 0) / centers.length;
+
+  const rx = explicitRx ?? Math.max(1, ...centers.map((c) => Math.abs(c.x - cx)));
+  const ry = explicitRy ?? Math.max(1, ...centers.map((c) => Math.abs(c.y - cy)));
+
+  return { cx, cy, rx, ry };
+}
+
+/**
+ * Compute a cubic bezier curve that traces an arc on a shared global ellipse.
+ *
+ * Uses the generalized kappa formula: `κ = (4/3) × tan(angularSpan / 4)`
+ * to produce control points from the ellipse tangent vectors at the source
+ * and target angles.
+ *
+ * The source and target points are the edge anchors of the respective node
+ * bounding boxes (not points on the ellipse itself), but the control points
+ * are derived from the ellipse tangent at the angle each node center makes
+ * with the ellipse center. This produces curves that follow the global
+ * ellipse arc while connecting node boundaries correctly.
+ *
+ * @returns `[startPoint, controlPoint1, controlPoint2, endPoint]`
+ */
+export function ellipseRoute(
+  fromBounds: Rect,
+  toBounds: Rect,
+  ellipse: EllipseParams,
+  fromAnchor?: AnchorHint,
+  toAnchor?: AnchorHint,
+): [Point, Point, Point, Point] {
+  const fromCenter = rectCenter(fromBounds);
+  const toCenter = rectCenter(toBounds);
+
+  const p0 = resolveAnchor(fromBounds, fromAnchor, toCenter);
+  const p3 = resolveAnchor(toBounds, toAnchor, fromCenter);
+
+  // Compute angles of node centers on the ellipse
+  const theta1 = Math.atan2(
+    (fromCenter.y - ellipse.cy) / ellipse.ry,
+    (fromCenter.x - ellipse.cx) / ellipse.rx,
+  );
+  const theta2 = Math.atan2(
+    (toCenter.y - ellipse.cy) / ellipse.ry,
+    (toCenter.x - ellipse.cx) / ellipse.rx,
+  );
+
+  // Compute the shortest angular span, always going from theta1 toward theta2
+  // in the positive (counterclockwise) direction via the shorter arc
+  let angularSpan = theta2 - theta1;
+  // Normalize to (-PI, PI]
+  while (angularSpan > Math.PI) angularSpan -= 2 * Math.PI;
+  while (angularSpan <= -Math.PI) angularSpan += 2 * Math.PI;
+
+  const absSpan = Math.abs(angularSpan);
+
+  // Generalized kappa for the actual angular span
+  const kappa = absSpan < 1e-6 ? 0 : (4 / 3) * Math.tan(absSpan / 4);
+
+  // Ellipse tangent at angle θ: (-rx*sin(θ), ry*cos(θ))
+  // The sign of kappa encodes direction
+  const tangent1: Point = {
+    x: -ellipse.rx * Math.sin(theta1),
+    y: ellipse.ry * Math.cos(theta1),
+  };
+  const tangent2: Point = {
+    x: -ellipse.rx * Math.sin(theta2),
+    y: ellipse.ry * Math.cos(theta2),
+  };
+
+  // Normalize tangents
+  const len1 = Math.hypot(tangent1.x, tangent1.y) || 1;
+  const len2 = Math.hypot(tangent2.x, tangent2.y) || 1;
+  const norm1: Point = { x: tangent1.x / len1, y: tangent1.y / len1 };
+  const norm2: Point = { x: tangent2.x / len2, y: tangent2.y / len2 };
+
+  // Scale factor: use chord length between actual endpoints to scale control points
+  const chordLength = Math.hypot(p3.x - p0.x, p3.y - p0.y);
+  const cpDistance = chordLength * kappa * 0.5;
+
+  // Direction sign: kappa should follow the arc direction
+  const sign = angularSpan >= 0 ? 1 : -1;
+
+  const cp1: Point = {
+    x: p0.x + norm1.x * cpDistance * sign,
+    y: p0.y + norm1.y * cpDistance * sign,
+  };
+  const cp2: Point = {
+    x: p3.x - norm2.x * cpDistance * sign,
+    y: p3.y - norm2.y * cpDistance * sign,
+  };
+
+  return [p0, cp1, cp2, p3];
+}
+
+/**
+ * Compute a straight-line route between two rectangles.
+ *
+ * When `fromAnchor` or `toAnchor` hints are provided, they override the
+ * automatic edge anchor calculation.
+ */
+export function straightRoute(
+  fromBounds: Rect,
+  toBounds: Rect,
+  fromAnchor?: AnchorHint,
+  toAnchor?: AnchorHint,
+): [Point, Point] {
+  const fromC = rectCenter(fromBounds);
+  const toC = rectCenter(toBounds);
+
+  const p0 = resolveAnchor(fromBounds, fromAnchor, toC);
+  const p3 = resolveAnchor(toBounds, toAnchor, fromC);
+
+  return [p0, p3];
+}
+
+/**
  * Compute an orthogonal (right-angle) path between two rectangles.
  * Returns an array of waypoints forming a 3-segment path.
  *
@@ -355,17 +504,6 @@ export function findBoundaryIntersection(
   }
 
   return undefined;
-}
-
-function pointAlongArc(route: [CubicBezierSegment, CubicBezierSegment], t: number): Point {
-  const [first, second] = route;
-  if (t <= 0.5) {
-    const localT = Math.max(0, Math.min(1, t * 2));
-    return bezierPointAt(first[0], first[1], first[2], first[3], localT);
-  }
-
-  const localT = Math.max(0, Math.min(1, (t - 0.5) * 2));
-  return bezierPointAt(second[0], second[1], second[2], second[3], localT);
 }
 
 /**
@@ -554,10 +692,25 @@ export function renderConnection(
   toBounds: Rect,
   theme: Theme,
   edgeRoute?: EdgeRoute,
-  options?: { diagramCenter?: Point },
+  options?: { diagramCenter?: Point; ellipseParams?: EllipseParams },
 ): RenderedElement[] {
-  const routing: ConnectionRouting = conn.routing ?? 'auto';
-  const strokeStyle: ConnectionStrokeStyle = conn.strokeStyle ?? conn.style ?? 'solid';
+  let routing: ConnectionRouting = conn.routing ?? 'auto';
+  let curveMode: ConnectionCurveMode = conn.curveMode ?? 'normal';
+
+  if (conn.strokeStyle !== undefined) {
+    console.warn('connection.strokeStyle is deprecated, use style instead');
+  }
+
+  // Handle arc deprecation: treat as curve + curveMode:'ellipse'
+  if (routing === 'arc') {
+    console.warn(
+      "connection routing: 'arc' is deprecated. Use routing: 'curve' with curveMode: 'ellipse' instead.",
+    );
+    routing = 'curve';
+    curveMode = 'ellipse';
+  }
+
+  const strokeStyle: ConnectionStrokeStyle = conn.style ?? conn.strokeStyle ?? 'solid';
   const strokeWidth = conn.width ?? conn.strokeWidth ?? 2;
   const tension = conn.tension ?? 0.35;
 
@@ -584,7 +737,55 @@ export function renderConnection(
 
   const arrowPlacement = conn.arrowPlacement ?? 'endpoint';
 
-  if (routing === 'curve') {
+  if (routing === 'curve' && curveMode === 'ellipse') {
+    // Ellipse mode: trace arcs on a shared global ellipse
+    const ellipse = options?.ellipseParams ?? inferEllipseParams([fromBounds, toBounds]);
+
+    const [p0, cp1, cp2, p3] = ellipseRoute(
+      fromBounds,
+      toBounds,
+      ellipse,
+      conn.fromAnchor,
+      conn.toAnchor,
+    );
+
+    const stroke = resolveConnectionStroke(ctx, p0, p3, conn.fromColor, style.color, conn.toColor);
+
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = style.width;
+    ctx.setLineDash(style.dash ?? []);
+    ctx.beginPath();
+    ctx.moveTo(p0.x, p0.y);
+    ctx.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, p3.x, p3.y);
+    ctx.stroke();
+
+    linePoints = [p0, cp1, cp2, p3];
+    startPoint = p0;
+    endPoint = p3;
+    startAngle = Math.atan2(p0.y - cp1.y, p0.x - cp1.x);
+    endAngle = Math.atan2(p3.y - cp2.y, p3.x - cp2.x);
+    labelPoint = bezierPointAt(p0, cp1, cp2, p3, labelT);
+
+    if (arrowPlacement === 'boundary') {
+      if (conn.arrow === 'end' || conn.arrow === 'both') {
+        const tEnd = findBoundaryIntersection(p0, cp1, cp2, p3, toBounds, true);
+        if (tEnd !== undefined) {
+          endPoint = bezierPointAt(p0, cp1, cp2, p3, tEnd);
+          const tangent = bezierTangentAt(p0, cp1, cp2, p3, tEnd);
+          endAngle = Math.atan2(tangent.y, tangent.x);
+        }
+      }
+      if (conn.arrow === 'start' || conn.arrow === 'both') {
+        const tStart = findBoundaryIntersection(p0, cp1, cp2, p3, fromBounds, false);
+        if (tStart !== undefined) {
+          startPoint = bezierPointAt(p0, cp1, cp2, p3, tStart);
+          const tangent = bezierTangentAt(p0, cp1, cp2, p3, tStart);
+          startAngle = Math.atan2(tangent.y, tangent.x) + Math.PI;
+        }
+      }
+    }
+  } else if (routing === 'curve') {
+    // Normal curve mode: outward-bowing via normals
     const [p0, cp1, cp2, p3] = curveRoute(
       fromBounds,
       toBounds,
@@ -629,17 +830,8 @@ export function renderConnection(
         }
       }
     }
-  } else if (routing === 'arc') {
-    const [first, second] = arcRoute(
-      fromBounds,
-      toBounds,
-      diagramCenter,
-      tension,
-      conn.fromAnchor,
-      conn.toAnchor,
-    );
-    const [p0, cp1, cp2, pMid] = first;
-    const [, cp3, cp4, p3] = second;
+  } else if (routing === 'straight') {
+    const [p0, p3] = straightRoute(fromBounds, toBounds, conn.fromAnchor, conn.toAnchor);
 
     const stroke = resolveConnectionStroke(ctx, p0, p3, conn.fromColor, style.color, conn.toColor);
 
@@ -648,36 +840,15 @@ export function renderConnection(
     ctx.setLineDash(style.dash ?? []);
     ctx.beginPath();
     ctx.moveTo(p0.x, p0.y);
-    ctx.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, pMid.x, pMid.y);
-    ctx.bezierCurveTo(cp3.x, cp3.y, cp4.x, cp4.y, p3.x, p3.y);
+    ctx.lineTo(p3.x, p3.y);
     ctx.stroke();
 
-    linePoints = [p0, cp1, cp2, pMid, cp3, cp4, p3];
+    linePoints = [p0, p3];
     startPoint = p0;
     endPoint = p3;
-    startAngle = Math.atan2(p0.y - cp1.y, p0.x - cp1.x);
-    endAngle = Math.atan2(p3.y - cp4.y, p3.x - cp4.x);
-    labelPoint = pointAlongArc([first, second], labelT);
-
-    if (arrowPlacement === 'boundary') {
-      if (conn.arrow === 'end' || conn.arrow === 'both') {
-        const [, s_cp3, s_cp4, s_p3] = second;
-        const tEnd = findBoundaryIntersection(pMid, s_cp3, s_cp4, s_p3, toBounds, true);
-        if (tEnd !== undefined) {
-          endPoint = bezierPointAt(pMid, s_cp3, s_cp4, s_p3, tEnd);
-          const tangent = bezierTangentAt(pMid, s_cp3, s_cp4, s_p3, tEnd);
-          endAngle = Math.atan2(tangent.y, tangent.x);
-        }
-      }
-      if (conn.arrow === 'start' || conn.arrow === 'both') {
-        const tStart = findBoundaryIntersection(p0, cp1, cp2, pMid, fromBounds, false);
-        if (tStart !== undefined) {
-          startPoint = bezierPointAt(p0, cp1, cp2, pMid, tStart);
-          const tangent = bezierTangentAt(p0, cp1, cp2, pMid, tStart);
-          startAngle = Math.atan2(tangent.y, tangent.x) + Math.PI;
-        }
-      }
-    }
+    startAngle = Math.atan2(p0.y - p3.y, p0.x - p3.x);
+    endAngle = Math.atan2(p3.y - p0.y, p3.x - p0.x);
+    labelPoint = pointAlongPolyline(linePoints, labelT);
   } else {
     const hasAnchorHints = conn.fromAnchor !== undefined || conn.toAnchor !== undefined;
     const useElkRoute =

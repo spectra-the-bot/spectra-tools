@@ -34,7 +34,8 @@ describe('connectionElementSchema', () => {
     expect(result.routing).toBe('auto');
     expect(result.tension).toBe(0.35);
     expect(result.arrow).toBe('end');
-    expect(result.strokeStyle).toBe('solid');
+    expect(result.style).toBe('solid');
+    expect(result.strokeStyle).toBeUndefined();
     expect(result.strokeWidth).toBe(2);
     expect(result.arrowPlacement).toBe('endpoint');
   });
@@ -160,16 +161,37 @@ describe('connectionElementSchema', () => {
     ).toThrow();
   });
 
-  it('accepts all stroke styles', () => {
-    for (const style of ['solid', 'dashed', 'dotted'] as const) {
+  it('accepts all stroke styles via style field', () => {
+    for (const s of ['solid', 'dashed', 'dotted'] as const) {
       const result = connectionElementSchema.parse({
         type: 'connection',
         from: 'a',
         to: 'b',
-        strokeStyle: style,
+        style: s,
       });
-      expect(result.strokeStyle).toBe(style);
+      expect(result.style).toBe(s);
     }
+  });
+
+  it('accepts all stroke styles via deprecated strokeStyle field', () => {
+    for (const s of ['solid', 'dashed', 'dotted'] as const) {
+      const result = connectionElementSchema.parse({
+        type: 'connection',
+        from: 'a',
+        to: 'b',
+        strokeStyle: s,
+      });
+      expect(result.strokeStyle).toBe(s);
+    }
+  });
+
+  it('strokeStyle is undefined when not explicitly provided', () => {
+    const result = connectionElementSchema.parse({
+      type: 'connection',
+      from: 'a',
+      to: 'b',
+    });
+    expect(result.strokeStyle).toBeUndefined();
   });
 
   it('accepts all arrow modes', () => {
