@@ -2,6 +2,7 @@ import { readFileSync, realpathSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Cli } from 'incur';
+import { pricesCli } from './commands/prices.js';
 import { tvlCli } from './commands/tvl.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -26,9 +27,6 @@ const feesCli = Cli.create('fees', {
 });
 cli.command(feesCli);
 
-const pricesCli = Cli.create('prices', {
-  description: 'Token price queries.',
-});
 cli.command(pricesCli);
 
 export { cli };

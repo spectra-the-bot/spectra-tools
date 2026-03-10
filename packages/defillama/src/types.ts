@@ -87,3 +87,40 @@ export const feeEntrySchema = z.object({
 });
 
 export type FeeEntry = z.infer<typeof feeEntrySchema>;
+
+/* ── Price schemas (coins.llama.fi) ─────────────────────────── */
+
+/** Single coin price entry from /prices/current or /prices/historical */
+export const coinPriceSchema = z.object({
+  price: z.number(),
+  decimals: z.number().optional(),
+  symbol: z.string(),
+  timestamp: z.number(),
+  confidence: z.number().optional(),
+});
+
+export type CoinPrice = z.infer<typeof coinPriceSchema>;
+
+/** Response from /prices/current/<coins> or /prices/historical/<timestamp>/<coins> */
+export const pricesResponseSchema = z.object({
+  coins: z.record(z.string(), coinPriceSchema),
+});
+
+export type PricesResponse = z.infer<typeof pricesResponseSchema>;
+
+/** Single coin chart entry from /chart/<coins> */
+export const coinChartSchema = z.object({
+  decimals: z.number().optional(),
+  symbol: z.string(),
+  prices: z.array(z.object({ timestamp: z.number(), price: z.number() })),
+  confidence: z.number().optional(),
+});
+
+export type CoinChart = z.infer<typeof coinChartSchema>;
+
+/** Response from /chart/<coins> */
+export const chartResponseSchema = z.object({
+  coins: z.record(z.string(), coinChartSchema),
+});
+
+export type ChartResponse = z.infer<typeof chartResponseSchema>;
