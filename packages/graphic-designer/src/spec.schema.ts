@@ -348,6 +348,16 @@ export const flowNodeElementSchema = z
   })
   .strict();
 
+const anchorHintSchema = z.union([
+  z.enum(['top', 'bottom', 'left', 'right', 'center']),
+  z
+    .object({
+      x: z.number().min(-1).max(1),
+      y: z.number().min(-1).max(1),
+    })
+    .strict(),
+]);
+
 export const connectionElementSchema = z
   .object({
     type: z.literal('connection'),
@@ -366,6 +376,8 @@ export const connectionElementSchema = z
     opacity: z.number().min(0).max(1).default(1),
     routing: z.enum(['auto', 'orthogonal', 'curve', 'arc']).default('auto'),
     tension: z.number().min(0.1).max(0.8).default(0.35),
+    fromAnchor: anchorHintSchema.optional(),
+    toAnchor: anchorHintSchema.optional(),
   })
   .strict();
 
@@ -661,6 +673,7 @@ export type CardElement = z.infer<typeof cardElementSchema>;
 export type FlowNodeElement = z.infer<typeof flowNodeElementSchema>;
 export type FlowNodeShadow = z.infer<typeof flowNodeShadowSchema>;
 export type ConnectionElement = z.infer<typeof connectionElementSchema>;
+export type AnchorHint = z.infer<typeof anchorHintSchema>;
 export type DiagramElement = z.infer<typeof diagramElementSchema>;
 export type DiagramLayout = z.infer<typeof diagramLayoutSchema>;
 export type DiagramSpec = z.infer<typeof diagramSpecSchema>;
