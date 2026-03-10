@@ -1,5 +1,13 @@
 # @spectratools/aborean-cli
 
+## 0.10.0
+
+### Minor Changes
+
+- [#322](https://github.com/spectra-the-bot/spectra-tools/pull/322) [`e32c768`](https://github.com/spectra-the-bot/spectra-tools/commit/e32c76800b444fedb385509607e793a7e6527f00) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add gauges deposit/withdraw and voter vote write commands.
+
+- [#323](https://github.com/spectra-the-bot/spectra-tools/pull/323) [`e577e4a`](https://github.com/spectra-the-bot/spectra-tools/commit/e577e4aa813db6c2f7424d4e6ee25240d39ab5cf) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add pools add/remove-liquidity and cl add/remove-position write commands.
+
 ## 0.9.0
 
 ### Minor Changes

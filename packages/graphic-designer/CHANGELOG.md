@@ -1,5 +1,19 @@
 # @spectratools/graphic-designer-cli
 
+## 0.7.0
+
+### Minor Changes
+
+- [#334](https://github.com/spectra-the-bot/spectra-tools/pull/334) [`099d4e2`](https://github.com/spectra-the-bot/spectra-tools/commit/099d4e29dd30bd2990a50a6afb6286dcc5528256) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add fromAnchor and toAnchor properties to connection elements for precise edge departure/arrival control.
+
+### Patch Changes
+
+- [#331](https://github.com/spectra-the-bot/spectra-tools/pull/331) [`4d2aba4`](https://github.com/spectra-the-bot/spectra-tools/commit/4d2aba47d196f9433b276c394942582270535061) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add grid draw command type to schema and renderer.
+
+- [#333](https://github.com/spectra-the-bot/spectra-tools/pull/333) [`bbd85ba`](https://github.com/spectra-the-bot/spectra-tools/commit/bbd85ba8644c3b11592cb6805012f1f4ee2843cd) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add arrowPlacement boundary mode to connection elements for precise curve-following arrowhead placement.
+
+- [#330](https://github.com/spectra-the-bot/spectra-tools/pull/330) [`5fde170`](https://github.com/spectra-the-bot/spectra-tools/commit/5fde17055d2ebc6b0a93dc26902ffe2d9355e57f) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add bezierTangentAt and findBoundaryIntersection utilities to connection renderer.
+
 ## 0.6.0
 
 ### Minor Changes
