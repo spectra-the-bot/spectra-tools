@@ -127,6 +127,17 @@ Plus a **freestyle draw layer** with 8 draw command types: `rect`, `circle`, `te
 - **stack** — vertical or horizontal stack
 - **manual** — explicit x/y coordinates
 
+### Connection Routing Modes
+
+Per-connection `routing` supports:
+
+- `auto` — backward compatible behavior (`ELK` route when available, otherwise orthogonal)
+- `orthogonal` — forced right-angle path
+- `curve` — outward-bowing cubic bezier
+- `arc` — outward elliptical arc (kappa-bezier approximation)
+
+`layout.diagramCenter` can optionally override the center point used by `curve` and `arc` routing. When omitted, center is derived from the laid-out element centroid (fallback: canvas center).
+
 ## Programmatic Usage
 
 ```ts
@@ -144,9 +155,9 @@ const spec = parseDesignSpec({
   elements: [
     { type: 'flow-node', id: 'a', label: 'Start', shape: 'rounded-box', color: '#7c3aed' },
     { type: 'flow-node', id: 'b', label: 'End', shape: 'rounded-box', color: '#059669' },
-    { type: 'connection', from: 'a', to: 'b', label: 'next' },
+    { type: 'connection', from: 'a', to: 'b', label: 'next', routing: 'arc' },
   ],
-  layout: { mode: 'auto', algorithm: 'layered' },
+  layout: { mode: 'auto', algorithm: 'layered', diagramCenter: { x: 600, y: 340 } },
 });
 
 const render = await renderDesign(spec, { generatorVersion: '0.3.0' });

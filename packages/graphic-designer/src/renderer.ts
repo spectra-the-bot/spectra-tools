@@ -8,7 +8,7 @@ import { drawGradientRect, drawRainbowRule, drawVignette } from './primitives/gr
 import { applyFont, resolveFont, wrapText } from './primitives/text.js';
 import { renderCard } from './renderers/card.js';
 import { renderCodeBlock } from './renderers/code.js';
-import { renderConnection } from './renderers/connection.js';
+import { computeDiagramCenter, renderConnection } from './renderers/connection.js';
 import { renderDrawCommands } from './renderers/draw.js';
 import { renderFlowNode } from './renderers/flow-node.js';
 import { renderImageElement } from './renderers/image.js';
@@ -529,6 +529,16 @@ export async function renderDesign(
     }
   }
 
+  const diagramCenter =
+    spec.layout.diagramCenter ??
+    computeDiagramCenter(
+      spec.elements
+        .filter((element) => element.type !== 'connection')
+        .map((element) => elementRects.get(element.id))
+        .filter((rect): rect is Rect => rect != null),
+      { x: spec.canvas.width / 2, y: spec.canvas.height / 2 },
+    );
+
   for (const element of spec.elements) {
     if (element.type !== 'connection') {
       continue;
@@ -544,7 +554,9 @@ export async function renderDesign(
     }
 
     const edgeRoute = edgeRoutes?.get(`${element.from}-${element.to}`);
-    elements.push(...renderConnection(ctx, element, fromRect, toRect, theme, edgeRoute));
+    elements.push(
+      ...renderConnection(ctx, element, fromRect, toRect, theme, edgeRoute, { diagramCenter }),
+    );
   }
 
   if (footerRect && spec.footer) {

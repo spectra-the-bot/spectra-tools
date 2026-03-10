@@ -295,11 +295,22 @@ const flowNodeShadowSchema = z
   })
   .strict();
 
-const flowNodeElementSchema = z
+export const flowNodeElementSchema = z
   .object({
     type: z.literal('flow-node'),
     id: z.string().min(1).max(120),
-    shape: z.enum(['box', 'rounded-box', 'diamond', 'circle', 'pill', 'cylinder', 'parallelogram']),
+    shape: z
+      .enum([
+        'box',
+        'rounded-box',
+        'diamond',
+        'circle',
+        'pill',
+        'cylinder',
+        'parallelogram',
+        'hexagon',
+      ])
+      .default('rounded-box'),
     label: z.string().min(1).max(200),
     sublabel: z.string().min(1).max(300).optional(),
     sublabelColor: colorHexSchema.optional(),
@@ -324,19 +335,23 @@ const flowNodeElementSchema = z
   })
   .strict();
 
-const connectionElementSchema = z
+export const connectionElementSchema = z
   .object({
     type: z.literal('connection'),
     from: z.string().min(1).max(120),
     to: z.string().min(1).max(120),
     style: z.enum(['solid', 'dashed', 'dotted']).default('solid'),
+    strokeStyle: z.enum(['solid', 'dashed', 'dotted']).default('solid'),
     arrow: z.enum(['end', 'start', 'both', 'none']).default('end'),
     label: z.string().min(1).max(200).optional(),
     labelPosition: z.enum(['start', 'middle', 'end']).default('middle'),
     color: colorHexSchema.optional(),
-    width: z.number().min(0.5).max(8).optional(),
+    width: z.number().min(0.5).max(10).optional(),
+    strokeWidth: z.number().min(0.5).max(10).default(2),
     arrowSize: z.number().min(4).max(32).optional(),
     opacity: z.number().min(0).max(1).default(1),
+    routing: z.enum(['auto', 'orthogonal', 'curve', 'arc']).default('auto'),
+    tension: z.number().min(0.1).max(0.8).default(0.35),
   })
   .strict();
 
@@ -426,6 +441,13 @@ const elementSchema = z.discriminatedUnion('type', [
   imageElementSchema,
 ]);
 
+const diagramCenterSchema = z
+  .object({
+    x: z.number(),
+    y: z.number(),
+  })
+  .strict();
+
 const autoLayoutConfigSchema = z
   .object({
     mode: z.literal('auto'),
@@ -443,6 +465,8 @@ const autoLayoutConfigSchema = z
     radialCompaction: z.enum(['none', 'radial', 'wedge']).optional(),
     /** Sort strategy for radial layout node ordering. Only relevant when algorithm is 'radial'. */
     radialSortBy: z.enum(['id', 'connections']).optional(),
+    /** Explicit center used by curve/arc connection routing. */
+    diagramCenter: diagramCenterSchema.optional(),
   })
   .strict();
 
@@ -454,6 +478,8 @@ const gridLayoutConfigSchema = z
     cardMinHeight: z.number().int().min(32).max(4096).optional(),
     cardMaxHeight: z.number().int().min(32).max(4096).optional(),
     equalHeight: z.boolean().default(false),
+    /** Explicit center used by curve/arc connection routing. */
+    diagramCenter: diagramCenterSchema.optional(),
   })
   .strict();
 
@@ -463,6 +489,8 @@ const stackLayoutConfigSchema = z
     direction: z.enum(['vertical', 'horizontal']).default('vertical'),
     gap: z.number().int().min(0).max(256).default(24),
     alignment: z.enum(['start', 'center', 'end', 'stretch']).default('stretch'),
+    /** Explicit center used by curve/arc connection routing. */
+    diagramCenter: diagramCenterSchema.optional(),
   })
   .strict();
 
@@ -479,6 +507,8 @@ const manualLayoutConfigSchema = z
   .object({
     mode: z.literal('manual'),
     positions: z.record(z.string().min(1), manualPositionSchema).default({}),
+    /** Explicit center used by curve/arc connection routing. */
+    diagramCenter: diagramCenterSchema.optional(),
   })
   .strict();
 
@@ -553,6 +583,43 @@ const canvasSchema = z
 
 const themeInputSchema = z.union([builtInThemeSchema, themeSchema]);
 
+const diagramPositionSchema = z
+  .object({
+    x: z.number(),
+    y: z.number(),
+    width: z.number().positive(),
+    height: z.number().positive(),
+  })
+  .strict();
+
+export const diagramElementSchema = z.discriminatedUnion('type', [
+  flowNodeElementSchema,
+  connectionElementSchema,
+]);
+
+export const diagramLayoutSchema = z
+  .object({
+    mode: z.enum(['manual', 'auto']).default('manual'),
+    positions: z.record(z.string(), diagramPositionSchema).optional(),
+    diagramCenter: diagramCenterSchema.optional(),
+  })
+  .strict();
+
+export const diagramSpecSchema = z
+  .object({
+    version: z.literal(1),
+    canvas: z
+      .object({
+        width: z.number().int().min(320).max(4096).default(1200),
+        height: z.number().int().min(180).max(4096).default(675),
+      })
+      .default({ width: 1200, height: 675 }),
+    theme: themeSchema.optional(),
+    elements: z.array(diagramElementSchema).min(1),
+    layout: diagramLayoutSchema.default({ mode: 'manual' }),
+  })
+  .strict();
+
 /** Zod schema that validates and transforms raw input into a fully resolved {@link DesignSpec}. This is the source of truth for spec validation. */
 export const designSpecSchema = z
   .object({
@@ -580,6 +647,9 @@ export type CardElement = z.infer<typeof cardElementSchema>;
 export type FlowNodeElement = z.infer<typeof flowNodeElementSchema>;
 export type FlowNodeShadow = z.infer<typeof flowNodeShadowSchema>;
 export type ConnectionElement = z.infer<typeof connectionElementSchema>;
+export type DiagramElement = z.infer<typeof diagramElementSchema>;
+export type DiagramLayout = z.infer<typeof diagramLayoutSchema>;
+export type DiagramSpec = z.infer<typeof diagramSpecSchema>;
 export type CodeBlockStyle = z.infer<typeof codeBlockStyleSchema>;
 export type CodeBlockElement = z.infer<typeof codeBlockElementSchema>;
 export type TerminalElement = z.infer<typeof terminalElementSchema>;
@@ -604,6 +674,8 @@ export type StackLayoutConfig = z.infer<typeof stackLayoutConfigSchema>;
 export type ManualLayoutConfig = z.infer<typeof manualLayoutConfigSchema>;
 export type ConstraintSpec = z.infer<typeof constraintsSchema>;
 export type Theme = z.infer<typeof themeSchema>;
+export type DesignTheme = Theme;
+export type DesignCardSpec = CardElement;
 export type BuiltInTheme = z.infer<typeof builtInThemeSchema>;
 export type ThemeInput = z.infer<typeof themeInputSchema>;
 export type GradientStop = z.infer<typeof gradientStopSchema>;
@@ -653,6 +725,10 @@ export function deriveSafeFrame(spec: DesignSpec): DesignSafeFrame {
  * @returns A validated and transformed {@link DesignSpec}.
  * @throws {import('zod').ZodError} When the input fails schema validation.
  */
+export function parseDiagramSpec(input: unknown): DiagramSpec {
+  return diagramSpecSchema.parse(input);
+}
+
 export function parseDesignSpec(input: unknown): DesignSpec {
   return designSpecSchema.parse(input);
 }
