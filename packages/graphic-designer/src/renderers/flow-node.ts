@@ -223,6 +223,31 @@ export function renderFlowNode(
     ctx.restore();
   }
 
+  // Inner glow gradient overlay from left edge (or after accent bar).
+  if (node.glowColor) {
+    const glowW = node.glowWidth ?? 16;
+    const glowOp = node.glowOpacity ?? 0.15;
+    ctx.save();
+    // Clip to node shape
+    ctx.beginPath();
+    ctx.roundRect(bounds.x, bounds.y, bounds.width, bounds.height, cornerRadius);
+    ctx.clip();
+    // Create horizontal linear gradient from left edge inward
+    const barOffset = node.accentColor ? (node.accentBarWidth ?? 3) : 0;
+    const gradient = ctx.createLinearGradient(
+      bounds.x + barOffset,
+      bounds.y,
+      bounds.x + barOffset + glowW,
+      bounds.y,
+    );
+    gradient.addColorStop(0, node.glowColor); // Full glow color at edge
+    gradient.addColorStop(1, 'rgba(0,0,0,0)'); // Fade to transparent
+    ctx.globalAlpha = glowOp;
+    ctx.fillStyle = gradient;
+    ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+    ctx.restore();
+  }
+
   const headingFont = resolveFont(theme.fonts.heading, 'heading');
   const bodyFont = resolveFont(theme.fonts.body, 'body');
   const monoFont = resolveFont(theme.fonts.mono, 'mono');
