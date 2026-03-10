@@ -3,6 +3,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Cli } from 'incur';
 import { feesCli } from './commands/fees.js';
+import { pricesCli } from './commands/prices.js';
 import { tvlCli } from './commands/tvl.js';
 import { volumeCli } from './commands/volume.js';
 
@@ -21,9 +22,6 @@ cli.command(tvlCli);
 cli.command(volumeCli);
 cli.command(feesCli);
 
-const pricesCli = Cli.create('prices', {
-  description: 'Token price queries.',
-});
 cli.command(pricesCli);
 
 export { cli };
