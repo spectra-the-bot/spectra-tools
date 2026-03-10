@@ -306,6 +306,10 @@ const flowNodeElementSchema = z
     height: z.number().int().min(30).max(600).optional(),
     fillOpacity: z.number().min(0).max(1).default(1),
     opacity: z.number().min(0).max(1).default(1),
+    badgeText: z.string().min(1).max(32).optional(),
+    badgeColor: colorHexSchema.optional(),
+    badgeBackground: colorHexSchema.optional(),
+    badgePosition: z.enum(['top', 'inside-top']).default('inside-top'),
   })
   .strict();
 

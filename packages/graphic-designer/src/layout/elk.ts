@@ -1,5 +1,6 @@
 import ELK, { type ElkNode } from 'elkjs';
 import type { Rect } from '../renderer.js';
+import { BADGE_INSIDE_TOP_EXTRA } from '../renderers/flow-node.js';
 import type {
   AutoLayoutConfig,
   ConnectionElement,
@@ -24,40 +25,48 @@ type Bounds = {
 };
 
 function estimateFlowNodeSize(node: FlowNodeElement): { width: number; height: number } {
+  // Extra height for inside-top badge.
+  const badgeExtra =
+    node.badgeText && (node.badgePosition ?? 'inside-top') === 'inside-top'
+      ? BADGE_INSIDE_TOP_EXTRA
+      : 0;
+
   // Extra height for sublabel2 (third text line).
   const sublabel2Extra = node.sublabel2 ? (node.sublabel2FontSize ?? 11) + 4 : 0;
 
+  const extra = badgeExtra + sublabel2Extra;
+
   if (node.width && node.height) {
-    return { width: node.width, height: node.height + sublabel2Extra };
+    return { width: node.width, height: node.height + extra };
   }
 
   if (node.width) {
     const baseHeight = node.shape === 'diamond' || node.shape === 'circle' ? node.width : 60;
     return {
       width: node.width,
-      height: baseHeight + sublabel2Extra,
+      height: baseHeight + extra,
     };
   }
 
   if (node.height) {
     return {
       width: node.shape === 'diamond' || node.shape === 'circle' ? node.height : 160,
-      height: node.height + sublabel2Extra,
+      height: node.height + extra,
     };
   }
 
   switch (node.shape) {
     case 'diamond':
     case 'circle':
-      return { width: 100 + sublabel2Extra, height: 100 + sublabel2Extra };
+      return { width: 100 + extra, height: 100 + extra };
     case 'pill':
-      return { width: 180, height: 56 + sublabel2Extra };
+      return { width: 180, height: 56 + extra };
     case 'cylinder':
-      return { width: 140, height: 92 + sublabel2Extra };
+      return { width: 140, height: 92 + extra };
     case 'parallelogram':
-      return { width: 180, height: 72 + sublabel2Extra };
+      return { width: 180, height: 72 + extra };
     default:
-      return { width: 170, height: 64 + sublabel2Extra };
+      return { width: 170, height: 64 + extra };
   }
 }
 
