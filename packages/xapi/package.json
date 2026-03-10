@@ -1,6 +1,6 @@
 {
   "name": "@spectratools/xapi-cli",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "description": "X (Twitter) API CLI for spectra-the-bot",
   "type": "module",
   "license": "MIT",
