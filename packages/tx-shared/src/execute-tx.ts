@@ -17,6 +17,10 @@ import {
 import { getPrivyPolicyContext } from './signers/privy.js';
 import type { TxResult } from './types.js';
 
+type SpanLike = {
+  setAttribute: (key: string, value: string | number | boolean) => void;
+};
+
 /** Options for the {@link executeTx} lifecycle. */
 export interface ExecuteTxOptions {
   /** Viem public client used for gas estimation, simulation, and receipt retrieval. */
@@ -104,7 +108,7 @@ export async function executeTx(options: ExecuteTxOptions): Promise<TxResult | D
     'tx.dry_run': dryRun,
   });
 
-  return withSpan('tx.execute', async (span) => {
+  return withSpan('tx.execute', async (span: SpanLike) => {
     for (const [k, v] of Object.entries(spanAttrs)) {
       span.setAttribute(k, v);
     }
