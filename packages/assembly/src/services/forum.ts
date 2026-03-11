@@ -1,3 +1,4 @@
+import type { Address } from 'viem';
 import { asNum, jsonSafe, toChecksum } from '../commands/_common.js';
 import { forumAbi } from '../contracts/abis.js';
 import { ABSTRACT_MAINNET_ADDRESSES } from '../contracts/addresses.js';
@@ -226,4 +227,33 @@ export async function fetchForumStats(client: AssemblyClient): Promise<{
     petitionCount: asNum(petitionCount),
     petitionThresholdBps: asNum(petitionThresholdBps),
   };
+}
+
+/**
+ * Batch-check whether an address has signed each of the given petition IDs.
+ * Uses a single multicall for all checks. Returns an empty map (without RPC call)
+ * when petitionIds is empty.
+ */
+export async function fetchHasSignedBatch(
+  client: AssemblyClient,
+  address: Address,
+  petitionIds: number[],
+): Promise<Map<number, boolean>> {
+  if (petitionIds.length === 0) return new Map();
+
+  const results = await client.multicall({
+    allowFailure: false,
+    contracts: petitionIds.map((id) => ({
+      abi: forumAbi,
+      address: ABSTRACT_MAINNET_ADDRESSES.forum,
+      functionName: 'hasSignedPetition' as const,
+      args: [BigInt(id), address] as const,
+    })),
+  });
+
+  const map = new Map<number, boolean>();
+  for (let i = 0; i < petitionIds.length; i++) {
+    map.set(petitionIds[i], results[i] as boolean);
+  }
+  return map;
 }

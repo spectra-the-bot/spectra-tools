@@ -1,3 +1,4 @@
+import type { Address } from 'viem';
 import { asNum, toChecksum } from '../commands/_common.js';
 import { governanceAbi } from '../contracts/abis.js';
 import { ABSTRACT_MAINNET_ADDRESSES } from '../contracts/addresses.js';
@@ -226,4 +227,33 @@ export async function fetchAllProposals(client: AssemblyClient): Promise<Decoded
   });
 
   return (proposalTuples as unknown[]).map(decodeProposal);
+}
+
+/**
+ * Batch-check whether an address has voted on each of the given proposal IDs.
+ * Uses a single multicall for all checks. Returns an empty map (without RPC call)
+ * when proposalIds is empty.
+ */
+export async function fetchHasVotedBatch(
+  client: AssemblyClient,
+  address: Address,
+  proposalIds: number[],
+): Promise<Map<number, boolean>> {
+  if (proposalIds.length === 0) return new Map();
+
+  const results = await client.multicall({
+    allowFailure: false,
+    contracts: proposalIds.map((id) => ({
+      abi: governanceAbi,
+      address: ABSTRACT_MAINNET_ADDRESSES.governance,
+      functionName: 'hasVoted' as const,
+      args: [BigInt(id), address] as const,
+    })),
+  });
+
+  const map = new Map<number, boolean>();
+  for (let i = 0; i < proposalIds.length; i++) {
+    map.set(proposalIds[i], results[i] as boolean);
+  }
+  return map;
 }
