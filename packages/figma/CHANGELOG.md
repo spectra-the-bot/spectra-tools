@@ -1,5 +1,15 @@
 # @spectratools/figma-cli
 
+## 0.3.0
+
+### Minor Changes
+
+- [#427](https://github.com/spectra-the-bot/spectra-tools/pull/427) [`c206bd3`](https://github.com/spectra-the-bot/spectra-tools/commit/c206bd34ea39e1d6e8c3bcf85887712e09801283) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add file metadata, node inspection, files list, and nodes get commands.
+
+- [#429](https://github.com/spectra-the-bot/spectra-tools/pull/429) [`faefb4d`](https://github.com/spectra-the-bot/spectra-tools/commit/faefb4df8c1a0940d75f7683d84804e37e0c9fd0) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add frame rendering/export and comment commands.
+
+- [#426](https://github.com/spectra-the-bot/spectra-tools/pull/426) [`2523103`](https://github.com/spectra-the-bot/spectra-tools/commit/25231033e31e5c19416290d61a1806ca8e32907b) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add design token extraction (DTCG format) and component commands.
+
 ## 0.2.0
 
 ### Minor Changes
