@@ -6,6 +6,8 @@ export {
   endHttpSpanWithError,
   extractPath,
   recordError,
+  sanitizeAttributes,
+  withCommandSpan,
   withSpan,
 } from './spans.js';
 export { shutdownTelemetry } from './shutdown.js';

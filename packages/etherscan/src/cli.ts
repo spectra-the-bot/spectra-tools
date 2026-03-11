@@ -1,6 +1,7 @@
 import { readFileSync, realpathSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { initTelemetry, shutdownTelemetry } from '@spectratools/cli-shared/telemetry';
 import { Cli } from 'incur';
 import { accountCli } from './commands/account.js';
 import { contractCli } from './commands/contract.js';
@@ -43,5 +44,7 @@ const isMain = (() => {
 })();
 
 if (isMain) {
+  initTelemetry('etherscan');
+  process.on('beforeExit', () => shutdownTelemetry());
   cli.serve();
 }

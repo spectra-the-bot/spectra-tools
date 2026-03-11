@@ -1,3 +1,4 @@
+import { sanitizeAttributes, withSpan } from '@spectratools/cli-shared/telemetry';
 import type {
   Abi,
   Account,
@@ -96,91 +97,108 @@ export async function executeTx(options: ExecuteTxOptions): Promise<TxResult | D
     dryRun = false,
   } = options;
 
-  // --- 1. Estimate gas ---
-  let estimatedGas: bigint;
-  try {
-    estimatedGas = await publicClient.estimateContractGas({
-      account,
-      address,
-      abi,
-      functionName,
-      args,
-      value,
-    } as Parameters<PublicClient['estimateContractGas']>[0]);
-  } catch (error: unknown) {
-    throw mapError(error, 'estimation');
-  }
-
-  // --- 2. Simulate ---
-  let simulationResult: unknown;
-  try {
-    const sim = await publicClient.simulateContract({
-      account,
-      address,
-      abi,
-      functionName,
-      args,
-      value,
-    } as Parameters<PublicClient['simulateContract']>[0]);
-    simulationResult = sim.result;
-  } catch (error: unknown) {
-    throw mapError(error, 'simulation');
-  }
-
-  // --- 3. Privy preflight (if applicable) ---
-  const privyPolicy = await runPrivyPolicyPreflight({
-    account,
-    address,
-    ...(value !== undefined ? { value } : {}),
+  const spanAttrs = sanitizeAttributes({
+    'tx.to': address,
+    'tx.function': functionName,
+    'tx.chain_id': chain?.id ?? 'unknown',
+    'tx.dry_run': dryRun,
   });
 
-  // --- Dry-run exit ---
-  if (dryRun) {
-    return {
-      status: 'dry-run',
-      estimatedGas,
-      simulationResult,
-      ...(privyPolicy !== undefined ? { privyPolicy } : {}),
-    } satisfies DryRunResult;
-  }
+  return withSpan('tx.execute', async (span) => {
+    for (const [k, v] of Object.entries(spanAttrs)) {
+      span.setAttribute(k, v);
+    }
 
-  if (privyPolicy?.status === 'blocked') {
-    throw toPrivyPolicyViolationError(privyPolicy);
-  }
+    // --- 1. Estimate gas ---
+    let estimatedGas: bigint;
+    try {
+      estimatedGas = await publicClient.estimateContractGas({
+        account,
+        address,
+        abi,
+        functionName,
+        args,
+        value,
+      } as Parameters<PublicClient['estimateContractGas']>[0]);
+    } catch (error: unknown) {
+      throw mapError(error, 'estimation');
+    }
 
-  // --- 4. Submit ---
-  let hash: `0x${string}`;
-  try {
-    hash = await walletClient.writeContract({
+    // --- 2. Simulate ---
+    let simulationResult: unknown;
+    try {
+      const sim = await publicClient.simulateContract({
+        account,
+        address,
+        abi,
+        functionName,
+        args,
+        value,
+      } as Parameters<PublicClient['simulateContract']>[0]);
+      simulationResult = sim.result;
+    } catch (error: unknown) {
+      throw mapError(error, 'simulation');
+    }
+
+    // --- 3. Privy preflight (if applicable) ---
+    const privyPolicy = await runPrivyPolicyPreflight({
       account,
       address,
-      abi,
-      functionName,
-      args,
-      value,
-      chain,
-      gas: gasLimit ?? estimatedGas,
-      maxFeePerGas,
-      nonce,
-    } as Parameters<WalletClient['writeContract']>[0]);
-  } catch (error: unknown) {
-    throw mapError(error, 'submit');
-  }
+      ...(value !== undefined ? { value } : {}),
+    });
 
-  // --- 5. Wait for receipt ---
-  let receipt: TransactionReceipt;
-  try {
-    receipt = await publicClient.waitForTransactionReceipt({ hash });
-  } catch (error: unknown) {
-    throw mapError(error, 'receipt');
-  }
+    // --- Dry-run exit ---
+    if (dryRun) {
+      return {
+        status: 'dry-run',
+        estimatedGas,
+        simulationResult,
+        ...(privyPolicy !== undefined ? { privyPolicy } : {}),
+      } satisfies DryRunResult;
+    }
 
-  // --- 6. Normalize ---
-  if (receipt.status === 'reverted') {
-    throw new TxError('TX_REVERTED', `Transaction ${hash} reverted on-chain`);
-  }
+    if (privyPolicy?.status === 'blocked') {
+      throw toPrivyPolicyViolationError(privyPolicy);
+    }
 
-  return receiptToTxResult(receipt);
+    // --- 4. Submit ---
+    let hash: `0x${string}`;
+    try {
+      hash = await walletClient.writeContract({
+        account,
+        address,
+        abi,
+        functionName,
+        args,
+        value,
+        chain,
+        gas: gasLimit ?? estimatedGas,
+        maxFeePerGas,
+        nonce,
+      } as Parameters<WalletClient['writeContract']>[0]);
+    } catch (error: unknown) {
+      throw mapError(error, 'submit');
+    }
+
+    span.setAttribute('tx.hash', hash);
+
+    // --- 5. Wait for receipt ---
+    let receipt: TransactionReceipt;
+    try {
+      receipt = await publicClient.waitForTransactionReceipt({ hash });
+    } catch (error: unknown) {
+      throw mapError(error, 'receipt');
+    }
+
+    span.setAttribute('tx.status', receipt.status);
+
+    // --- 6. Normalize ---
+    if (receipt.status === 'reverted') {
+      throw new TxError('TX_REVERTED', `Transaction ${hash} reverted on-chain`);
+    }
+
+    return receiptToTxResult(receipt);
+  });
 }
 
 // ---------------------------------------------------------------------------

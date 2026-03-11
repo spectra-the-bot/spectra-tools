@@ -1,6 +1,7 @@
 import { readFileSync, realpathSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { initTelemetry, shutdownTelemetry } from '@spectratools/cli-shared/telemetry';
 import { Cli } from 'incur';
 import { type XApiAuthScope, toXApiCommandError } from './auth.js';
 import { dm } from './commands/dm.js';
@@ -77,5 +78,7 @@ const isMain = (() => {
 })();
 
 if (isMain) {
+  initTelemetry('xapi');
+  process.on('beforeExit', () => shutdownTelemetry());
   cli.serve();
 }

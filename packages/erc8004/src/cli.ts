@@ -1,6 +1,7 @@
 import { readFileSync, realpathSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { initTelemetry, shutdownTelemetry } from '@spectratools/cli-shared/telemetry';
 import { Cli } from 'incur';
 import { discovery } from './commands/discovery.js';
 import { identity } from './commands/identity.js';
@@ -39,5 +40,7 @@ const isMain = (() => {
 })();
 
 if (isMain) {
+  initTelemetry('erc8004');
+  process.on('beforeExit', () => shutdownTelemetry());
   cli.serve();
 }

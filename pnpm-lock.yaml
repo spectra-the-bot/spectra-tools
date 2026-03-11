@@ -204,6 +204,9 @@ importers:
 
   packages/tx-shared:
     dependencies:
+      '@spectratools/cli-shared':
+        specifier: workspace:*
+        version: link:../shared
       incur:
         specifier: ^0.3.0
         version: 0.3.0(openapi-types@12.1.3)
