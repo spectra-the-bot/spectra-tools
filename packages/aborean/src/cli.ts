@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, realpathSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -553,8 +553,24 @@ cli.command('status', {
 });
 
 applyFriendlyErrorHandling(cli);
-initTelemetry('aborean');
-process.on('beforeExit', () => shutdownTelemetry());
-cli.serve();
 
 export { cli };
+
+const isMain = (() => {
+  const entrypoint = process.argv[1];
+  if (!entrypoint) {
+    return false;
+  }
+
+  try {
+    return realpathSync(entrypoint) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
+})();
+
+if (isMain) {
+  initTelemetry('aborean');
+  process.on('beforeExit', () => shutdownTelemetry());
+  cli.serve();
+}
