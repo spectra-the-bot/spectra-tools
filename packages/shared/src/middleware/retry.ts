@@ -1,3 +1,5 @@
+import { trace } from '@opentelemetry/api';
+import { recordError } from '../telemetry/spans.js';
 import { HttpError } from '../utils/http.js';
 
 export interface RetryOptions {
@@ -30,6 +32,7 @@ function parseRetryAfter(headers: Headers): number | null {
 /**
  * Wraps a fetch-like function with exponential backoff retry logic.
  * Respects Retry-After headers on 429/503 responses.
+ * Records retry attempts as span events and attributes when OTEL is active.
  */
 export async function withRetry<T>(fn: () => Promise<T>, options: RetryOptions): Promise<T> {
   const { maxRetries, baseMs, maxMs } = options;
@@ -39,7 +42,14 @@ export async function withRetry<T>(fn: () => Promise<T>, options: RetryOptions):
     try {
       return await fn();
     } catch (err) {
-      if (attempt >= maxRetries) throw err;
+      if (attempt >= maxRetries) {
+        // Record final error on active span if available
+        const activeSpan = trace.getActiveSpan();
+        if (activeSpan) {
+          recordError(activeSpan, err);
+        }
+        throw err;
+      }
 
       let delayMs: number;
 
@@ -50,8 +60,21 @@ export async function withRetry<T>(fn: () => Promise<T>, options: RetryOptions):
         delayMs = Math.min(baseMs * 2 ** attempt, maxMs);
       }
 
-      await sleep(jitter(delayMs));
+      const actualDelay = jitter(delayMs);
       attempt++;
+
+      // Add retry event and attribute to active span
+      const activeSpan = trace.getActiveSpan();
+      if (activeSpan) {
+        activeSpan.setAttribute('retry.attempt', attempt);
+        activeSpan.addEvent('retry', {
+          attempt,
+          delay_ms: Math.round(actualDelay),
+          reason: err instanceof Error ? err.message : String(err),
+        });
+      }
+
+      await sleep(actualDelay);
     }
   }
 }

@@ -1,3 +1,5 @@
+import { trace } from '@opentelemetry/api';
+
 export interface RateLimitOptions {
   requestsPerSecond: number;
 }
@@ -54,7 +56,18 @@ export function createRateLimiter(options: RateLimitOptions): () => Promise<void
 
 /**
  * Wraps a fetch-like function with token bucket rate limiting.
+ * Records wait time as a span attribute when OTEL is active.
  */
 export function withRateLimit<T>(fn: () => Promise<T>, acquire: () => Promise<void>): Promise<T> {
-  return acquire().then(() => fn());
+  const start = Date.now();
+  return acquire().then(() => {
+    const waitMs = Date.now() - start;
+    if (waitMs > 0) {
+      const activeSpan = trace.getActiveSpan();
+      if (activeSpan) {
+        activeSpan.setAttribute('rate_limit.wait_ms', waitMs);
+      }
+    }
+    return fn();
+  });
 }

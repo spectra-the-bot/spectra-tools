@@ -1,3 +1,6 @@
+import { context } from '@opentelemetry/api';
+import { createHttpSpan, endHttpSpan, endHttpSpanWithError } from '../telemetry/spans.js';
+
 export interface HttpClientOptions {
   baseUrl: string;
   defaultHeaders?: Record<string, string>;
@@ -35,6 +38,7 @@ function serializeQuery(
 
 /**
  * Typed fetch wrapper with base URL, default headers, query serialization, and error handling.
+ * Automatically creates OpenTelemetry spans for each request when OTEL is active.
  */
 export function createHttpClient(options: HttpClientOptions) {
   const { baseUrl, defaultHeaders = {} } = options;
@@ -61,19 +65,37 @@ export function createHttpClient(options: HttpClientOptions) {
 
     init.headers = mergedHeaders;
 
-    const res = await fetch(url, init);
+    const { span, ctx } = createHttpSpan(method, url);
 
-    if (!res.ok) {
-      const text = await res.text();
-      throw new HttpError(res.status, res.statusText, text, res.headers);
+    try {
+      const res = await context.with(ctx, () => fetch(url, init));
+
+      if (!res.ok) {
+        const text = await res.text();
+        const err = new HttpError(res.status, res.statusText, text, res.headers);
+        endHttpSpanWithError(span, err, res.status);
+        throw err;
+      }
+
+      const contentLength = res.headers.get('content-length');
+      const contentType = res.headers.get('content-type') ?? '';
+
+      if (contentType.includes('application/json')) {
+        const data = (await res.json()) as T;
+        endHttpSpan(span, res.status, contentLength ? Number(contentLength) : undefined);
+        return data;
+      }
+
+      const text = (await res.text()) as unknown as T;
+      endHttpSpan(span, res.status, contentLength ? Number(contentLength) : undefined);
+      return text;
+    } catch (err) {
+      if (!(err instanceof HttpError)) {
+        // Network or other non-HTTP error
+        endHttpSpanWithError(span, err);
+      }
+      throw err;
     }
-
-    const contentType = res.headers.get('content-type') ?? '';
-    if (contentType.includes('application/json')) {
-      return res.json() as Promise<T>;
-    }
-
-    return res.text() as unknown as Promise<T>;
   }
 
   return { request };
