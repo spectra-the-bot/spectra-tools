@@ -68,6 +68,11 @@ const CLI_PACKAGES: CliPackage[] = [
     binName: 'design',
   },
   {
+    workspaceName: '@spectratools/figma-cli',
+    packageDir: 'packages/figma',
+    binName: 'figma',
+  },
+  {
     workspaceName: '@spectratools/xapi-cli',
     packageDir: 'packages/xapi',
     binName: 'xapi-cli',
@@ -88,6 +93,7 @@ const PACKAGES_WITH_ROOT_EXPORTS: string[] = [
   '@spectratools/defillama-cli',
   '@spectratools/erc8004-cli',
   '@spectratools/etherscan-cli',
+  '@spectratools/figma-cli',
   '@spectratools/graphic-designer-cli',
   '@spectratools/xapi-cli',
 ];
