@@ -370,6 +370,32 @@ describe('assembly onchain commands', () => {
     });
   });
 
+  it('seats list returns same data as council seats (compatibility alias)', async () => {
+    mockClient.readContract.mockResolvedValueOnce(2n);
+    mockClient.multicall.mockResolvedValueOnce([
+      [addrA, 100n, 200n, false],
+      [addrB, 300n, 400n, true],
+    ]);
+
+    const out = await run(['seats', 'list']);
+    expect(out.ok).toBe(true);
+
+    const data = out.data as Array<Record<string, unknown>>;
+    expect(data).toHaveLength(2);
+    expect(data[0]).toMatchObject({
+      id: 0,
+      startAt: iso(100),
+      endAt: iso(200),
+      forfeited: false,
+    });
+    expect(data[1]).toMatchObject({
+      id: 1,
+      startAt: iso(300),
+      endAt: iso(400),
+      forfeited: true,
+    });
+  });
+
   it('council seat returns OUT_OF_RANGE when id >= seatCount', async () => {
     mockClient.readContract.mockResolvedValueOnce(2n);
 
