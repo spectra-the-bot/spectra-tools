@@ -18,7 +18,8 @@
     "docs:generate": "node scripts/generate-docs.js",
     "docs:validate": "node scripts/validate-generated-docs.js",
     "docs:check:custom-domain-assets": "node scripts/check-custom-domain-assets.js",
-    "docs:ci": "pnpm docs:generate && pnpm docs:build && pnpm docs:validate && pnpm docs:check:custom-domain-assets",
+    "docs:validate:snippets": "node scripts/validate-doc-snippets.js",
+    "docs:ci": "pnpm docs:generate && pnpm docs:build && pnpm docs:validate && pnpm docs:validate:snippets && pnpm docs:check:custom-domain-assets",
     "docs:preview": "vitepress preview docs",
     "changeset": "changeset",
     "changeset:version": "changeset version && pnpm biome format --write packages/*/package.json"

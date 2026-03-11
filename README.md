@@ -16,7 +16,7 @@ npx @spectratools/assembly-cli status
 npx @spectratools/etherscan-cli account balance 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --chain ethereum
 
 # Search posts on X
-npx @spectratools/xapi-cli posts search "abstract chain" --limit 5
+npx @spectratools/xapi-cli posts search "abstract chain" --max-results 5
 ```
 
 ## CLIs

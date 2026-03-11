@@ -58,13 +58,13 @@ npx @spectratools/assembly-cli status
 npx @spectratools/etherscan-cli account balance 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --chain ethereum
 
 # Search recent posts on X
-npx @spectratools/xapi-cli posts search "abstract chain" --limit 5
+npx @spectratools/xapi-cli posts search "abstract chain" --max-results 5
 
 # Swap tokens on Aborean DEX on Abstract
 npx @spectratools/aborean-cli pools list
 
 # Generate a code screenshot
-npx @spectratools/graphic-designer-cli design render spec.json --out output.png
+npx @spectratools/graphic-designer-cli render --spec spec.json --out output.png
 ```
 
 ## Built for agents
@@ -73,10 +73,10 @@ Every CLI is designed to work equally well for humans in a terminal and AI agent
 
 ```bash
 # Human-friendly output (default)
-assembly-cli governance proposals --limit 3
+assembly-cli governance proposals
 
 # Machine-readable JSON for agents and scripts
-assembly-cli governance proposals --limit 3 --format json
+assembly-cli governance proposals --format json
 
 # Export compact command index for agent discovery
 assembly-cli --llms
