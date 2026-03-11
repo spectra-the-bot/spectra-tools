@@ -3,8 +3,10 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { initTelemetry, shutdownTelemetry } from '@spectratools/cli-shared/telemetry';
 import { Cli } from 'incur';
+import { commentsCli } from './commands/comments.js';
 import { componentsCli } from './commands/components.js';
 import { filesCli } from './commands/files.js';
+import { framesCli } from './commands/frames.js';
 import { nodesCli } from './commands/nodes.js';
 import { tokensCli } from './commands/tokens.js';
 
@@ -20,6 +22,8 @@ cli.command(tokensCli);
 cli.command(componentsCli);
 cli.command(filesCli);
 cli.command(nodesCli);
+cli.command(framesCli);
+cli.command(commentsCli);
 
 export { cli };
 
