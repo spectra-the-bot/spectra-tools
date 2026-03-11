@@ -16,6 +16,8 @@ export function estimateElementHeight(element: Element): number {
       return 130;
     case 'image':
       return 220;
+    case 'ring':
+      return element.radius * 2 + element.glowRadius * 2 + 16;
     case 'connection':
       return 0;
   }
@@ -37,6 +39,8 @@ export function estimateElementWidth(element: Element): number {
       return 280;
     case 'image':
       return 320;
+    case 'ring':
+      return element.radius * 2 + element.glowRadius * 2 + 16;
     case 'connection':
       return 0;
   }

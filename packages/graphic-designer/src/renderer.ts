@@ -22,6 +22,7 @@ import {
 import { renderDrawCommands } from './renderers/draw.js';
 import { renderFlowNode } from './renderers/flow-node.js';
 import { renderImageElement } from './renderers/image.js';
+import { renderRingElement } from './renderers/ring.js';
 import { renderShapeElement } from './renderers/shape.js';
 import { renderTerminal } from './renderers/terminal.js';
 import { renderTextElement } from './renderers/text.js';
@@ -587,6 +588,9 @@ export async function renderDesign(
         break;
       case 'image':
         elements.push(...(await renderImageElement(ctx, element, rect, theme)));
+        break;
+      case 'ring':
+        elements.push(...renderRingElement(ctx, element, rect, theme));
         break;
     }
   }

@@ -575,6 +575,34 @@ const imageElementSchema = z
   })
   .strict();
 
+const ringSegmentSchema = z
+  .object({
+    color: colorHexSchema,
+  })
+  .strict();
+
+const ringElementSchema = z
+  .object({
+    type: z.literal('ring'),
+    id: z.string().min(1).max(120),
+    radius: z.number().min(8).max(512).default(48),
+    strokeWidth: z.number().min(1).max(32).default(2),
+    label: z.string().max(100).optional(),
+    labelColor: colorHexSchema.optional(),
+    labelSize: z.number().min(8).max(48).default(12),
+    segments: z
+      .array(ringSegmentSchema)
+      .min(1)
+      .max(24)
+      .default([{ color: '#4A7BF7' }]),
+    glowRadius: z.number().min(0).max(64).default(0),
+    glowColor: colorHexSchema.optional(),
+    showCycleArrows: z.boolean().default(false),
+    fill: colorHexSchema.optional(),
+    fillOpacity: z.number().min(0).max(1).default(0.05),
+  })
+  .strict();
+
 const elementSchema = z.discriminatedUnion('type', [
   cardElementSchema,
   flowNodeElementSchema,
@@ -584,6 +612,7 @@ const elementSchema = z.discriminatedUnion('type', [
   textElementSchema,
   shapeElementSchema,
   imageElementSchema,
+  ringElementSchema,
 ]);
 
 const diagramCenterSchema = z
@@ -845,6 +874,8 @@ export type TerminalElement = z.infer<typeof terminalElementSchema>;
 export type TextElement = z.infer<typeof textElementSchema>;
 export type ShapeElement = z.infer<typeof shapeElementSchema>;
 export type ImageElement = z.infer<typeof imageElementSchema>;
+export type RingSegment = z.infer<typeof ringSegmentSchema>;
+export type RingElement = z.infer<typeof ringElementSchema>;
 export type DrawShadow = z.infer<typeof drawShadowSchema>;
 export type DrawFontFamily = z.infer<typeof drawFontFamilySchema>;
 export type DrawStrokeGradient = z.infer<typeof strokeGradientSchema>;
