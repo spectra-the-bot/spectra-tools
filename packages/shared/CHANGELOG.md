@@ -1,5 +1,11 @@
 # @spectra-the-bot/cli-shared
 
+## 0.4.1
+
+### Patch Changes
+
+- [#431](https://github.com/spectra-the-bot/spectra-tools/pull/431) [`9ad215e`](https://github.com/spectra-the-bot/spectra-tools/commit/9ad215e8173a850da9412f48e42fb6eb9c54ec94) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add CodeGraphContext (`cgc`) guidance to contributor docs for dependency/caller impact analysis before shared-code changes.
+
 ## 0.4.0
 
 ### Minor Changes

@@ -1,5 +1,12 @@
 # @spectratools/graphic-designer-cli
 
+## 0.14.1
+
+### Patch Changes
+
+- Updated dependencies [[`9ad215e`](https://github.com/spectra-the-bot/spectra-tools/commit/9ad215e8173a850da9412f48e42fb6eb9c54ec94)]:
+  - @spectratools/cli-shared@0.4.1
+
 ## 0.14.0
 
 ### Minor Changes
