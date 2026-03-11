@@ -1,85 +1,20 @@
 {
   "@spectratools/aborean-cli": {
-    "commands": [
-      "gauges",
-      "pools",
-      "ve",
-      "voter",
-      "cl",
-      "vaults",
-      "lending",
-      "status"
-    ],
+    "commands": ["gauges", "pools", "ve", "voter", "cl", "vaults", "lending", "status"],
     "subcommands": {
-      "gauges": [
-        "list",
-        "info",
-        "staked",
-        "deposit",
-        "withdraw"
-      ],
-      "pools": [
-        "list",
-        "pool",
-        "quote",
-        "fees",
-        "swap",
-        "add-liquidity",
-        "remove-liquidity"
-      ],
-      "ve": [
-        "stats",
-        "lock",
-        "locks",
-        "voting-power"
-      ],
-      "voter": [
-        "epoch",
-        "weights",
-        "rewards",
-        "bribes",
-        "vote"
-      ],
-      "cl": [
-        "pools",
-        "pool",
-        "positions",
-        "quote",
-        "swap",
-        "add-position",
-        "remove-position"
-      ],
-      "vaults": [
-        "list",
-        "relay"
-      ],
-      "lending": [
-        "markets",
-        "market",
-        "position"
-      ]
+      "gauges": ["list", "info", "staked", "deposit", "withdraw"],
+      "pools": ["list", "pool", "quote", "fees", "swap", "add-liquidity", "remove-liquidity"],
+      "ve": ["stats", "lock", "locks", "voting-power"],
+      "voter": ["epoch", "weights", "rewards", "bribes", "vote"],
+      "cl": ["pools", "pool", "positions", "quote", "swap", "add-position", "remove-position"],
+      "vaults": ["list", "relay"],
+      "lending": ["markets", "market", "position"]
     }
   },
   "@spectratools/assembly-cli": {
-    "commands": [
-      "members",
-      "council",
-      "forum",
-      "governance",
-      "treasury",
-      "status",
-      "health"
-    ],
+    "commands": ["members", "council", "forum", "governance", "treasury", "status", "health"],
     "subcommands": {
-      "members": [
-        "list",
-        "info",
-        "count",
-        "fees",
-        "register",
-        "heartbeat",
-        "renew"
-      ],
+      "members": ["list", "info", "count", "fees", "register", "heartbeat", "renew"],
       "council": [
         "seats",
         "seat",
@@ -118,53 +53,20 @@
         "queue",
         "execute"
       ],
-      "treasury": [
-        "balance",
-        "whitelist",
-        "major-spend-status",
-        "executed",
-        "propose-spend"
-      ]
+      "treasury": ["balance", "whitelist", "major-spend-status", "executed", "propose-spend"]
     }
   },
   "@spectratools/defillama-cli": {
-    "commands": [
-      "tvl",
-      "volume",
-      "fees",
-      "prices"
-    ],
+    "commands": ["tvl", "volume", "fees", "prices"],
     "subcommands": {
-      "tvl": [
-        "protocols",
-        "chains",
-        "protocol",
-        "history"
-      ],
-      "volume": [
-        "dexs",
-        "protocol",
-        "aggregators"
-      ],
-      "fees": [
-        "overview",
-        "protocol"
-      ],
-      "prices": [
-        "current",
-        "historical",
-        "chart"
-      ]
+      "tvl": ["protocols", "chains", "protocol", "history"],
+      "volume": ["dexs", "protocol", "aggregators"],
+      "fees": ["overview", "protocol"],
+      "prices": ["current", "historical", "chart"]
     }
   },
   "@spectratools/erc8004-cli": {
-    "commands": [
-      "identity",
-      "registration",
-      "reputation",
-      "validation",
-      "discovery"
-    ],
+    "commands": ["identity", "registration", "reputation", "validation", "discovery"],
     "subcommands": {
       "identity": [
         "list",
@@ -178,39 +80,14 @@
         "set-wallet",
         "burn"
       ],
-      "registration": [
-        "fetch",
-        "validate",
-        "create"
-      ],
-      "reputation": [
-        "get",
-        "feedback",
-        "history"
-      ],
-      "validation": [
-        "request",
-        "status",
-        "history",
-        "submit-result",
-        "cancel"
-      ],
-      "discovery": [
-        "search",
-        "resolve"
-      ]
+      "registration": ["fetch", "validate", "create"],
+      "reputation": ["get", "feedback", "history"],
+      "validation": ["request", "status", "history", "submit-result", "cancel"],
+      "discovery": ["search", "resolve"]
     }
   },
   "@spectratools/etherscan-cli": {
-    "commands": [
-      "account",
-      "contract",
-      "tx",
-      "token",
-      "gas",
-      "stats",
-      "logs"
-    ],
+    "commands": ["account", "contract", "tx", "token", "gas", "stats", "logs"],
     "subcommands": {
       "account": [
         "balance",
@@ -221,95 +98,33 @@
         "erc1155tx",
         "tokenbalance"
       ],
-      "contract": [
-        "abi",
-        "source",
-        "creation"
-      ],
-      "tx": [
-        "info",
-        "receipt",
-        "status"
-      ],
-      "token": [
-        "info",
-        "holders",
-        "supply"
-      ],
-      "gas": [
-        "oracle",
-        "estimate"
-      ],
-      "stats": [
-        "ethprice",
-        "ethsupply"
-      ],
-      "logs": [
-        "get"
-      ]
+      "contract": ["abi", "source", "creation"],
+      "tx": ["info", "receipt", "status"],
+      "token": ["info", "holders", "supply"],
+      "gas": ["oracle", "estimate"],
+      "stats": ["ethprice", "ethsupply"],
+      "logs": ["get"]
     }
   },
   "@spectratools/figma-cli": {
-    "commands": [
-      "tokens",
-      "components",
-      "files",
-      "nodes",
-      "frames",
-      "comments"
-    ],
+    "commands": ["tokens", "components", "files", "nodes", "frames", "comments"],
     "subcommands": {
-      "tokens": [
-        "export"
-      ],
-      "components": [
-        "list",
-        "get"
-      ],
-      "files": [
-        "get",
-        "list"
-      ],
-      "nodes": [
-        "get"
-      ],
-      "frames": [
-        "export",
-        "render"
-      ],
-      "comments": [
-        "list",
-        "post"
-      ]
+      "tokens": ["export"],
+      "components": ["list", "get"],
+      "files": ["get", "list"],
+      "nodes": ["get"],
+      "frames": ["export", "render"],
+      "comments": ["list", "post"]
     }
   },
   "@spectratools/graphic-designer-cli": {
-    "commands": [
-      "render",
-      "draw",
-      "compare",
-      "template",
-      "qa",
-      "publish"
-    ],
+    "commands": ["render", "draw", "compare", "template", "qa", "publish"],
     "subcommands": {
-      "template": [
-        "flowchart",
-        "code",
-        "terminal",
-        "cards"
-      ]
+      "template": ["flowchart", "code", "terminal", "cards"]
     }
   },
   "@spectratools/xapi-cli": {
-    "commands": [
-      "posts",
-      "users",
-      "timeline",
-      "lists",
-      "trends",
-      "dm"
-    ],
+    "commands": ["posts", "users", "timeline", "lists", "trends", "dm"],
     "subcommands": {
       "posts": [
         "get",
@@ -339,27 +154,10 @@
         "mentions",
         "search"
       ],
-      "timeline": [
-        "home",
-        "mentions"
-      ],
-      "lists": [
-        "get",
-        "create",
-        "delete",
-        "add-member",
-        "remove-member",
-        "members",
-        "posts"
-      ],
-      "trends": [
-        "places",
-        "location"
-      ],
-      "dm": [
-        "conversations",
-        "send"
-      ]
+      "timeline": ["home", "mentions"],
+      "lists": ["get", "create", "delete", "add-member", "remove-member", "members", "posts"],
+      "trends": ["places", "location"],
+      "dm": ["conversations", "send"]
     }
   }
 }
