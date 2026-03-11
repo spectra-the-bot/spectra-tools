@@ -368,11 +368,13 @@ function getInvocationSmokeCases(
       return {
         positional: {
           description: 'accepts real positional path (tvl protocol <slug>)',
-          args: ['tvl', 'protocol', 'uniswap'],
+          // Include --help to verify parser compatibility without relying on external API latency.
+          args: ['tvl', 'protocol', 'uniswap', '--help'],
         },
         flag: {
           description: 'accepts command flags (tvl protocols --limit)',
-          args: ['tvl', 'protocols', '--limit', '1', '--format', 'json'],
+          // Include --help to avoid flaky network-bound execution in invocation smoke tests.
+          args: ['tvl', 'protocols', '--limit', '1', '--format', 'json', '--help'],
         },
         invalid: {
           description: 'fails on invalid subcommand',
