@@ -145,6 +145,49 @@ etherscan-cli account balance 0x... --json --filter-output "balance,symbol"
 
 This pattern works with any orchestrator — LangChain, OpenClaw, custom agents, or simple shell scripts.
 
+## Observability & trace correlation
+
+When [OpenTelemetry is enabled](./configuration.md#observability-opentelemetry), every CLI invocation produces distributed traces that can be correlated across agent workflow steps.
+
+### Trace structure
+
+Each CLI command creates a **root span** (`cli.command.<name>`) that contains:
+
+- **HTTP child spans** — one per API request, with method, URL, status code, and timing
+- **Error events** — recorded with stack traces when commands or requests fail
+- **Sanitized attributes** — command arguments appear as span attributes with sensitive values stripped
+
+### Agent workflow correlation
+
+To correlate traces across multiple CLI invocations in an agent pipeline, set `OTEL_SERVICE_NAME` to a consistent value and use trace context propagation:
+
+```bash
+# All CLIs report under the same service
+export OTEL_SERVICE_NAME="my-agent-pipeline"
+export OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4318"
+
+# Step 1: Discover governance proposals
+assembly-cli governance proposals --limit 5 --json
+
+# Step 2: Look up voter details
+etherscan-cli account balance 0x... --json
+
+# Step 3: Post analysis
+xapi-cli posts create --text "Governance update: ..."
+```
+
+Each step produces spans under the same service name, making it easy to trace the full workflow in your collector UI (Jaeger, Grafana, etc.).
+
+### Zero overhead when disabled
+
+When `OTEL_EXPORTER_OTLP_ENDPOINT` is not set and `SPECTRA_OTEL_ENABLED` is not `true`, the telemetry module:
+
+- Does **not** import any OTEL SDK modules (lazy-loading)
+- Creates no spans, no metrics, no exporters
+- Adds less than 1ms overhead per command invocation
+
+This makes it safe to leave the instrumentation code in place for production CLIs without impacting performance.
+
 ## Example: agent skill file
 
 After running `assembly-cli skills add`, your agent gets a skill definition like:

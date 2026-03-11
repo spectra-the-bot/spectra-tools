@@ -211,8 +211,93 @@ await server.close();
 
 ---
 
+## Telemetry (OpenTelemetry)
+
+Built-in OpenTelemetry instrumentation for distributed tracing and metrics. Zero overhead when disabled — OTEL modules are lazy-loaded only when telemetry is active.
+
+### Initialize telemetry
+
+```ts
+import { initTelemetry, shutdownTelemetry } from '@spectra-the-bot/cli-shared/telemetry';
+
+// Initialize at CLI startup — no-op if OTEL env vars are not set
+initTelemetry('my-cli');
+
+// Shut down gracefully at exit — safe to call even if never initialized
+await shutdownTelemetry();
+```
+
+Telemetry is enabled when `OTEL_EXPORTER_OTLP_ENDPOINT` is set or `SPECTRA_OTEL_ENABLED=true`.
+
+### Command spans
+
+```ts
+import { createCommandSpan, withCommandSpan } from '@spectra-the-bot/cli-shared/telemetry';
+
+// Option 1: Manual span management
+const span = createCommandSpan('account balance', { address: '0x...', format: 'json' });
+try {
+  // ... execute command
+  span.setStatus({ code: SpanStatusCode.OK });
+} catch (err) {
+  recordError(span, err);
+  throw err;
+} finally {
+  span.end();
+}
+
+// Option 2: Automatic span lifecycle
+const result = await withCommandSpan('account balance', { address: '0x...' }, async () => {
+  // ... execute command
+  return data;
+});
+```
+
+### Child spans
+
+```ts
+import { withSpan } from '@spectra-the-bot/cli-shared/telemetry';
+
+const result = await withSpan('parse-response', async (span) => {
+  // span is automatically ended and errors are recorded
+  return parseData(raw);
+});
+```
+
+### HTTP spans (automatic)
+
+The `createHttpClient` utility automatically creates child spans for every HTTP request when OTEL is active:
+
+```ts
+import { createHttpClient } from '@spectra-the-bot/cli-shared/utils';
+
+const client = createHttpClient({ baseUrl: 'https://api.example.com' });
+
+// This request automatically creates an HTTP span with method, URL, and status code
+const data = await client.request('/v1/items');
+```
+
+### Attribute sanitization
+
+Span attributes are automatically sanitized — keys or values matching sensitive patterns (private keys, passwords, API keys, mnemonics, tokens, secrets) are stripped before being attached to spans.
+
+```ts
+import { sanitizeAttributes } from '@spectra-the-bot/cli-shared/telemetry';
+
+const safe = sanitizeAttributes({
+  address: '0x1234',      // ✓ kept
+  private_key: '0xdead',  // ✗ stripped
+  api_key: 'sk-secret',   // ✗ stripped
+  format: 'json',         // ✓ kept
+});
+// => { address: '0x1234', format: 'json' }
+```
+
+---
+
 ## Export summary
 
 - **Middleware**: `apiKeyAuth`, `MissingApiKeyError`, `withRetry`, `createRateLimiter`, `withRateLimit`, `paginateCursor`, `paginateOffset`
 - **Utils**: `createHttpClient`, `HttpError`, `weiToEth`, `checksumAddress`, `formatTimestamp`, `truncate`
+- **Telemetry**: `initTelemetry`, `shutdownTelemetry`, `createCommandSpan`, `withCommandSpan`, `withSpan`, `recordError`, `sanitizeAttributes`, `createHttpSpan`, `endHttpSpan`, `endHttpSpanWithError`, `extractPath`
 - **Testing**: `createMockServer`

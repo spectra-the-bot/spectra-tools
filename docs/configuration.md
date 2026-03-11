@@ -51,6 +51,53 @@ If both tokens are set, `X_ACCESS_TOKEN` is preferred for all requests.
 | `VALIDATION_REGISTRY_ADDRESS` | No | Override the validation registry contract address |
 | `IPFS_GATEWAY` | No | Gateway for resolving `ipfs://` metadata (default: `https://ipfs.io`) |
 
+## Observability (OpenTelemetry)
+
+All spectra-tools CLIs include optional [OpenTelemetry](https://opentelemetry.io/) (OTEL) instrumentation for distributed tracing and metrics. When enabled, every CLI command automatically produces trace spans — including HTTP requests to upstream APIs.
+
+When OTEL is **not** configured, the instrumentation is completely inert: no OTEL modules are loaded, no spans are created, and there is zero runtime overhead.
+
+### Environment variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | No | OTLP collector endpoint (e.g. `http://localhost:4318`). Setting this enables telemetry automatically. |
+| `SPECTRA_OTEL_ENABLED` | No | Explicitly enable (`true`) or keep disabled (any other value). Telemetry is enabled if this is `true` **or** `OTEL_EXPORTER_OTLP_ENDPOINT` is set. |
+| `OTEL_SERVICE_NAME` | No | Override the service name reported in traces (default: `spectra-<cli-name>`). |
+
+### Example: local collector
+
+Run a local [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/) or [Jaeger](https://www.jaegertracing.io/) instance:
+
+```bash
+# Start Jaeger all-in-one (includes OTLP receiver on port 4318)
+docker run -d --name jaeger \
+  -p 16686:16686 \
+  -p 4318:4318 \
+  jaegertracing/jaeger:latest
+
+# Point CLIs at the collector
+export OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4318"
+
+# Run a command — traces will appear in Jaeger UI at http://localhost:16686
+etherscan-cli account balance 0x742d35cc6634c0532925a3b844bc454e4438f44e
+```
+
+### Example: Grafana Cloud
+
+```bash
+export OTEL_EXPORTER_OTLP_ENDPOINT="https://otlp-gateway-prod-us-east-0.grafana.net/otlp"
+export OTEL_EXPORTER_OTLP_HEADERS="Authorization=Basic <base64-encoded-instance-id:api-key>"
+```
+
+### What gets traced
+
+- **Command spans** — each CLI command invocation creates a root span (`cli.command.<name>`) with sanitized arguments as attributes.
+- **HTTP spans** — every API request made via the shared HTTP client creates a child span with method, URL, status code, and content length.
+- **Error recording** — failed commands and HTTP errors are recorded as span events with stack traces.
+
+Sensitive values (API keys, passwords, private keys, mnemonics) are automatically stripped from span attributes.
+
 ## Security best practices
 
 - **Never commit API keys or private keys** to version control
