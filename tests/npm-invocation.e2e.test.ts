@@ -150,7 +150,12 @@ function runRaw(
   });
 }
 
-function run(command: string, args: string[], cwd = repoRoot, options: { timeoutMs?: number } = {}) {
+function run(
+  command: string,
+  args: string[],
+  cwd = repoRoot,
+  options: { timeoutMs?: number } = {},
+) {
   const result = runRaw(command, args, cwd, options);
 
   if (result.status !== 0) {
@@ -393,7 +398,11 @@ function getInvocationSmokeCases(
       return {
         positional: {
           description: 'accepts real positional path (tx info <hash>)',
-          args: ['tx', 'info', '0x0000000000000000000000000000000000000000000000000000000000000000'],
+          args: [
+            'tx',
+            'info',
+            '0x0000000000000000000000000000000000000000000000000000000000000000',
+          ],
         },
         flag: {
           description: 'accepts command flags (gas oracle --format)',
@@ -498,7 +507,9 @@ function expectInvocationParses(result: ReturnType<typeof runRaw>, invocation: s
 
 function expectInvalidInvocation(result: ReturnType<typeof runRaw>, invocation: string) {
   const output = getOutput(result);
-  expect(result.status, `Expected non-zero exit for invalid invocation "${invocation}".`).not.toBe(0);
+  expect(result.status, `Expected non-zero exit for invalid invocation "${invocation}".`).not.toBe(
+    0,
+  );
   expect(
     output,
     `Expected parser error for invalid invocation "${invocation}".\nOutput:\n${output}`,

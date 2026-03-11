@@ -15,9 +15,44 @@
     "commands": ["members", "council", "forum", "governance", "treasury", "status", "health"],
     "subcommands": {
       "members": ["list", "info", "count", "fees", "register", "heartbeat", "renew"],
-      "council": ["seats", "seat", "members", "is-member", "voting-power", "auctions", "auction", "pending-refund", "params", "bid", "settle", "withdraw-refund"],
-      "forum": ["threads", "thread", "comments", "comment", "post", "post-comment", "create-petition", "sign-petition", "petitions", "petition", "has-signed", "stats"],
-      "governance": ["proposals", "proposal", "has-voted", "params", "vote", "propose", "queue", "execute"],
+      "council": [
+        "seats",
+        "seat",
+        "members",
+        "is-member",
+        "voting-power",
+        "auctions",
+        "auction",
+        "pending-refund",
+        "params",
+        "bid",
+        "settle",
+        "withdraw-refund"
+      ],
+      "forum": [
+        "threads",
+        "thread",
+        "comments",
+        "comment",
+        "post",
+        "post-comment",
+        "create-petition",
+        "sign-petition",
+        "petitions",
+        "petition",
+        "has-signed",
+        "stats"
+      ],
+      "governance": [
+        "proposals",
+        "proposal",
+        "has-voted",
+        "params",
+        "vote",
+        "propose",
+        "queue",
+        "execute"
+      ],
       "treasury": ["balance", "whitelist", "major-spend-status", "executed", "propose-spend"]
     }
   },
@@ -33,7 +68,18 @@
   "@spectratools/erc8004-cli": {
     "commands": ["identity", "registration", "reputation", "validation", "discovery"],
     "subcommands": {
-      "identity": ["list", "get", "register", "update", "metadata", "set-metadata", "transfer", "wallet", "set-wallet", "burn"],
+      "identity": [
+        "list",
+        "get",
+        "register",
+        "update",
+        "metadata",
+        "set-metadata",
+        "transfer",
+        "wallet",
+        "set-wallet",
+        "burn"
+      ],
       "registration": ["fetch", "validate", "create"],
       "reputation": ["get", "feedback", "history"],
       "validation": ["request", "status", "history", "submit-result", "cancel"],
@@ -43,7 +89,15 @@
   "@spectratools/etherscan-cli": {
     "commands": ["account", "contract", "tx", "token", "gas", "stats", "logs"],
     "subcommands": {
-      "account": ["balance", "txlist", "internaltx", "tokentx", "nfttx", "erc1155tx", "tokenbalance"],
+      "account": [
+        "balance",
+        "txlist",
+        "internaltx",
+        "tokentx",
+        "nfttx",
+        "erc1155tx",
+        "tokenbalance"
+      ],
       "contract": ["abi", "source", "creation"],
       "tx": ["info", "receipt", "status"],
       "token": ["info", "holders", "supply"],
@@ -72,8 +126,34 @@
   "@spectratools/xapi-cli": {
     "commands": ["posts", "users", "timeline", "lists", "trends", "dm"],
     "subcommands": {
-      "posts": ["get", "search", "create", "delete", "like", "unlike", "bookmark", "unbookmark", "retweet", "likes", "retweets"],
-      "users": ["me", "get", "follow", "unfollow", "block", "unblock", "mute", "unmute", "followers", "following", "posts", "mentions", "search"],
+      "posts": [
+        "get",
+        "search",
+        "create",
+        "delete",
+        "like",
+        "unlike",
+        "bookmark",
+        "unbookmark",
+        "retweet",
+        "likes",
+        "retweets"
+      ],
+      "users": [
+        "me",
+        "get",
+        "follow",
+        "unfollow",
+        "block",
+        "unblock",
+        "mute",
+        "unmute",
+        "followers",
+        "following",
+        "posts",
+        "mentions",
+        "search"
+      ],
       "timeline": ["home", "mentions"],
       "lists": ["get", "create", "delete", "add-member", "remove-member", "members", "posts"],
       "trends": ["places", "location"],
