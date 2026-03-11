@@ -1,5 +1,11 @@
 # @spectratools/defillama-cli
 
+## 0.4.0
+
+### Minor Changes
+
+- [#394](https://github.com/spectra-the-bot/spectra-tools/pull/394) [`002cc7f`](https://github.com/spectra-the-bot/spectra-tools/commit/002cc7fd51ae8e3ea367631739b9a5349ebd5783) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add prices commands for current, historical, and chart token price lookups via coins.llama.fi.
+
 ## 0.3.0
 
 ### Minor Changes
