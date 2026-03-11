@@ -1,5 +1,13 @@
 # @spectratools/aborean-cli
 
+## 0.10.7
+
+### Patch Changes
+
+- Updated dependencies [[`9ad215e`](https://github.com/spectra-the-bot/spectra-tools/commit/9ad215e8173a850da9412f48e42fb6eb9c54ec94)]:
+  - @spectratools/cli-shared@0.4.1
+  - @spectratools/tx-shared@0.6.2
+
 ## 0.10.6
 
 ### Patch Changes

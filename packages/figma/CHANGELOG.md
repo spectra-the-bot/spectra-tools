@@ -1,5 +1,14 @@
 # @spectratools/figma-cli
 
+## 0.3.1
+
+### Patch Changes
+
+- [#442](https://github.com/spectra-the-bot/spectra-tools/pull/442) [`d189aac`](https://github.com/spectra-the-bot/spectra-tools/commit/d189aacafed95243f4415434e4a3961aa7c22295) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add defillama-cli and figma-cli to docs site navigation and landing page.
+
+- Updated dependencies [[`9ad215e`](https://github.com/spectra-the-bot/spectra-tools/commit/9ad215e8173a850da9412f48e42fb6eb9c54ec94)]:
+  - @spectratools/cli-shared@0.4.1
+
 ## 0.3.0
 
 ### Minor Changes

@@ -1,5 +1,23 @@
 # @spectra-the-bot/assembly-cli
 
+## 0.12.0
+
+### Minor Changes
+
+- [#440](https://github.com/spectra-the-bot/spectra-tools/pull/440) [`07e4e54`](https://github.com/spectra-the-bot/spectra-tools/commit/07e4e54fe17f3e1215095dfaba8651da746c731c) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add batch wallet-relative enrichment helpers: `fetchHasVotedBatch` and `fetchHasSignedBatch` for efficient multicall-based vote/sign status checks across multiple proposals or petitions.
+
+### Patch Changes
+
+- [#439](https://github.com/spectra-the-bot/spectra-tools/pull/439) [`90fcf82`](https://github.com/spectra-the-bot/spectra-tools/commit/90fcf82983d61b974655437c8c3764d5ec954a30) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - refactor(assembly): extract shared data-fetching service layer from commands
+
+  Moves decode/fetch logic from inline command handlers into reusable service
+  modules under `packages/assembly/src/services/`. No behavioral changes —
+  existing command output is identical.
+
+- Updated dependencies [[`9ad215e`](https://github.com/spectra-the-bot/spectra-tools/commit/9ad215e8173a850da9412f48e42fb6eb9c54ec94)]:
+  - @spectratools/cli-shared@0.4.1
+  - @spectratools/tx-shared@0.6.2
+
 ## 0.11.7
 
 ### Patch Changes
