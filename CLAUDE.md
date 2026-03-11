@@ -73,6 +73,31 @@ pnpm format
 pnpm changeset
 ```
 
+## Code Graph Analysis (cgc)
+
+Use `cgc` (CodeGraphContext) for impact analysis before modifying shared code:
+
+```bash
+# Find all files that import a module (quote scoped packages)
+cgc analyze deps "@spectratools/cli-shared"
+
+# Find all callers of a function
+cgc analyze callers validateAddress
+
+# Find complex functions needing refactoring
+cgc analyze complexity --threshold 15 --limit 10
+
+# Find potentially unused functions
+cgc analyze dead-code
+```
+
+**When to use:**
+- Before changing `@spectratools/cli-shared` or `@spectratools/tx-shared` — check what depends on them
+- During planning — understand blast radius of changes across packages
+- For refactoring — identify complexity hotspots and dead code
+
+**Note:** Run `cgc index .` from repo root if the index is stale (after major file changes).
+
 ## Key Conventions
 
 ### Code Style
