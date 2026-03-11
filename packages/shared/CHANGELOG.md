@@ -1,5 +1,17 @@
 # @spectra-the-bot/cli-shared
 
+## 0.4.0
+
+### Minor Changes
+
+- [#412](https://github.com/spectra-the-bot/spectra-tools/pull/412) [`a1b9638`](https://github.com/spectra-the-bot/spectra-tools/commit/a1b9638bbd2ba0e1479721b934612b93eaa35101) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Wire OTEL telemetry initialization and root command spans across all CLI packages.
+
+### Patch Changes
+
+- [#415](https://github.com/spectra-the-bot/spectra-tools/pull/415) [`58bed96`](https://github.com/spectra-the-bot/spectra-tools/commit/58bed96fd22615ae6654d630e2e4e5b15099089d) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add tests and documentation for the OpenTelemetry integration.
+
+- [#411](https://github.com/spectra-the-bot/spectra-tools/pull/411) [`8f0c670`](https://github.com/spectra-the-bot/spectra-tools/commit/8f0c6707163c26bd1db88264ac217c7ee56007f5) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add RFC process documentation and templates under `docs/rfcs/`.
+
 ## 0.3.0
 
 ### Minor Changes

@@ -1,5 +1,17 @@
 # @spectratools/aborean-cli
 
+## 0.10.5
+
+### Patch Changes
+
+- [#408](https://github.com/spectra-the-bot/spectra-tools/pull/408) [`69a82c3`](https://github.com/spectra-the-bot/spectra-tools/commit/69a82c35a6e4addc0047fd4081ca26b9455655e2) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add explicit exports map and build src/index.ts for stable package-root imports.
+
+- [#412](https://github.com/spectra-the-bot/spectra-tools/pull/412) [`a1b9638`](https://github.com/spectra-the-bot/spectra-tools/commit/a1b9638bbd2ba0e1479721b934612b93eaa35101) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Wire OTEL telemetry initialization and root command spans across all CLI packages.
+
+- Updated dependencies [[`58bed96`](https://github.com/spectra-the-bot/spectra-tools/commit/58bed96fd22615ae6654d630e2e4e5b15099089d), [`8f0c670`](https://github.com/spectra-the-bot/spectra-tools/commit/8f0c6707163c26bd1db88264ac217c7ee56007f5), [`a1b9638`](https://github.com/spectra-the-bot/spectra-tools/commit/a1b9638bbd2ba0e1479721b934612b93eaa35101)]:
+  - @spectratools/cli-shared@0.4.0
+  - @spectratools/tx-shared@0.6.0
+
 ## 0.10.4
 
 ### Patch Changes
