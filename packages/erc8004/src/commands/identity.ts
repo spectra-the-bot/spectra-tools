@@ -330,7 +330,10 @@ identity.command('list', {
 identity.command('get', {
   description: 'Get details for a specific agent.',
   args: z.object({
-    agentId: z.string().describe('Agent token ID'),
+    agentId: z.string().optional().describe('Agent token ID'),
+  }),
+  options: z.object({
+    id: z.string().optional().describe('Agent token ID (alternative to positional argument)'),
   }),
   env: z.object({
     ABSTRACT_RPC_URL: z.string().optional().describe('Abstract RPC URL'),
@@ -342,11 +345,23 @@ identity.command('get', {
     uri: z.string(),
     wallet: z.string().optional(),
   }),
-  examples: [{ args: { agentId: '1' }, description: 'Get agent #1' }],
+  examples: [
+    { args: { agentId: '1' }, description: 'Get agent #1' },
+    { options: { id: '1' }, description: 'Get agent #1 using --id flag' },
+  ],
   async run(c) {
+    const agentId = c.args.agentId ?? c.options.id;
+    if (!agentId) {
+      return c.error({
+        code: 'MISSING_AGENT_ID',
+        message: 'Agent ID is required. Provide it as a positional argument or with --id.',
+        retryable: false,
+      });
+    }
+
     const client = getPublicClient(c.env.ABSTRACT_RPC_URL);
     const address = getIdentityRegistryAddress(c.env);
-    const tokenId = validateBigIntArg(c.args.agentId, 'agentId');
+    const tokenId = validateBigIntArg(agentId, 'agentId');
 
     const [owner, uri, wallet] = await Promise.all([
       readContract(client, {
@@ -370,7 +385,7 @@ identity.command('get', {
     ]);
 
     const result = {
-      agentId: c.args.agentId,
+      agentId,
       owner: checksumAddress(owner),
       uri,
       ...(wallet && wallet !== '0x0000000000000000000000000000000000000000'
@@ -388,12 +403,12 @@ identity.command('get', {
               commands: [
                 {
                   command: 'registration fetch' as const,
-                  args: { agentId: c.args.agentId },
+                  args: { agentId },
                   description: 'Fetch registration file',
                 },
                 {
                   command: 'reputation get' as const,
-                  args: { agentId: c.args.agentId },
+                  args: { agentId },
                   description: 'View reputation score',
                 },
               ],

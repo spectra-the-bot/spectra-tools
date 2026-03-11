@@ -108,6 +108,40 @@ describe('erc8004 cli', () => {
     expect(envelope.message).toContain('agentId must be a numeric value');
   });
 
+  it('identity get errors on non-numeric --id flag', async () => {
+    let output = '';
+    await cli.serve(['identity', 'get', '--id', 'notanumber', '--json'], {
+      stdout(s) {
+        output += s;
+      },
+      exit() {},
+      env: {
+        IDENTITY_REGISTRY_ADDRESS: '0x1234567890123456789012345678901234567890',
+      },
+    });
+
+    const envelope = JSON.parse(output);
+    expect(envelope.code).toBe('VALIDATION_ERROR');
+    expect(envelope.message).toContain('agentId must be a numeric value');
+  });
+
+  it('identity get errors when no agentId is provided', async () => {
+    let output = '';
+    await cli.serve(['identity', 'get', '--json'], {
+      stdout(s) {
+        output += s;
+      },
+      exit() {},
+      env: {
+        IDENTITY_REGISTRY_ADDRESS: '0x1234567890123456789012345678901234567890',
+      },
+    });
+
+    const envelope = JSON.parse(output);
+    expect(envelope.code).toBe('MISSING_AGENT_ID');
+    expect(envelope.message).toContain('Agent ID is required');
+  });
+
   it('reputation get errors on non-numeric agentId', async () => {
     let output = '';
     await cli.serve(['reputation', 'get', 'abc', '--json'], {
