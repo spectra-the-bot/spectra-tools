@@ -119,7 +119,16 @@ describe('design spec schema v2', () => {
         { offset: 1, color: '#1A2547' },
       ],
     });
-    expect(spec.decorators[0]).toEqual({ type: 'vignette', intensity: 0.3, color: '#000000' });
+    expect(spec.decorators[0]).toEqual({
+      type: 'vignette',
+      mode: 'radial',
+      intensity: 0.3,
+      color: '#000000',
+      edgeTopHeight: 35,
+      edgeBottomHeight: 55,
+      edgeTopOpacity: 0.3,
+      edgeBottomOpacity: 0.4,
+    });
     expect(spec.decorators[1]).toEqual({
       type: 'rainbow-rule',
       y: 'after-header',

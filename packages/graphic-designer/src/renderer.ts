@@ -4,7 +4,12 @@ import { type SKRSContext2D, createCanvas } from '@napi-rs/canvas';
 import { resolveRenderScale } from './code-style.js';
 import { loadFonts } from './fonts.js';
 import { type EdgeRoute, computeLayout } from './layout/index.js';
-import { drawGradientRect, drawRainbowRule, drawVignette } from './primitives/gradients.js';
+import {
+  drawEdgeVignette,
+  drawGradientRect,
+  drawRainbowRule,
+  drawVignette,
+} from './primitives/gradients.js';
 import { applyFont, resolveFont, wrapText } from './primitives/text.js';
 import { renderCard } from './renderers/card.js';
 import { renderCodeBlock } from './renderers/code.js';
@@ -467,11 +472,29 @@ export async function renderDesign(
     });
   }
 
-  const deferredVignettes: Array<{ index: number; intensity: number; color: string }> = [];
+  const deferredVignettes: Array<{
+    index: number;
+    mode: 'radial' | 'edge';
+    intensity: number;
+    color: string;
+    edgeTopHeight: number;
+    edgeBottomHeight: number;
+    edgeTopOpacity: number;
+    edgeBottomOpacity: number;
+  }> = [];
 
   for (const [index, decorator] of spec.decorators.entries()) {
     if (decorator.type === 'vignette') {
-      deferredVignettes.push({ index, intensity: decorator.intensity, color: decorator.color });
+      deferredVignettes.push({
+        index,
+        mode: decorator.mode,
+        intensity: decorator.intensity,
+        color: decorator.color,
+        edgeTopHeight: decorator.edgeTopHeight,
+        edgeBottomHeight: decorator.edgeBottomHeight,
+        edgeTopOpacity: decorator.edgeTopOpacity,
+        edgeBottomOpacity: decorator.edgeBottomOpacity,
+      });
       continue;
     }
 
@@ -646,7 +669,20 @@ export async function renderDesign(
   elements.push(...renderDrawCommands(ctx, spec.draw, theme));
 
   for (const vignette of deferredVignettes) {
-    drawVignette(ctx, spec.canvas.width, spec.canvas.height, vignette.intensity, vignette.color);
+    if (vignette.mode === 'edge') {
+      drawEdgeVignette(
+        ctx,
+        spec.canvas.width,
+        spec.canvas.height,
+        vignette.color,
+        vignette.edgeTopHeight,
+        vignette.edgeBottomHeight,
+        vignette.edgeTopOpacity,
+        vignette.edgeBottomOpacity,
+      );
+    } else {
+      drawVignette(ctx, spec.canvas.width, spec.canvas.height, vignette.intensity, vignette.color);
+    }
     elements.push({
       id: `decorator-vignette-${vignette.index}`,
       kind: 'vignette',

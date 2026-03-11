@@ -208,6 +208,63 @@ export function drawRainbowRule(
 }
 
 /**
+ * Draw a linear edge vignette overlay with top and bottom gradient fades.
+ *
+ * The top gradient fades from the specified colour at the top edge to
+ * transparent. The bottom gradient fades from transparent to the colour at the
+ * bottom edge. Heights and opacities are independently configurable.
+ *
+ * @param ctx - The `@napi-rs/canvas` 2D rendering context.
+ * @param width - Canvas width in pixels.
+ * @param height - Canvas height in pixels.
+ * @param color - Hex colour string for the vignette tint. Defaults to
+ *   `'#000000'`.
+ * @param topHeight - Height of the top gradient fade in pixels. Defaults to
+ *   `35`.
+ * @param bottomHeight - Height of the bottom gradient fade in pixels. Defaults
+ *   to `55`.
+ * @param topOpacity - Opacity of the top edge. Defaults to `0.3`.
+ * @param bottomOpacity - Opacity of the bottom edge. Defaults to `0.4`.
+ */
+export function drawEdgeVignette(
+  ctx: SKRSContext2D,
+  width: number,
+  height: number,
+  color = '#000000',
+  topHeight = 35,
+  bottomHeight = 55,
+  topOpacity = 0.3,
+  bottomOpacity = 0.4,
+): void {
+  if (width <= 0 || height <= 0) {
+    return;
+  }
+
+  if (topHeight > 0 && topOpacity > 0) {
+    const topGradient = ctx.createLinearGradient(0, 0, 0, topHeight);
+    topGradient.addColorStop(0, withAlpha(color, clamp01(topOpacity)));
+    topGradient.addColorStop(1, withAlpha(color, 0));
+
+    ctx.save();
+    ctx.fillStyle = topGradient;
+    ctx.fillRect(0, 0, width, topHeight);
+    ctx.restore();
+  }
+
+  if (bottomHeight > 0 && bottomOpacity > 0) {
+    const bottomY = height - bottomHeight;
+    const bottomGradient = ctx.createLinearGradient(0, bottomY, 0, height);
+    bottomGradient.addColorStop(0, withAlpha(color, 0));
+    bottomGradient.addColorStop(1, withAlpha(color, clamp01(bottomOpacity)));
+
+    ctx.save();
+    ctx.fillStyle = bottomGradient;
+    ctx.fillRect(0, bottomY, width, bottomHeight);
+    ctx.restore();
+  }
+}
+
+/**
  * Draw a radial vignette overlay across the full canvas.
  *
  * The vignette fades from fully transparent at the centre to the specified
