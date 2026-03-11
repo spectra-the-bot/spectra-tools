@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { Cli } from 'incur';
 import { feesCli } from './commands/fees.js';
 import { pricesCli } from './commands/prices.js';
+import { protocolsCli } from './commands/protocols.js';
 import { tvlCli } from './commands/tvl.js';
 import { volumeCli } from './commands/volume.js';
 
@@ -18,6 +19,7 @@ const cli = Cli.create('defillama', {
 /* ── Command groups ─────────────────────────────────────────── */
 
 cli.command(tvlCli);
+cli.command(protocolsCli);
 
 cli.command(volumeCli);
 cli.command(feesCli);
