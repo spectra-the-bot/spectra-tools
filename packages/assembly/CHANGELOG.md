@@ -1,5 +1,11 @@
 # @spectra-the-bot/assembly-cli
 
+## 0.13.0
+
+### Minor Changes
+
+- [#448](https://github.com/spectra-the-bot/spectra-tools/pull/448) [`c55c7d8`](https://github.com/spectra-the-bot/spectra-tools/commit/c55c7d8c5301b10b2d71ce9402c030bf4c0673bb) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add digest command that aggregates proposals, threads, comments, petitions, and members into a single JSON snapshot with optional wallet-relative enrichment.
+
 ## 0.12.0
 
 ### Minor Changes

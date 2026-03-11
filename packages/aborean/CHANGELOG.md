@@ -1,5 +1,11 @@
 # @spectratools/aborean-cli
 
+## 0.10.8
+
+### Patch Changes
+
+- [#449](https://github.com/spectra-the-bot/spectra-tools/pull/449) [`4a1e9e6`](https://github.com/spectra-the-bot/spectra-tools/commit/4a1e9e62f0be8a426c6a7e4f7ce384679ec7d974) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add invocation smoke tests and import side-effect guards, and fix `cli.serve()` so it only runs when invoked as the CLI entrypoint.
+
 ## 0.10.7
 
 ### Patch Changes
