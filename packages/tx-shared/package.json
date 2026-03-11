@@ -37,7 +37,7 @@
     }
   },
   "scripts": {
-    "build": "tsup",
+    "build": "pnpm --filter @spectratools/cli-shared run build && tsup",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
     "prepublishOnly": "pnpm build"
