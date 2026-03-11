@@ -174,6 +174,7 @@ GitHub labels are the source of truth for issue state:
 - `type:feature` + `status:triaged` = will be decomposed into an epic by Design Unlocker.
 - `type:epic` + `status:epic-active` = parent feature, managed automatically. Do not modify.
 - `epic:<N>` = subtask of parent issue #N. Triage normally but preserve the label.
+- **RFC labels:** `type:rfc` + `status:rfc-draft` marks a proposal under consideration. Do NOT promote RFC issues to executor queue. When an RFC is approved, its labels are updated to `status:triaged` + `type:feature` and it enters the normal pipeline.
 
 ### Epic / Feature Flow
 
