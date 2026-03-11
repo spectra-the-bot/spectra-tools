@@ -132,9 +132,9 @@ pnpm changeset
 
 ### Git Identity & Commit Signing
 
-**Do NOT run `git config user.email` or `git config user.name` in repo clones.** The global git config already sets the correct identity with GPG commit signing (`commit.gpgsign=true`, key `F6BBAACA52C0DC56`). Overriding the email locally breaks signing because the GPG key is registered to `spectra@spectratools.dev`.
+**Do NOT run `git config user.email` or `git config user.name` in repo clones.** The global git config already sets the correct identity with GPG commit signing enabled. Overriding the email locally breaks signing because the GPG key is tied to the configured email.
 
-If a push fails due to email privacy restrictions, the fix is NOT to switch to the noreply email — that breaks signing. Instead check that `spectra@spectratools.dev` is verified on the GitHub account.
+If a push fails due to email privacy restrictions, do not switch to a noreply address — that breaks signing. The solution is to ensure the configured email is verified on the GitHub account, not to change it locally.
 
 - **PR bodies via `--body-file`** — never inline multiline markdown in `--body "..."`.
 - Squash merge PRs to main.
