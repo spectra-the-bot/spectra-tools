@@ -1,5 +1,16 @@
 # @spectratools/defillama-cli
 
+## 0.3.0
+
+### Minor Changes
+
+- [#393](https://github.com/spectra-the-bot/spectra-tools/pull/393) [`0eb953b`](https://github.com/spectra-the-bot/spectra-tools/commit/0eb953bdfc2b1c2893f40805185827a16b9a05a2) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add volume and fees commands for DEX volume rankings and protocol fee/revenue data.
+
+### Patch Changes
+
+- Updated dependencies [[`dad2a60`](https://github.com/spectra-the-bot/spectra-tools/commit/dad2a6071f23bbb75bd4028dfb2b79f8aa3c9dce)]:
+  - @spectratools/cli-shared@0.2.1
+
 ## 0.2.0
 
 ### Minor Changes

@@ -1,5 +1,11 @@
 # @spectra-the-bot/cli-shared
 
+## 0.2.1
+
+### Patch Changes
+
+- [#395](https://github.com/spectra-the-bot/spectra-tools/pull/395) [`dad2a60`](https://github.com/spectra-the-bot/spectra-tools/commit/dad2a6071f23bbb75bd4028dfb2b79f8aa3c9dce) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Improve CI changeset gate reliability in shallow checkout environments by diffing against the PR base SHA.
+
 ## 0.2.0
 
 ### Minor Changes
