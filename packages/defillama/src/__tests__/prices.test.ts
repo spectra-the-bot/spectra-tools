@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { normalizePricesArgv } from '../cli.js';
+import { normalizeCoinArgs, parseCoins } from '../commands/prices.js';
 import { formatUsd } from '../format.js';
 import {
   type CoinChart,
@@ -9,6 +11,37 @@ import {
   coinPriceSchema,
   pricesResponseSchema,
 } from '../types.js';
+
+/* ── Coin arg parsing tests ─────────────────────────────────── */
+
+describe('coin arg parsing', () => {
+  it('normalizes a single positional coin arg string', () => {
+    const coin = 'ethereum:0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
+    expect(normalizeCoinArgs(coin)).toEqual([coin]);
+  });
+
+  it('rewrites multi-coin positional argv for prices subcommands', () => {
+    const weth = 'ethereum:0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
+    const dai = 'ethereum:0x6b175474e89094c44da98b954eedeac495271d0f';
+
+    expect(normalizePricesArgv(['prices', 'current', weth, dai])).toEqual([
+      'prices',
+      'current',
+      `${weth},${dai}`,
+    ]);
+  });
+
+  it('accepts a single coin string in parseCoins', () => {
+    const coin = 'ethereum:0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
+    expect(parseCoins(coin)).toBe(coin);
+  });
+
+  it('accepts multiple positional coin args in parseCoins', () => {
+    const weth = 'ethereum:0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
+    const dai = 'ethereum:0x6b175474e89094c44da98b954eedeac495271d0f';
+    expect(parseCoins([weth, dai])).toBe(`${weth},${dai}`);
+  });
+});
 
 /* ── Schema parsing tests ───────────────────────────────────── */
 

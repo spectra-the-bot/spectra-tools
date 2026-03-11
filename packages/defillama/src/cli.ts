@@ -26,6 +26,32 @@ cli.command(pricesCli);
 
 export { cli };
 
+const PRICE_SUBCOMMANDS = new Set(['current', 'historical', 'chart']);
+
+/**
+ * Incur currently maps one positional token per args key.
+ * For `prices <subcommand>`, collapse multiple coin positionals into one comma-separated token
+ * so `prices current coin1 coin2` works as expected.
+ */
+export function normalizePricesArgv(argv: string[]): string[] {
+  if (argv[0] !== 'prices') return argv;
+  const subcommand = argv[1];
+  if (!subcommand || !PRICE_SUBCOMMANDS.has(subcommand)) return argv;
+
+  let i = 2;
+  const coins: string[] = [];
+  while (i < argv.length) {
+    const token = argv[i];
+    if (!token || token.startsWith('-')) break;
+    coins.push(token);
+    i += 1;
+  }
+
+  if (coins.length <= 1) return argv;
+
+  return [...argv.slice(0, 2), coins.join(','), ...argv.slice(i)];
+}
+
 // Only auto-serve when executed directly (not imported by tests or other modules)
 const isMain = (() => {
   const entrypoint = process.argv[1];
@@ -41,5 +67,5 @@ const isMain = (() => {
 })();
 
 if (isMain) {
-  cli.serve();
+  cli.serve(normalizePricesArgv(process.argv.slice(2)));
 }
