@@ -3,6 +3,8 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { initTelemetry, shutdownTelemetry } from '@spectratools/cli-shared/telemetry';
 import { Cli } from 'incur';
+import { componentsCli } from './commands/components.js';
+import { tokensCli } from './commands/tokens.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(resolve(__dirname, '../package.json'), 'utf8'));
@@ -11,6 +13,9 @@ const cli = Cli.create('figma', {
   version: pkg.version,
   description: 'Query Figma REST API data from the command line.',
 });
+
+cli.command(tokensCli);
+cli.command(componentsCli);
 
 export { cli };
 
