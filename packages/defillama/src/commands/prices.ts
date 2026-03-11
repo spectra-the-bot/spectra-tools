@@ -11,14 +11,24 @@ export const pricesCli = Cli.create('prices', {
 
 const COIN_ID_RE = /^[a-zA-Z0-9_-]+:0x[a-fA-F0-9]{1,}$/;
 
+type CoinsArgInput = string | string[];
+
+/**
+ * Normalize coin positional args from incur.
+ * Single arg may be parsed as a scalar string; multiple args as a string array.
+ */
+export function normalizeCoinArgs(raw: CoinsArgInput): string[] {
+  return Array.isArray(raw) ? raw : [raw];
+}
+
 /**
  * Validate and normalise coin identifiers.
  * Accepts space-separated args that may themselves be comma-separated.
  * Returns a deduplicated, comma-joined string suitable for the API path.
  */
-function parseCoins(raw: string[]): string {
+export function parseCoins(raw: CoinsArgInput): string {
   const coins: string[] = [];
-  for (const arg of raw) {
+  for (const arg of normalizeCoinArgs(raw)) {
     for (const part of arg.split(',')) {
       const trimmed = part.trim();
       if (trimmed.length === 0) continue;
@@ -54,12 +64,14 @@ function parseTimestamp(value: string): number {
   return Math.floor(ms / 1000);
 }
 
+const coinsArgsSchema = z.string().describe('Coin identifiers (chainName:0xAddress)');
+
 /* ── prices current ─────────────────────────────────────────── */
 
 pricesCli.command('current', {
   description: 'Get current prices for one or more tokens.',
   args: z.object({
-    coins: z.array(z.string()).describe('Coin identifiers (chainName:0xAddress)'),
+    coins: coinsArgsSchema,
   }),
   options: z.object({
     'search-width': z.string().default('4h').describe('Timestamp search width (e.g. 4h, 6h)'),
@@ -77,7 +89,7 @@ pricesCli.command('current', {
   }),
   examples: [
     {
-      args: { coins: ['ethereum:0xdAC17F958D2ee523a2206206994597C13D831ec7'] },
+      args: { coins: 'ethereum:0xdAC17F958D2ee523a2206206994597C13D831ec7' },
       description: 'Current price of USDT on Ethereum',
     },
   ],
@@ -106,7 +118,7 @@ pricesCli.command('current', {
 pricesCli.command('historical', {
   description: 'Get token prices at a specific point in time.',
   args: z.object({
-    coins: z.array(z.string()).describe('Coin identifiers (chainName:0xAddress)'),
+    coins: coinsArgsSchema,
   }),
   options: z.object({
     timestamp: z.string().optional().describe('Unix timestamp in seconds'),
@@ -125,7 +137,7 @@ pricesCli.command('historical', {
   }),
   examples: [
     {
-      args: { coins: ['ethereum:0xdAC17F958D2ee523a2206206994597C13D831ec7'] },
+      args: { coins: 'ethereum:0xdAC17F958D2ee523a2206206994597C13D831ec7' },
       options: { date: '2025-01-01' },
       description: 'USDT price on 2025-01-01',
     },
@@ -159,7 +171,7 @@ pricesCli.command('historical', {
 pricesCli.command('chart', {
   description: 'Get a price chart over a time range.',
   args: z.object({
-    coins: z.array(z.string()).describe('Coin identifiers (chainName:0xAddress)'),
+    coins: coinsArgsSchema,
   }),
   options: z.object({
     start: z.string().optional().describe('Start timestamp or ISO date'),
@@ -184,7 +196,7 @@ pricesCli.command('chart', {
   }),
   examples: [
     {
-      args: { coins: ['ethereum:0xdAC17F958D2ee523a2206206994597C13D831ec7'] },
+      args: { coins: 'ethereum:0xdAC17F958D2ee523a2206206994597C13D831ec7' },
       options: { start: '2025-01-01', period: '1d' },
       description: 'USDT daily price chart since 2025-01-01',
     },
