@@ -22,6 +22,8 @@ type CliPackage = {
 
 type PackageManifest = {
   name: string;
+  bin?: Record<string, string>;
+  exports?: Record<string, unknown>;
   dependencies?: Record<string, string>;
   optionalDependencies?: Record<string, string>;
   peerDependencies?: Record<string, string>;
@@ -36,9 +38,24 @@ type WorkspacePackage = {
 
 const CLI_PACKAGES: CliPackage[] = [
   {
+    workspaceName: '@spectratools/aborean-cli',
+    packageDir: 'packages/aborean',
+    binName: 'aborean-cli',
+  },
+  {
     workspaceName: '@spectratools/assembly-cli',
     packageDir: 'packages/assembly',
     binName: 'assembly-cli',
+  },
+  {
+    workspaceName: '@spectratools/defillama-cli',
+    packageDir: 'packages/defillama',
+    binName: 'defillama-cli',
+  },
+  {
+    workspaceName: '@spectratools/erc8004-cli',
+    packageDir: 'packages/erc8004',
+    binName: 'erc8004-cli',
   },
   {
     workspaceName: '@spectratools/etherscan-cli',
@@ -46,14 +63,14 @@ const CLI_PACKAGES: CliPackage[] = [
     binName: 'etherscan-cli',
   },
   {
+    workspaceName: '@spectratools/graphic-designer-cli',
+    packageDir: 'packages/graphic-designer',
+    binName: 'design',
+  },
+  {
     workspaceName: '@spectratools/xapi-cli',
     packageDir: 'packages/xapi',
     binName: 'xapi-cli',
-  },
-  {
-    workspaceName: '@spectratools/erc8004-cli',
-    packageDir: 'packages/erc8004',
-    binName: 'erc8004-cli',
   },
 ];
 
@@ -61,10 +78,17 @@ const CLI_PACKAGES: CliPackage[] = [
  * Packages that publish a package-root export (via `exports` map in package.json).
  * Each must export a named `cli` symbol from its root entry point.
  * Only includes CLI packages from CLI_PACKAGES that define `exports["."]`.
+ *
+ * The completeness guard test below verifies that every workspace package with
+ * both a `bin` entry and `exports["."]` appears in this list.
  */
 const PACKAGES_WITH_ROOT_EXPORTS: string[] = [
+  '@spectratools/aborean-cli',
+  '@spectratools/assembly-cli',
+  '@spectratools/defillama-cli',
   '@spectratools/erc8004-cli',
   '@spectratools/etherscan-cli',
+  '@spectratools/graphic-designer-cli',
   '@spectratools/xapi-cli',
 ];
 
@@ -282,6 +306,32 @@ describe('CLI npm invocation e2e', () => {
         );
       }
     }
+  });
+
+  it('ensures every CLI package with exports["."] is covered by PACKAGES_WITH_ROOT_EXPORTS', () => {
+    const workspacePackages = loadWorkspacePackages();
+    const rootExportSet = new Set(PACKAGES_WITH_ROOT_EXPORTS);
+    const cliPackageNames = new Set(CLI_PACKAGES.map((pkg) => pkg.workspaceName));
+    const missing: string[] = [];
+
+    for (const [name, pkg] of workspacePackages) {
+      const hasRootExport = pkg.manifest.exports?.['.' as keyof typeof pkg.manifest.exports];
+      const hasBin = pkg.manifest.bin && Object.keys(pkg.manifest.bin).length > 0;
+      if (hasRootExport && hasBin) {
+        if (!rootExportSet.has(name)) {
+          missing.push(name);
+        }
+        // Also ensure the package is in CLI_PACKAGES for binary testing
+        if (!cliPackageNames.has(name)) {
+          missing.push(`${name} (missing from CLI_PACKAGES)`);
+        }
+      }
+    }
+
+    expect(
+      missing,
+      `These workspace packages define both bin and exports["."] but are not in the test manifest. Add them to CLI_PACKAGES and/or PACKAGES_WITH_ROOT_EXPORTS:\n${missing.join('\n')}`,
+    ).toEqual([]);
   });
 
   it('supports npm pack + install with npx and global binary invocation', () => {
