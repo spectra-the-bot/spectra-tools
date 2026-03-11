@@ -51,9 +51,9 @@ Each CLI focuses on a different domain. Install only what you need:
 Monitor proposals, council activity, treasury, and forum discussions.
 
 ```bash
-npx @spectratools/assembly-cli governance proposals --limit 5
-npx @spectratools/assembly-cli treasury balances
-npx @spectratools/assembly-cli members list --limit 10
+npx @spectratools/assembly-cli governance proposals
+npx @spectratools/assembly-cli treasury balance
+npx @spectratools/assembly-cli members list
 ```
 
 → [Assembly CLI docs](/assembly/)
@@ -77,9 +77,9 @@ Requires an [Etherscan API key](https://etherscan.io/myapikey). Set it as `ETHER
 Search posts, pull timelines, manage lists, and send DMs.
 
 ```bash
-npx @spectratools/xapi-cli posts search "abstract chain" --limit 5
-npx @spectratools/xapi-cli users profile abstractchain
-npx @spectratools/xapi-cli timeline home --limit 10
+npx @spectratools/xapi-cli posts search "abstract chain" --max-results 5
+npx @spectratools/xapi-cli users get abstractchain
+npx @spectratools/xapi-cli timeline home --max-results 10
 ```
 
 Requires X API credentials. Set `X_BEARER_TOKEN` for read access or `X_ACCESS_TOKEN` for full access.

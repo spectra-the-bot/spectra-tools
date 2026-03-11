@@ -38,10 +38,10 @@ pnpm add -g @spectratools/graphic-designer-cli
 
 ```bash
 # Generate a code screenshot
-design code --file src/index.ts --out screenshot.png
+design template code --file src/index.ts --out screenshot.png
 
 # Create a terminal shot
-design terminal --file session.log --out terminal.png
+design template terminal --command "pnpm test" --output "✓ 42 tests passed" --out terminal.png
 ```
 
 ## Reference
