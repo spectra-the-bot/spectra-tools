@@ -129,6 +129,13 @@ pnpm changeset
 - Runtime exports must resolve to `dist/` (not `src/`) — critical for npm publish.
 
 ### PR and Git
+
+### Git Identity & Commit Signing
+
+**Do NOT run `git config user.email` or `git config user.name` in repo clones.** The global git config already sets the correct identity with GPG commit signing (`commit.gpgsign=true`, key `F6BBAACA52C0DC56`). Overriding the email locally breaks signing because the GPG key is registered to `spectra@spectratools.dev`.
+
+If a push fails due to email privacy restrictions, the fix is NOT to switch to the noreply email — that breaks signing. Instead check that `spectra@spectratools.dev` is verified on the GitHub account.
+
 - **PR bodies via `--body-file`** — never inline multiline markdown in `--body "..."`.
 - Squash merge PRs to main.
 - Branch naming: `feat/`, `fix/`, `docs/`, `refactor/`, `test/`.
