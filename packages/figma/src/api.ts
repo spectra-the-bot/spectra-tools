@@ -39,12 +39,21 @@ const styleSchema = z.object({
   description: z.string().optional(),
 });
 
+const clientMetaSchema = z
+  .object({
+    node_id: z.string().optional(),
+    node_offset: z.object({ x: z.number(), y: z.number() }).optional(),
+  })
+  .optional();
+
 const commentSchema = z.object({
   id: z.string(),
   message: z.string(),
   created_at: z.string(),
+  resolved_at: z.string().nullable().optional(),
   user: userSchema,
   order_id: z.union([z.string(), z.number()]).optional(),
+  client_meta: clientMetaSchema,
 });
 
 const fileMetaSchema = z.object({
