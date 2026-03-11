@@ -1,5 +1,16 @@
 # @spectratools/graphic-designer-cli
 
+## 0.13.0
+
+### Minor Changes
+
+- [#406](https://github.com/spectra-the-bot/spectra-tools/pull/406) [`db922d5`](https://github.com/spectra-the-bot/spectra-tools/commit/db922d5da8076cd1f345942c55d6021debd04a31) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add stats-bar draw command for rendering horizontally centered metric displays with mixed fonts and separators.
+
+### Patch Changes
+
+- Updated dependencies [[`152941a`](https://github.com/spectra-the-bot/spectra-tools/commit/152941a9a542bc33964e44f6ff9d253653fabdac)]:
+  - @spectratools/cli-shared@0.3.0
+
 ## 0.12.3
 
 ### Patch Changes

@@ -1,5 +1,12 @@
 # @spectra-the-bot/xapi-cli
 
+## 0.6.5
+
+### Patch Changes
+
+- Updated dependencies [[`152941a`](https://github.com/spectra-the-bot/spectra-tools/commit/152941a9a542bc33964e44f6ff9d253653fabdac)]:
+  - @spectratools/cli-shared@0.3.0
+
 ## 0.6.4
 
 ### Patch Changes

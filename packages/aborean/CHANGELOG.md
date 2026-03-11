@@ -1,5 +1,16 @@
 # @spectratools/aborean-cli
 
+## 0.10.4
+
+### Patch Changes
+
+- [#409](https://github.com/spectra-the-bot/spectra-tools/pull/409) [`63aeede`](https://github.com/spectra-the-bot/spectra-tools/commit/63aeede2ccb834415b728e888c081240394a4d61) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add `exports["."]` map to aborean-cli and assembly-cli package.json, and extend packed-artifact e2e test to validate package-root imports for all CLI packages with root exports.
+
+- [#403](https://github.com/spectra-the-bot/spectra-tools/pull/403) [`5e22fc9`](https://github.com/spectra-the-bot/spectra-tools/commit/5e22fc97f0de47ed6a0ba03f628648843a520706) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Fix package-root import: dist/index.js was missing from published artifact because src/index.ts was not included in tsup entry points. Closes #401.
+
+- Updated dependencies [[`152941a`](https://github.com/spectra-the-bot/spectra-tools/commit/152941a9a542bc33964e44f6ff9d253653fabdac)]:
+  - @spectratools/cli-shared@0.3.0
+
 ## 0.10.3
 
 ### Patch Changes
