@@ -2,7 +2,9 @@ import { readFileSync, realpathSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Cli } from 'incur';
+import { feesCli } from './commands/fees.js';
 import { tvlCli } from './commands/tvl.js';
+import { volumeCli } from './commands/volume.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(resolve(__dirname, '../package.json'), 'utf8'));
@@ -16,14 +18,7 @@ const cli = Cli.create('defillama', {
 
 cli.command(tvlCli);
 
-const volumeCli = Cli.create('volume', {
-  description: 'DEX volume queries.',
-});
 cli.command(volumeCli);
-
-const feesCli = Cli.create('fees', {
-  description: 'Protocol fees and revenue queries.',
-});
 cli.command(feesCli);
 
 const pricesCli = Cli.create('prices', {
