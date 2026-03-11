@@ -1,6 +1,6 @@
 {
   "name": "@spectratools/cli-shared",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Shared middleware, utilities, and testing helpers for spectra CLI tools",
   "type": "module",
   "license": "MIT",

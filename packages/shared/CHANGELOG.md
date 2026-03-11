@@ -1,5 +1,11 @@
 # @spectra-the-bot/cli-shared
 
+## 0.3.0
+
+### Minor Changes
+
+- [#400](https://github.com/spectra-the-bot/spectra-tools/pull/400) [`152941a`](https://github.com/spectra-the-bot/spectra-tools/commit/152941a9a542bc33964e44f6ff9d253653fabdac) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Instrument HTTP client and middleware with automatic OpenTelemetry spans.
+
 ## 0.2.1
 
 ### Patch Changes

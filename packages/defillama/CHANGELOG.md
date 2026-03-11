@@ -1,5 +1,14 @@
 # @spectratools/defillama-cli
 
+## 0.4.1
+
+### Patch Changes
+
+- [#404](https://github.com/spectra-the-bot/spectra-tools/pull/404) [`2e19063`](https://github.com/spectra-the-bot/spectra-tools/commit/2e1906361d1083ef9822e44d9e70f0923ae20b8b) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Fix prices commands rejecting single coin argument with VALIDATION_ERROR. Closes #402.
+
+- Updated dependencies [[`152941a`](https://github.com/spectra-the-bot/spectra-tools/commit/152941a9a542bc33964e44f6ff9d253653fabdac)]:
+  - @spectratools/cli-shared@0.3.0
+
 ## 0.4.0
 
 ### Minor Changes
