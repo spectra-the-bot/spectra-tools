@@ -739,8 +739,13 @@ const decoratorSchema = z.discriminatedUnion('type', [
   z
     .object({
       type: z.literal('vignette'),
+      mode: z.enum(['radial', 'edge']).default('radial'),
       intensity: z.number().min(0).max(1).default(0.3),
       color: colorHexSchema.default('#000000'),
+      edgeTopHeight: z.number().min(0).max(200).default(35),
+      edgeBottomHeight: z.number().min(0).max(200).default(55),
+      edgeTopOpacity: z.number().min(0).max(1).default(0.3),
+      edgeBottomOpacity: z.number().min(0).max(1).default(0.4),
     })
     .strict(),
   z
