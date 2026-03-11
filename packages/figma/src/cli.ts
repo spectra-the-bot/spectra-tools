@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url';
 import { initTelemetry, shutdownTelemetry } from '@spectratools/cli-shared/telemetry';
 import { Cli } from 'incur';
 import { componentsCli } from './commands/components.js';
+import { filesCli } from './commands/files.js';
+import { nodesCli } from './commands/nodes.js';
 import { tokensCli } from './commands/tokens.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -16,6 +18,8 @@ const cli = Cli.create('figma', {
 
 cli.command(tokensCli);
 cli.command(componentsCli);
+cli.command(filesCli);
+cli.command(nodesCli);
 
 export { cli };
 
