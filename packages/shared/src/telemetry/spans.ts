@@ -1,4 +1,10 @@
-import { type Span, SpanStatusCode, context, trace } from '@opentelemetry/api';
+import { type Span, SpanKind, SpanStatusCode, context, trace } from '@opentelemetry/api';
+import {
+  ATTR_HTTP_REQUEST_METHOD,
+  ATTR_HTTP_RESPONSE_STATUS_CODE,
+  ATTR_URL_FULL,
+  ATTR_URL_PATH,
+} from '@opentelemetry/semantic-conventions';
 
 const TRACER_NAME = '@spectratools/cli-shared';
 
@@ -106,4 +112,65 @@ export function recordError(span: Span, error: unknown): void {
   } else {
     span.recordException(new Error(String(error)));
   }
+}
+
+/**
+ * Extract the pathname from a URL string, stripping the base URL and query parameters.
+ */
+export function extractPath(url: string): string {
+  try {
+    return new URL(url).pathname;
+  } catch {
+    // If not a valid absolute URL, strip query params from the raw string
+    const qIndex = url.indexOf('?');
+    return qIndex >= 0 ? url.slice(0, qIndex) : url;
+  }
+}
+
+/**
+ * Create a child span for an HTTP client request.
+ *
+ * @param method - HTTP method (e.g. GET, POST).
+ * @param url - Full request URL.
+ * @returns An object with the started `span` and `ctx` for context propagation.
+ */
+export function createHttpSpan(
+  method: string,
+  url: string,
+): { span: Span; ctx: ReturnType<typeof trace.setSpan> } {
+  const tracer = trace.getTracer(TRACER_NAME);
+  const path = extractPath(url);
+  const span = tracer.startSpan(`HTTP ${method} ${path}`, {
+    kind: SpanKind.CLIENT,
+    attributes: {
+      [ATTR_HTTP_REQUEST_METHOD]: method,
+      [ATTR_URL_FULL]: url,
+      [ATTR_URL_PATH]: path,
+    },
+  });
+  const ctx = trace.setSpan(context.active(), span);
+  return { span, ctx };
+}
+
+/**
+ * Finalize an HTTP span with response details.
+ */
+export function endHttpSpan(span: Span, statusCode: number, contentLength?: number): void {
+  span.setAttribute(ATTR_HTTP_RESPONSE_STATUS_CODE, statusCode);
+  if (contentLength !== undefined) {
+    span.setAttribute('http.response_content_length', contentLength);
+  }
+  span.setStatus({ code: SpanStatusCode.OK });
+  span.end();
+}
+
+/**
+ * Finalize an HTTP span with an error.
+ */
+export function endHttpSpanWithError(span: Span, error: unknown, statusCode?: number): void {
+  if (statusCode !== undefined) {
+    span.setAttribute(ATTR_HTTP_RESPONSE_STATUS_CODE, statusCode);
+  }
+  recordError(span, error);
+  span.end();
 }

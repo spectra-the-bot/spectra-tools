@@ -44,7 +44,14 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          # Fetch exactly the base commit (depth=1, fast, no merge-base gymnastics)
+          # Ensure we have enough history for changesets to locate merge-base.
+          # In shallow clones with multi-commit PRs, --since <base_sha> can fail.
+          if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
+            git fetch --no-tags --prune --unshallow origin
+          fi
+
+          # Fetch base SHA explicitly so git diff works even if the base commit
+          # is not yet present in the local object database.
           git fetch --no-tags --depth=1 origin "$BASE_SHA"
 
           CHANGED_FILES="$(git diff --name-only "$BASE_SHA" HEAD)"
