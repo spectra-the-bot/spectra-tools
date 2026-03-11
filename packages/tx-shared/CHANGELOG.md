@@ -1,5 +1,11 @@
 # @spectratools/tx-shared
 
+## 0.6.1
+
+### Patch Changes
+
+- [#418](https://github.com/spectra-the-bot/spectra-tools/pull/418) [`3602983`](https://github.com/spectra-the-bot/spectra-tools/commit/3602983c45c3d6c814e6e77f8773f33a2337bcdb) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Ensure `tx-shared` builds `@spectratools/cli-shared` before generating DTS output so telemetry type declarations are present during isolated package builds, and explicitly type the `withSpan` callback parameter to avoid implicit `any` errors.
+
 ## 0.6.0
 
 ### Minor Changes
