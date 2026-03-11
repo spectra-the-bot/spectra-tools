@@ -57,6 +57,17 @@ const CLI_PACKAGES: CliPackage[] = [
   },
 ];
 
+/**
+ * Packages that publish a package-root export (via `exports` map in package.json).
+ * Each must export a named `cli` symbol from its root entry point.
+ * Only includes CLI packages from CLI_PACKAGES that define `exports["."]`.
+ */
+const PACKAGES_WITH_ROOT_EXPORTS: string[] = [
+  '@spectratools/erc8004-cli',
+  '@spectratools/etherscan-cli',
+  '@spectratools/xapi-cli',
+];
+
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const npmToken = process.env.NPM_TOKEN ?? 'test-token';
 
@@ -307,6 +318,27 @@ describe('CLI npm invocation e2e', () => {
         const npxResult = run('npx', ['--no-install', pkg.binName, '--help'], localProjectDir);
         expect(npxResult.status).toBe(0);
         expectHelpOutput(npxResult.stdout, npxResult.stderr);
+      }
+
+      // Validate package-root imports resolve and export expected symbols.
+      // Runs against the packed tarball install, not the workspace source tree.
+      for (const packageName of PACKAGES_WITH_ROOT_EXPORTS) {
+        const importScript = [
+          `const mod = await import(${JSON.stringify(packageName)});`,
+          "if (typeof mod.cli === 'undefined') {",
+          `  process.stderr.write('Missing expected "cli" export from ${packageName}\\n');`,
+          '  process.exit(1);',
+          '}',
+          `process.stdout.write('ok: ${packageName} exports cli (' + typeof mod.cli + ')\\n');`,
+        ].join('\n');
+
+        const importResult = run(
+          process.execPath,
+          ['--input-type=module', '--eval', importScript],
+          localProjectDir,
+        );
+        expect(importResult.status).toBe(0);
+        expect(importResult.stdout).toContain(`ok: ${packageName} exports cli`);
       }
 
       run(
