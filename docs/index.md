@@ -39,6 +39,16 @@ features:
     details: Interact with Aborean DEX on Abstract — swap tokens, query pools, check liquidity, and manage positions from the terminal.
     link: /aborean/
     linkText: Learn more
+  - icon: 📊
+    title: DefiLlama CLI
+    details: Query TVL rankings, DEX volumes, protocol fees, and token prices from DefiLlama's public API.
+    link: /defillama/
+    linkText: Learn more
+  - icon: 🖼️
+    title: Figma CLI
+    details: Access Figma files, nodes, components, comments, and token exports via the Figma REST API.
+    link: /figma/
+    linkText: Learn more
   - icon: 🎨
     title: Graphic Designer CLI
     details: Generate deterministic code screenshots, terminal shots, flowcharts, and infographics — no browser required. Designed for AI agent workflows.
@@ -62,6 +72,12 @@ npx @spectratools/xapi-cli posts search "abstract chain" --max-results 5
 
 # Swap tokens on Aborean DEX on Abstract
 npx @spectratools/aborean-cli pools list
+
+# Query top protocols by TVL on DefiLlama
+npx @spectratools/defillama-cli tvl protocols --limit 10
+
+# Fetch a Figma file document
+npx @spectratools/figma-cli files get <file-key>
 
 # Generate a code screenshot
 npx @spectratools/graphic-designer-cli render --spec spec.json --out output.png
@@ -116,6 +132,6 @@ All CLIs share a consistent `--format` flag:
 
 <div class="tip custom-block" style="padding-top: 8px">
 
-**Ready to dive in?** Start with the [Getting Started guide](/getting-started) or jump straight to a CLI: [Assembly](/assembly/) · [Etherscan](/etherscan/) · [X API](/xapi/) · [ERC-8004](/erc8004/) · [Aborean](/aborean/) · [Graphic Designer](/graphic-designer/)
+**Ready to dive in?** Start with the [Getting Started guide](/getting-started) or jump straight to a CLI: [Assembly](/assembly/) · [Etherscan](/etherscan/) · [X API](/xapi/) · [ERC-8004](/erc8004/) · [Aborean](/aborean/) · [DefiLlama](/defillama/) · [Figma](/figma/) · [Graphic Designer](/graphic-designer/)
 
 </div>

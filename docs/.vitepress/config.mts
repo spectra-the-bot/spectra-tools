@@ -54,6 +54,8 @@ export default defineConfig({
           { text: '📡 X API', link: '/xapi/' },
           { text: '🤖 ERC-8004', link: '/erc8004/' },
           { text: '💱 Aborean', link: '/aborean/' },
+          { text: '📊 DefiLlama', link: '/defillama/' },
+          { text: '🖼️ Figma', link: '/figma/' },
           { text: '🎨 Graphic Designer', link: '/graphic-designer/' },
         ],
       },
@@ -156,6 +158,22 @@ export default defineConfig({
             items: [
               { text: 'Overview', link: '/aborean/' },
               { text: 'Commands', link: '/aborean/commands' },
+            ],
+          },
+          {
+            text: '📊 DefiLlama',
+            collapsed: false,
+            items: [
+              { text: 'Overview', link: '/defillama/' },
+              { text: 'Commands', link: '/defillama/commands' },
+            ],
+          },
+          {
+            text: '🖼️ Figma',
+            collapsed: false,
+            items: [
+              { text: 'Overview', link: '/figma/' },
+              { text: 'Commands', link: '/figma/commands' },
             ],
           },
           {

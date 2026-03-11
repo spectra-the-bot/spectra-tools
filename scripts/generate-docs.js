@@ -33,6 +33,16 @@ const packages = [
     outPath: 'docs/aborean/commands.md',
   },
   {
+    name: 'defillama',
+    cliPath: 'packages/defillama/dist/cli.js',
+    outPath: 'docs/defillama/commands.md',
+  },
+  {
+    name: 'figma',
+    cliPath: 'packages/figma/dist/cli.js',
+    outPath: 'docs/figma/commands.md',
+  },
+  {
     name: 'graphic-designer',
     cliPath: 'packages/graphic-designer/dist/cli.js',
     outPath: 'docs/graphic-designer/commands.md',
