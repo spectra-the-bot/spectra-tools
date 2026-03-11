@@ -1,21 +1,20 @@
 import { TxError } from '@spectratools/tx-shared';
 import { Cli, z } from 'incur';
 import { registryAbi } from '../contracts/abis.js';
-import {
-  ABSTRACT_MAINNET_ADDRESSES,
-  ABSTRACT_MAINNET_DEPLOYMENT_BLOCKS,
-} from '../contracts/addresses.js';
+import { ABSTRACT_MAINNET_ADDRESSES } from '../contracts/addresses.js';
 import { createAssemblyPublicClient } from '../contracts/client.js';
+import {
+  AssemblyApiValidationError,
+  type AssemblyIndexerUnavailableError,
+  type MemberIdentity,
+  fetchMemberList,
+  fetchMemberOnchainState,
+} from '../services/members.js';
 import { asNum, eth, relTime, timeValue, toChecksum } from './_common.js';
 import { assemblyWriteTx, writeEnv, writeOptions } from './_write-utils.js';
 
 const DEFAULT_MEMBER_SNAPSHOT_URL = 'https://www.theaiassembly.org/api/indexer/members';
-const REGISTERED_EVENT_SCAN_STEP = 100_000n;
-const REGISTERED_EVENT_SCAN_TIMEOUT_MS = 20_000;
 const MAX_MEMBER_LOOKUP_SUGGESTIONS = 5;
-
-type AssemblyClient = ReturnType<typeof createAssemblyPublicClient>;
-type MemberIdentity = { address: string; ens?: string; name?: string };
 
 const env = z.object({
   ABSTRACT_RPC_URL: z.string().optional().describe('Abstract RPC URL override'),
@@ -26,73 +25,6 @@ const env = z.object({
 });
 
 const timestampOutput = z.union([z.number(), z.string()]);
-const memberSnapshotEntrySchema = z.union([
-  z.string(),
-  z.object({
-    address: z.string(),
-    ens: z.string().optional(),
-    name: z.string().optional(),
-  }),
-]);
-const memberSnapshotSchema = z.array(memberSnapshotEntrySchema);
-
-class AssemblyApiValidationError extends Error {
-  constructor(
-    public readonly details: {
-      code: 'INVALID_ASSEMBLY_API_RESPONSE';
-      url: string;
-      issues: z.ZodIssue[];
-      response: unknown;
-    },
-  ) {
-    super('Assembly API response validation failed');
-    this.name = 'AssemblyApiValidationError';
-  }
-}
-
-class AssemblyIndexerUnavailableError extends Error {
-  constructor(
-    public readonly details: {
-      code: 'ASSEMBLY_INDEXER_UNAVAILABLE';
-      url: string;
-      reason?: string;
-      status?: number;
-      statusText?: string;
-    },
-  ) {
-    super('Assembly indexer unavailable');
-    this.name = 'AssemblyIndexerUnavailableError';
-  }
-}
-
-function mergeMemberIdentities(entries: MemberIdentity[]): MemberIdentity[] {
-  const byAddress = new Map<string, MemberIdentity>();
-  for (const entry of entries) {
-    const key = entry.address.toLowerCase();
-    const existing = byAddress.get(key);
-    if (!existing) {
-      byAddress.set(key, entry);
-      continue;
-    }
-    const merged: MemberIdentity = { address: existing.address };
-    const ens = existing.ens ?? entry.ens;
-    const name = existing.name ?? entry.name;
-    if (ens !== undefined) merged.ens = ens;
-    if (name !== undefined) merged.name = name;
-    byAddress.set(key, merged);
-  }
-  return [...byAddress.values()];
-}
-
-function memberSnapshotEntryToIdentity(
-  entry: z.infer<typeof memberSnapshotEntrySchema>,
-): MemberIdentity {
-  if (typeof entry === 'string') return { address: entry };
-  const identity: MemberIdentity = { address: entry.address };
-  if (entry.ens !== undefined) identity.ens = entry.ens;
-  if (entry.name !== undefined) identity.name = entry.name;
-  return identity;
-}
 
 function matchableAddressInput(query: string): boolean {
   return query.startsWith('0x') && query.length === 42;
@@ -118,124 +50,6 @@ function searchMemberIdentities(query: string, members: MemberIdentity[]): Membe
       member.name?.toLowerCase().includes(needle)
     );
   });
-}
-
-async function memberSnapshot(url: string): Promise<MemberIdentity[]> {
-  let res: Response;
-  try {
-    res = await fetch(url);
-  } catch (error) {
-    throw new AssemblyIndexerUnavailableError({
-      code: 'ASSEMBLY_INDEXER_UNAVAILABLE',
-      url,
-      reason: error instanceof Error ? error.message : String(error),
-    });
-  }
-
-  if (!res.ok) {
-    throw new AssemblyIndexerUnavailableError({
-      code: 'ASSEMBLY_INDEXER_UNAVAILABLE',
-      url,
-      status: res.status,
-      statusText: res.statusText,
-    });
-  }
-
-  const json = (await res.json()) as unknown;
-  const parsed = memberSnapshotSchema.safeParse(json);
-  if (parsed.success) {
-    return mergeMemberIdentities(parsed.data.map(memberSnapshotEntryToIdentity));
-  }
-
-  throw new AssemblyApiValidationError({
-    code: 'INVALID_ASSEMBLY_API_RESPONSE',
-    url,
-    issues: parsed.error.issues,
-    response: json,
-  });
-}
-
-async function withTimeout<T>(
-  promise: Promise<T>,
-  timeoutMs: number,
-  timeoutMessage: string,
-): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    return await Promise.race([
-      promise,
-      new Promise<never>((_, reject) => {
-        timer = setTimeout(() => {
-          reject(new Error(timeoutMessage));
-        }, timeoutMs);
-      }),
-    ]);
-  } finally {
-    if (timer) clearTimeout(timer);
-  }
-}
-
-async function membersFromRegisteredEvents(client: AssemblyClient): Promise<MemberIdentity[]> {
-  const latestBlock = await client.getBlockNumber();
-  const addresses = new Set<string>();
-
-  for (
-    let fromBlock = ABSTRACT_MAINNET_DEPLOYMENT_BLOCKS.registry;
-    fromBlock <= latestBlock;
-    fromBlock += REGISTERED_EVENT_SCAN_STEP
-  ) {
-    const toBlock =
-      fromBlock + REGISTERED_EVENT_SCAN_STEP - 1n > latestBlock
-        ? latestBlock
-        : fromBlock + REGISTERED_EVENT_SCAN_STEP - 1n;
-    const events = (await client.getContractEvents({
-      abi: registryAbi,
-      address: ABSTRACT_MAINNET_ADDRESSES.registry,
-      eventName: 'Registered',
-      fromBlock,
-      toBlock,
-      strict: true,
-    })) as Array<{ args: { member?: string } }>;
-
-    for (const event of events) {
-      const member = event.args.member;
-      if (typeof member === 'string') {
-        addresses.add(member);
-      }
-    }
-  }
-
-  return [...addresses].map((address) => ({ address }));
-}
-
-async function loadMemberIdentities(
-  client: AssemblyClient,
-  snapshotUrl: string,
-): Promise<{
-  members: MemberIdentity[];
-  fallbackReason?: AssemblyIndexerUnavailableError['details'];
-}> {
-  try {
-    return { members: await memberSnapshot(snapshotUrl) };
-  } catch (error) {
-    if (error instanceof AssemblyApiValidationError) {
-      throw error;
-    }
-    if (!(error instanceof AssemblyIndexerUnavailableError)) {
-      throw error;
-    }
-
-    const fallbackMembers = await withTimeout(
-      membersFromRegisteredEvents(client),
-      REGISTERED_EVENT_SCAN_TIMEOUT_MS,
-      `Registered event fallback scan timed out after ${REGISTERED_EVENT_SCAN_TIMEOUT_MS}ms`,
-    );
-
-    return {
-      members: mergeMemberIdentities(fallbackMembers),
-      fallbackReason: error.details,
-    };
-  }
 }
 
 function indexerIssue(details: AssemblyIndexerUnavailableError['details']): string {
@@ -299,7 +113,7 @@ members.command('list', {
     let memberIdentities: MemberIdentity[];
     let fallbackReason: AssemblyIndexerUnavailableError['details'] | undefined;
     try {
-      const loaded = await loadMemberIdentities(client, snapshotUrl);
+      const loaded = await fetchMemberList(client, snapshotUrl);
       memberIdentities = loaded.members;
       fallbackReason = loaded.fallbackReason;
     } catch (error) {
@@ -326,39 +140,16 @@ members.command('list', {
     }
 
     const addresses = memberIdentities.map((member) => member.address);
-    const calls = addresses.flatMap((address) => [
-      {
-        abi: registryAbi,
-        address: ABSTRACT_MAINNET_ADDRESSES.registry,
-        functionName: 'isActive',
-        args: [address] as const,
-      },
-      {
-        abi: registryAbi,
-        address: ABSTRACT_MAINNET_ADDRESSES.registry,
-        functionName: 'members',
-        args: [address] as const,
-      },
-    ]);
-    const values =
-      calls.length > 0 ? await client.multicall({ allowFailure: false, contracts: calls }) : [];
-    const rows = addresses.map((address, i) => {
-      const active = values[i * 2] as boolean;
-      const info = values[i * 2 + 1] as {
-        registered: boolean;
-        activeUntil: bigint;
-        lastHeartbeatAt: bigint;
-      };
-      return {
-        address: toChecksum(address),
-        active,
-        registered: info.registered,
-        activeUntil: timeValue(info.activeUntil, c.format),
-        activeUntilRelative: relTime(info.activeUntil),
-        lastHeartbeatAt: timeValue(info.lastHeartbeatAt, c.format),
-        lastHeartbeatRelative: relTime(info.lastHeartbeatAt),
-      };
-    });
+    const onchainStates = await fetchMemberOnchainState(client, addresses);
+    const rows = onchainStates.map((state) => ({
+      address: state.address,
+      active: state.active,
+      registered: state.registered,
+      activeUntil: timeValue(state.activeUntil, c.format),
+      activeUntilRelative: relTime(state.activeUntil),
+      lastHeartbeatAt: timeValue(state.lastHeartbeatAt, c.format),
+      lastHeartbeatRelative: relTime(state.lastHeartbeatAt),
+    }));
     return c.ok({
       members: rows,
       count: rows.length,
@@ -402,7 +193,7 @@ members.command('info', {
       let loadedMembers: MemberIdentity[];
       let fallbackReason: AssemblyIndexerUnavailableError['details'] | undefined;
       try {
-        const loaded = await loadMemberIdentities(client, snapshotUrl);
+        const loaded = await fetchMemberList(client, snapshotUrl);
         loadedMembers = loaded.members;
         fallbackReason = loaded.fallbackReason;
       } catch (error) {

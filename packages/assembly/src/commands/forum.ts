@@ -3,7 +3,16 @@ import { Cli, z } from 'incur';
 import { forumAbi, registryAbi } from '../contracts/abis.js';
 import { ABSTRACT_MAINNET_ADDRESSES } from '../contracts/addresses.js';
 import { createAssemblyPublicClient } from '../contracts/client.js';
-import { asNum, jsonSafe, relTime, timeValue, toChecksum } from './_common.js';
+import {
+  decodeComment,
+  decodePetition,
+  decodeThread,
+  fetchAllComments,
+  fetchAllPetitions,
+  fetchAllThreads,
+  fetchForumStats,
+} from '../services/forum.js';
+import { jsonSafe, relTime, timeValue, toChecksum } from './_common.js';
 import {
   type FormattedDryRunResult,
   type FormattedTxResult,
@@ -23,31 +32,6 @@ const commentEnv = env.extend({
     .optional()
     .describe('Private key (required only when posting a comment via --body)'),
 });
-
-type ThreadTuple = readonly [
-  bigint,
-  bigint,
-  string,
-  bigint,
-  string,
-  string,
-  string,
-  bigint,
-  bigint,
-];
-type CommentTuple = readonly [bigint, bigint, bigint, string, bigint, string];
-type PetitionTuple = readonly [
-  bigint,
-  string,
-  bigint,
-  string,
-  string,
-  string,
-  bigint,
-  boolean,
-  bigint,
-  unknown,
-];
 
 const timestampOutput = z.union([z.number(), z.string()]);
 
@@ -77,64 +61,6 @@ const txResultOutput = z.union([
   }),
 ]);
 
-function decodeThread(value: unknown) {
-  const [id, kind, author, createdAt, category, title, body, proposalId, petitionId] =
-    value as ThreadTuple;
-
-  return {
-    id: asNum(id),
-    kind: asNum(kind),
-    author: toChecksum(author),
-    createdAt: asNum(createdAt),
-    category,
-    title,
-    body,
-    proposalId: asNum(proposalId),
-    petitionId: asNum(petitionId),
-  };
-}
-
-function decodeComment(value: unknown) {
-  const [id, threadId, parentId, author, createdAt, body] = value as CommentTuple;
-
-  return {
-    id: asNum(id),
-    threadId: asNum(threadId),
-    parentId: asNum(parentId),
-    author: toChecksum(author),
-    createdAt: asNum(createdAt),
-    body,
-  };
-}
-
-function decodePetition(value: unknown) {
-  const [
-    id,
-    proposer,
-    createdAt,
-    category,
-    title,
-    body,
-    signatures,
-    promoted,
-    threadId,
-    proposalInput,
-  ] = value as PetitionTuple;
-
-  return {
-    id: asNum(id),
-    proposer: toChecksum(proposer),
-    createdAt: asNum(createdAt),
-    category,
-    title,
-    body,
-    signatures: asNum(signatures),
-    promoted,
-    threadId: asNum(threadId),
-    proposalInput: jsonSafe(proposalInput),
-  };
-}
-
 export const forum = Cli.create('forum', {
   description: 'Browse Assembly forum threads, comments, and petitions.',
 });
@@ -159,24 +85,7 @@ forum.command('threads', {
   examples: [{ description: 'List all forum threads' }],
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
-    const count = await client.readContract({
-      abi: forumAbi,
-      address: ABSTRACT_MAINNET_ADDRESSES.forum,
-      functionName: 'threadCount',
-    });
-    const ids = Array.from({ length: Number(count) }, (_, i) => BigInt(i + 1));
-    const threadTuples = ids.length
-      ? await client.multicall({
-          allowFailure: false,
-          contracts: ids.map((id) => ({
-            abi: forumAbi,
-            address: ABSTRACT_MAINNET_ADDRESSES.forum,
-            functionName: 'threads',
-            args: [id] as const,
-          })),
-        })
-      : [];
-    const items = (threadTuples as unknown[]).map(decodeThread);
+    const items = await fetchAllThreads(client);
     const threads = items.map((x) => ({
       id: x.id,
       kind: x.kind,
@@ -234,34 +143,14 @@ forum.command('thread', {
       });
     }
 
-    const [threadTuple, commentCount] = (await Promise.all([
-      client.readContract({
-        abi: forumAbi,
-        address: ABSTRACT_MAINNET_ADDRESSES.forum,
-        functionName: 'threads',
-        args: [BigInt(c.args.id)],
-      }),
-      client.readContract({
-        abi: forumAbi,
-        address: ABSTRACT_MAINNET_ADDRESSES.forum,
-        functionName: 'commentCount',
-      }),
-    ])) as [unknown, bigint];
+    const threadTuple = await client.readContract({
+      abi: forumAbi,
+      address: ABSTRACT_MAINNET_ADDRESSES.forum,
+      functionName: 'threads',
+      args: [BigInt(c.args.id)],
+    });
     const thread = decodeThread(threadTuple);
-
-    const ids = Array.from({ length: Number(commentCount) }, (_, i) => BigInt(i + 1));
-    const commentTuples = ids.length
-      ? await client.multicall({
-          allowFailure: false,
-          contracts: ids.map((id) => ({
-            abi: forumAbi,
-            address: ABSTRACT_MAINNET_ADDRESSES.forum,
-            functionName: 'comments',
-            args: [id] as const,
-          })),
-        })
-      : [];
-    const comments = (commentTuples as unknown[]).map(decodeComment);
+    const comments = await fetchAllComments(client);
 
     return c.ok({
       thread: jsonSafe(thread) as Record<string, unknown>,
@@ -282,24 +171,7 @@ forum.command('comments', {
   examples: [{ args: { threadId: 1 }, description: 'List comments for thread #1' }],
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
-    const count = (await client.readContract({
-      abi: forumAbi,
-      address: ABSTRACT_MAINNET_ADDRESSES.forum,
-      functionName: 'commentCount',
-    })) as bigint;
-    const ids = Array.from({ length: Number(count) }, (_, i) => BigInt(i + 1));
-    const commentTuples = ids.length
-      ? await client.multicall({
-          allowFailure: false,
-          contracts: ids.map((id) => ({
-            abi: forumAbi,
-            address: ABSTRACT_MAINNET_ADDRESSES.forum,
-            functionName: 'comments',
-            args: [id] as const,
-          })),
-        })
-      : [];
-    const comments = (commentTuples as unknown[]).map(decodeComment);
+    const comments = await fetchAllComments(client);
 
     return c.ok(
       comments
@@ -879,24 +751,7 @@ forum.command('petitions', {
   examples: [{ description: 'List all petitions' }],
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
-    const count = await client.readContract({
-      abi: forumAbi,
-      address: ABSTRACT_MAINNET_ADDRESSES.forum,
-      functionName: 'petitionCount',
-    });
-    const ids = Array.from({ length: Number(count) }, (_, i) => BigInt(i + 1));
-    const petitionTuples = ids.length
-      ? await client.multicall({
-          allowFailure: false,
-          contracts: ids.map((id) => ({
-            abi: forumAbi,
-            address: ABSTRACT_MAINNET_ADDRESSES.forum,
-            functionName: 'petitions',
-            args: [id] as const,
-          })),
-        })
-      : [];
-    const petitions = (petitionTuples as unknown[]).map(decodePetition);
+    const petitions = await fetchAllPetitions(client);
 
     return c.ok(petitions.map((petition) => jsonSafe(petition) as Record<string, unknown>));
   },
@@ -989,33 +844,6 @@ forum.command('stats', {
   examples: [{ description: 'Get forum counts and petition threshold' }],
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
-    const [threadCount, commentCount, petitionCount, petitionThresholdBps] = (await Promise.all([
-      client.readContract({
-        abi: forumAbi,
-        address: ABSTRACT_MAINNET_ADDRESSES.forum,
-        functionName: 'threadCount',
-      }),
-      client.readContract({
-        abi: forumAbi,
-        address: ABSTRACT_MAINNET_ADDRESSES.forum,
-        functionName: 'commentCount',
-      }),
-      client.readContract({
-        abi: forumAbi,
-        address: ABSTRACT_MAINNET_ADDRESSES.forum,
-        functionName: 'petitionCount',
-      }),
-      client.readContract({
-        abi: forumAbi,
-        address: ABSTRACT_MAINNET_ADDRESSES.forum,
-        functionName: 'petitionThresholdBps',
-      }),
-    ])) as [bigint, bigint, bigint, bigint];
-    return c.ok({
-      threadCount: asNum(threadCount),
-      commentCount: asNum(commentCount),
-      petitionCount: asNum(petitionCount),
-      petitionThresholdBps: asNum(petitionThresholdBps),
-    });
+    return c.ok(await fetchForumStats(client));
   },
 });

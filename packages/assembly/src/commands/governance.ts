@@ -3,6 +3,13 @@ import { Cli, z } from 'incur';
 import { councilSeatsAbi, forumAbi, governanceAbi } from '../contracts/abis.js';
 import { ABSTRACT_MAINNET_ADDRESSES } from '../contracts/addresses.js';
 import { createAssemblyPublicClient } from '../contracts/client.js';
+import {
+  fetchAllProposals,
+  fetchProposalById,
+  fetchProposalCount,
+  proposalStatus,
+  serializeProposal,
+} from '../services/governance.js';
 import { asNum, relTime, timeValue, toChecksum } from './_common.js';
 import {
   type FormattedDryRunResult,
@@ -17,70 +24,7 @@ const env = z.object({
   ABSTRACT_RPC_URL: z.string().optional().describe('Abstract RPC URL override'),
 });
 
-type ProposalTuple = readonly [
-  bigint,
-  bigint,
-  bigint,
-  bigint,
-  string,
-  bigint,
-  bigint,
-  bigint,
-  bigint,
-  bigint,
-  bigint,
-  bigint,
-  bigint,
-  bigint,
-  bigint,
-  bigint,
-  bigint,
-  bigint,
-  boolean,
-  bigint,
-  bigint,
-  string,
-  string,
-];
-
-type DecodedProposal = {
-  kind: bigint;
-  configRiskTier: bigint;
-  origin: bigint;
-  status: bigint;
-  proposer: string;
-  threadId: bigint;
-  petitionId: bigint;
-  createdAt: bigint;
-  deliberationEndsAt: bigint;
-  voteStartAt: bigint;
-  voteEndAt: bigint;
-  timelockEndsAt: bigint;
-  activeSeatsSnapshot: bigint;
-  forVotes: bigint;
-  againstVotes: bigint;
-  abstainVotes: bigint;
-  amount: bigint;
-  snapshotAssetBalance: bigint;
-  transferIntent: boolean;
-  intentDeadline: bigint;
-  intentMaxRiskTier: bigint;
-  title: string;
-  description: string;
-};
-
 const timestampOutput = z.union([z.number(), z.string()]);
-
-// Derived from verified Governance.sol source on Abstract mainnet:
-// enum ProposalStatus { Deliberation, Voting, Timelock, Executed, Defeated, Cancelled }
-const proposalStatusLabels: Record<number, string> = {
-  0: 'pending',
-  1: 'active',
-  2: 'passed',
-  3: 'executed',
-  4: 'defeated',
-  5: 'cancelled',
-};
 
 const PROPOSAL_STATUS_PENDING = 0;
 const PROPOSAL_STATUS_ACTIVE = 1;
@@ -93,16 +37,6 @@ const supportChoiceToValue = {
 } as const;
 
 type SupportChoice = keyof typeof supportChoiceToValue;
-
-type AssemblyClient = ReturnType<typeof createAssemblyPublicClient>;
-
-function proposalStatus(status: bigint): { status: string; statusCode: number } {
-  const statusCode = asNum(status);
-  return {
-    status: proposalStatusLabels[statusCode] ?? `unknown-${statusCode}`,
-    statusCode,
-  };
-}
 
 const proposalOutputSchema = z.object({
   kind: z.number(),
@@ -131,115 +65,6 @@ const proposalOutputSchema = z.object({
   description: z.string(),
 });
 
-type ProposalOutput = z.infer<typeof proposalOutputSchema>;
-
-function decodeProposal(value: unknown): DecodedProposal {
-  const [
-    kind,
-    configRiskTier,
-    origin,
-    status,
-    proposer,
-    threadId,
-    petitionId,
-    createdAt,
-    deliberationEndsAt,
-    voteStartAt,
-    voteEndAt,
-    timelockEndsAt,
-    activeSeatsSnapshot,
-    forVotes,
-    againstVotes,
-    abstainVotes,
-    amount,
-    snapshotAssetBalance,
-    transferIntent,
-    intentDeadline,
-    intentMaxRiskTier,
-    title,
-    description,
-  ] = value as ProposalTuple;
-
-  return {
-    kind,
-    configRiskTier,
-    origin,
-    status,
-    proposer: toChecksum(proposer),
-    threadId,
-    petitionId,
-    createdAt,
-    deliberationEndsAt,
-    voteStartAt,
-    voteEndAt,
-    timelockEndsAt,
-    activeSeatsSnapshot,
-    forVotes,
-    againstVotes,
-    abstainVotes,
-    amount,
-    snapshotAssetBalance,
-    transferIntent,
-    intentDeadline,
-    intentMaxRiskTier,
-    title,
-    description,
-  };
-}
-
-function serializeProposal(proposal: DecodedProposal): ProposalOutput {
-  const status = proposalStatus(proposal.status);
-
-  return {
-    kind: asNum(proposal.kind),
-    configRiskTier: asNum(proposal.configRiskTier),
-    origin: asNum(proposal.origin),
-    status: status.status,
-    statusCode: status.statusCode,
-    proposer: proposal.proposer,
-    threadId: asNum(proposal.threadId),
-    petitionId: asNum(proposal.petitionId),
-    createdAt: asNum(proposal.createdAt),
-    deliberationEndsAt: asNum(proposal.deliberationEndsAt),
-    voteStartAt: asNum(proposal.voteStartAt),
-    voteEndAt: asNum(proposal.voteEndAt),
-    timelockEndsAt: asNum(proposal.timelockEndsAt),
-    activeSeatsSnapshot: asNum(proposal.activeSeatsSnapshot),
-    forVotes: proposal.forVotes.toString(),
-    againstVotes: proposal.againstVotes.toString(),
-    abstainVotes: proposal.abstainVotes.toString(),
-    amount: proposal.amount.toString(),
-    snapshotAssetBalance: proposal.snapshotAssetBalance.toString(),
-    transferIntent: proposal.transferIntent,
-    intentDeadline: asNum(proposal.intentDeadline),
-    intentMaxRiskTier: asNum(proposal.intentMaxRiskTier),
-    title: proposal.title,
-    description: proposal.description,
-  };
-}
-
-async function readProposalCount(client: AssemblyClient): Promise<bigint> {
-  return (await client.readContract({
-    abi: governanceAbi,
-    address: ABSTRACT_MAINNET_ADDRESSES.governance,
-    functionName: 'proposalCount',
-  })) as bigint;
-}
-
-async function readProposalById(
-  client: AssemblyClient,
-  proposalId: number,
-): Promise<DecodedProposal> {
-  return decodeProposal(
-    await client.readContract({
-      abi: governanceAbi,
-      address: ABSTRACT_MAINNET_ADDRESSES.governance,
-      functionName: 'proposals',
-      args: [BigInt(proposalId)],
-    }),
-  );
-}
-
 export const governance = Cli.create('governance', {
   description: 'Inspect Assembly governance proposals, votes, and parameters.',
 });
@@ -264,24 +89,7 @@ governance.command('proposals', {
   examples: [{ description: 'List all proposals' }],
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
-    const count = await client.readContract({
-      abi: governanceAbi,
-      address: ABSTRACT_MAINNET_ADDRESSES.governance,
-      functionName: 'proposalCount',
-    });
-    const ids = Array.from({ length: Number(count) }, (_, i) => BigInt(i + 1));
-    const proposalTuples = ids.length
-      ? await client.multicall({
-          allowFailure: false,
-          contracts: ids.map((id) => ({
-            abi: governanceAbi,
-            address: ABSTRACT_MAINNET_ADDRESSES.governance,
-            functionName: 'proposals',
-            args: [id] as const,
-          })),
-        })
-      : [];
-    const proposals = (proposalTuples as unknown[]).map(decodeProposal);
+    const proposals = await fetchAllProposals(client);
     const items = proposals.map((p, i: number) => ({
       ...proposalStatus(p.status),
       id: i + 1,
@@ -324,11 +132,7 @@ governance.command('proposal', {
   examples: [{ args: { id: 1 }, description: 'Fetch proposal #1' }],
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
-    const proposalCount = (await client.readContract({
-      abi: governanceAbi,
-      address: ABSTRACT_MAINNET_ADDRESSES.governance,
-      functionName: 'proposalCount',
-    })) as bigint;
+    const proposalCount = await fetchProposalCount(client);
 
     if (c.args.id > Number(proposalCount)) {
       return c.error({
@@ -338,14 +142,7 @@ governance.command('proposal', {
       });
     }
 
-    const proposal = decodeProposal(
-      await client.readContract({
-        abi: governanceAbi,
-        address: ABSTRACT_MAINNET_ADDRESSES.governance,
-        functionName: 'proposals',
-        args: [BigInt(c.args.id)],
-      }),
-    );
+    const proposal = await fetchProposalById(client, c.args.id);
     return c.ok(serializeProposal(proposal));
   },
 });
@@ -500,7 +297,7 @@ governance.command('vote', {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
     const account = resolveAccount(c.env);
 
-    const proposalCount = await readProposalCount(client);
+    const proposalCount = await fetchProposalCount(client);
     if (c.args.proposalId > Number(proposalCount)) {
       return c.error({
         code: 'OUT_OF_RANGE',
@@ -509,7 +306,7 @@ governance.command('vote', {
       });
     }
 
-    const proposal = await readProposalById(client, c.args.proposalId);
+    const proposal = await fetchProposalById(client, c.args.proposalId);
     const status = proposalStatus(proposal.status);
     if (status.statusCode !== PROPOSAL_STATUS_ACTIVE) {
       return c.error({
@@ -646,7 +443,7 @@ governance.command('propose', {
       });
     }
 
-    const proposalCountBefore = await readProposalCount(client);
+    const proposalCountBefore = await fetchProposalCount(client);
     const expectedProposalId = Number(proposalCountBefore) + 1;
 
     const proposalInput = {
@@ -716,7 +513,7 @@ governance.command('queue', {
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
 
-    const proposalCount = await readProposalCount(client);
+    const proposalCount = await fetchProposalCount(client);
     if (c.args.proposalId > Number(proposalCount)) {
       return c.error({
         code: 'OUT_OF_RANGE',
@@ -725,7 +522,7 @@ governance.command('queue', {
       });
     }
 
-    const proposal = await readProposalById(client, c.args.proposalId);
+    const proposal = await fetchProposalById(client, c.args.proposalId);
     const status = proposalStatus(proposal.status);
 
     if (status.statusCode === PROPOSAL_STATUS_PASSED) {
@@ -813,7 +610,7 @@ governance.command('execute', {
   async run(c) {
     const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
 
-    const proposalCount = await readProposalCount(client);
+    const proposalCount = await fetchProposalCount(client);
     if (c.args.proposalId > Number(proposalCount)) {
       return c.error({
         code: 'OUT_OF_RANGE',
@@ -822,7 +619,7 @@ governance.command('execute', {
       });
     }
 
-    const proposal = await readProposalById(client, c.args.proposalId);
+    const proposal = await fetchProposalById(client, c.args.proposalId);
     const status = proposalStatus(proposal.status);
     if (status.statusCode !== PROPOSAL_STATUS_PASSED) {
       return c.error({
