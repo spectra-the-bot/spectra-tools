@@ -1,5 +1,12 @@
 # @spectra-the-bot/xapi-cli
 
+## 0.6.4
+
+### Patch Changes
+
+- Updated dependencies [[`dad2a60`](https://github.com/spectra-the-bot/spectra-tools/commit/dad2a6071f23bbb75bd4028dfb2b79f8aa3c9dce)]:
+  - @spectratools/cli-shared@0.2.1
+
 ## 0.6.3
 
 ### Patch Changes
