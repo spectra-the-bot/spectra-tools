@@ -1,5 +1,20 @@
 # @spectratools/graphic-designer-cli
 
+## 0.14.0
+
+### Minor Changes
+
+- [#417](https://github.com/spectra-the-bot/spectra-tools/pull/417) [`ab5f2f8`](https://github.com/spectra-the-bot/spectra-tools/commit/ab5f2f855cafaa7f007ab0f59dd765307ae15b34) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add ring element type for cycle visualizations with colored arc segments, glow, arrows, and label.
+
+### Patch Changes
+
+- [#416](https://github.com/spectra-the-bot/spectra-tools/pull/416) [`cc86b4a`](https://github.com/spectra-the-bot/spectra-tools/commit/cc86b4a6dd3fead6f6f79c45d4a8698dc362d401) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add linear edge vignette mode with configurable top/bottom gradient fades.
+
+- [#407](https://github.com/spectra-the-bot/spectra-tools/pull/407) [`23d12a9`](https://github.com/spectra-the-bot/spectra-tools/commit/23d12a9583876bce0aca505a05d794e42d26c90a) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Fix stale command examples in docs to match current CLI output.
+
+- Updated dependencies [[`58bed96`](https://github.com/spectra-the-bot/spectra-tools/commit/58bed96fd22615ae6654d630e2e4e5b15099089d), [`8f0c670`](https://github.com/spectra-the-bot/spectra-tools/commit/8f0c6707163c26bd1db88264ac217c7ee56007f5), [`a1b9638`](https://github.com/spectra-the-bot/spectra-tools/commit/a1b9638bbd2ba0e1479721b934612b93eaa35101)]:
+  - @spectratools/cli-shared@0.4.0
+
 ## 0.13.0
 
 ### Minor Changes

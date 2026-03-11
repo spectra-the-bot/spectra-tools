@@ -1,5 +1,14 @@
 # @spectratools/defillama-cli
 
+## 0.4.2
+
+### Patch Changes
+
+- [#414](https://github.com/spectra-the-bot/spectra-tools/pull/414) [`2e92037`](https://github.com/spectra-the-bot/spectra-tools/commit/2e9203759adbd2ba91b116ec079dd5c563a58644) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add missing test coverage, README, llms manifest, and VitePress docs for defillama-cli.
+
+- Updated dependencies [[`58bed96`](https://github.com/spectra-the-bot/spectra-tools/commit/58bed96fd22615ae6654d630e2e4e5b15099089d), [`8f0c670`](https://github.com/spectra-the-bot/spectra-tools/commit/8f0c6707163c26bd1db88264ac217c7ee56007f5), [`a1b9638`](https://github.com/spectra-the-bot/spectra-tools/commit/a1b9638bbd2ba0e1479721b934612b93eaa35101)]:
+  - @spectratools/cli-shared@0.4.0
+
 ## 0.4.1
 
 ### Patch Changes
