@@ -1,6 +1,11 @@
 import { readFileSync, realpathSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  initTelemetry,
+  shutdownTelemetry,
+  withCommandSpan,
+} from '@spectratools/cli-shared/telemetry';
 import { Cli, z } from 'incur';
 import { eth, relTime, timeValue, toChecksum } from './commands/_common.js';
 import { council } from './commands/council.js';
@@ -46,49 +51,51 @@ cli.command('status', {
   }),
   examples: [{ description: 'Fetch the current Assembly system status' }],
   async run(c) {
-    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
-    const [
-      activeMemberCount,
-      seatCount,
-      proposalCount,
-      currentAuctionDay,
-      currentAuctionSlot,
-      treasuryBalance,
-    ] = await Promise.all([
-      client.readContract({
-        abi: registryAbi,
-        address: ABSTRACT_MAINNET_ADDRESSES.registry,
-        functionName: 'activeMemberCount',
-      }),
-      client.readContract({
-        abi: councilSeatsAbi,
-        address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
-        functionName: 'seatCount',
-      }),
-      client.readContract({
-        abi: governanceAbi,
-        address: ABSTRACT_MAINNET_ADDRESSES.governance,
-        functionName: 'proposalCount',
-      }),
-      client.readContract({
-        abi: councilSeatsAbi,
-        address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
-        functionName: 'currentAuctionDay',
-      }),
-      client.readContract({
-        abi: councilSeatsAbi,
-        address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
-        functionName: 'currentAuctionSlot',
-      }),
-      client.getBalance({ address: ABSTRACT_MAINNET_ADDRESSES.treasury }),
-    ]);
-    return c.ok({
-      activeMemberCount: Number(activeMemberCount),
-      seatCount: Number(seatCount),
-      proposalCount: Number(proposalCount),
-      currentAuctionDay: Number(currentAuctionDay),
-      currentAuctionSlot: Number(currentAuctionSlot),
-      treasuryBalance: eth(treasuryBalance),
+    return withCommandSpan('assembly status', {}, async () => {
+      const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
+      const [
+        activeMemberCount,
+        seatCount,
+        proposalCount,
+        currentAuctionDay,
+        currentAuctionSlot,
+        treasuryBalance,
+      ] = await Promise.all([
+        client.readContract({
+          abi: registryAbi,
+          address: ABSTRACT_MAINNET_ADDRESSES.registry,
+          functionName: 'activeMemberCount',
+        }),
+        client.readContract({
+          abi: councilSeatsAbi,
+          address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+          functionName: 'seatCount',
+        }),
+        client.readContract({
+          abi: governanceAbi,
+          address: ABSTRACT_MAINNET_ADDRESSES.governance,
+          functionName: 'proposalCount',
+        }),
+        client.readContract({
+          abi: councilSeatsAbi,
+          address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+          functionName: 'currentAuctionDay',
+        }),
+        client.readContract({
+          abi: councilSeatsAbi,
+          address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+          functionName: 'currentAuctionSlot',
+        }),
+        client.getBalance({ address: ABSTRACT_MAINNET_ADDRESSES.treasury }),
+      ]);
+      return c.ok({
+        activeMemberCount: Number(activeMemberCount),
+        seatCount: Number(seatCount),
+        proposalCount: Number(proposalCount),
+        currentAuctionDay: Number(currentAuctionDay),
+        currentAuctionSlot: Number(currentAuctionSlot),
+        treasuryBalance: eth(treasuryBalance),
+      });
     });
   },
 });
@@ -115,47 +122,49 @@ cli.command('health', {
     },
   ],
   async run(c) {
-    const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
-    const [isActive, member, isCouncilMember, pendingReturns, votingPower] = (await Promise.all([
-      client.readContract({
-        abi: registryAbi,
-        address: ABSTRACT_MAINNET_ADDRESSES.registry,
-        functionName: 'isActive',
-        args: [c.args.address],
-      }),
-      client.readContract({
-        abi: registryAbi,
-        address: ABSTRACT_MAINNET_ADDRESSES.registry,
-        functionName: 'members',
-        args: [c.args.address],
-      }),
-      client.readContract({
-        abi: councilSeatsAbi,
-        address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
-        functionName: 'isCouncilMember',
-        args: [c.args.address],
-      }),
-      client.readContract({
-        abi: councilSeatsAbi,
-        address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
-        functionName: 'pendingReturns',
-        args: [c.args.address],
-      }),
-      client.readContract({
-        abi: councilSeatsAbi,
-        address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
-        functionName: 'getVotingPower',
-        args: [c.args.address],
-      }),
-    ])) as [boolean, { activeUntil: bigint }, boolean, bigint, bigint];
-    return c.ok({
-      address: toChecksum(c.args.address),
-      isActive,
-      activeUntil: timeValue(member.activeUntil, c.format),
-      activeUntilRelative: relTime(member.activeUntil),
-      isCouncilMember,
-      pendingReturnsWei: pendingReturns.toString(),
-      votingPower: Number(votingPower),
+    return withCommandSpan('assembly health', { address: c.args.address }, async () => {
+      const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
+      const [isActive, member, isCouncilMember, pendingReturns, votingPower] = (await Promise.all([
+        client.readContract({
+          abi: registryAbi,
+          address: ABSTRACT_MAINNET_ADDRESSES.registry,
+          functionName: 'isActive',
+          args: [c.args.address],
+        }),
+        client.readContract({
+          abi: registryAbi,
+          address: ABSTRACT_MAINNET_ADDRESSES.registry,
+          functionName: 'members',
+          args: [c.args.address],
+        }),
+        client.readContract({
+          abi: councilSeatsAbi,
+          address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+          functionName: 'isCouncilMember',
+          args: [c.args.address],
+        }),
+        client.readContract({
+          abi: councilSeatsAbi,
+          address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+          functionName: 'pendingReturns',
+          args: [c.args.address],
+        }),
+        client.readContract({
+          abi: councilSeatsAbi,
+          address: ABSTRACT_MAINNET_ADDRESSES.councilSeats,
+          functionName: 'getVotingPower',
+          args: [c.args.address],
+        }),
+      ])) as [boolean, { activeUntil: bigint }, boolean, bigint, bigint];
+      return c.ok({
+        address: toChecksum(c.args.address),
+        isActive,
+        activeUntil: timeValue(member.activeUntil, c.format),
+        activeUntilRelative: relTime(member.activeUntil),
+        isCouncilMember,
+        pendingReturnsWei: pendingReturns.toString(),
+        votingPower: Number(votingPower),
+      });
     });
   },
 });
@@ -178,5 +187,7 @@ const isMain = (() => {
 })();
 
 if (isMain) {
+  initTelemetry('assembly');
+  process.on('beforeExit', () => shutdownTelemetry());
   cli.serve();
 }

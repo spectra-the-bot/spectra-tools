@@ -25,7 +25,7 @@ const SENSITIVE_PATTERNS = [
  * Sanitize a record of span attributes by stripping any key/value that looks
  * like it contains a private key, password, or other sensitive material.
  */
-function sanitizeAttributes(
+export function sanitizeAttributes(
   attrs: Record<string, unknown>,
 ): Record<string, string | number | boolean> {
   const result: Record<string, string | number | boolean> = {};
@@ -67,6 +67,34 @@ export function createCommandSpan(commandName: string, args?: Record<string, unk
   }
 
   return span;
+}
+
+/**
+ * Convenience wrapper that creates a root command span, executes `fn`, and
+ * automatically sets the span status and ends it. On error, the error is
+ * recorded on the span and re-thrown.
+ *
+ * @param commandPath - The command being executed (e.g. `"account balance"`).
+ * @param args - Key-value arguments to attach as sanitized span attributes.
+ * @param fn - Async function to execute within the span.
+ * @returns The result of `fn`.
+ */
+export async function withCommandSpan<T>(
+  commandPath: string,
+  args: Record<string, unknown>,
+  fn: () => Promise<T>,
+): Promise<T> {
+  const span = createCommandSpan(commandPath, args);
+  try {
+    const result = await fn();
+    span.setStatus({ code: SpanStatusCode.OK });
+    return result;
+  } catch (err) {
+    recordError(span, err);
+    throw err;
+  } finally {
+    span.end();
+  }
 }
 
 /**
