@@ -9,6 +9,7 @@ import {
 import { Cli, z } from 'incur';
 import { eth, relTime, timeValue, toChecksum } from './commands/_common.js';
 import { council } from './commands/council.js';
+import { registerDigestCommand } from './commands/digest.js';
 import { forum } from './commands/forum.js';
 import { governance } from './commands/governance.js';
 import { members } from './commands/members.js';
@@ -31,6 +32,7 @@ cli.command(council);
 cli.command(forum);
 cli.command(governance);
 cli.command(treasury);
+registerDigestCommand(cli);
 
 const rootEnv = z.object({
   ABSTRACT_RPC_URL: z.string().optional().describe('Abstract RPC URL override'),
