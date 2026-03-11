@@ -261,6 +261,33 @@ const drawTextRowSchema = z
   })
   .strict();
 
+const drawStatsBarItemSchema = z
+  .object({
+    value: z.string().min(1).max(50),
+    label: z.string().min(1).max(100),
+  })
+  .strict();
+
+const drawStatsBarSchema = z
+  .object({
+    type: z.literal('stats-bar'),
+    y: z.number().describe('Vertical position of the stats bar'),
+    items: z.array(drawStatsBarItemSchema).min(1).max(8),
+    separator: z.enum(['dot', 'pipe', 'none']).default('dot'),
+    valueColor: colorHexSchema.default('#FFFFFF'),
+    valueFontSize: z.number().min(8).max(72).default(18),
+    valueFontWeight: z.number().int().min(100).max(900).default(700),
+    valueFontFamily: drawFontFamilySchema.default('mono'),
+    labelColor: colorHexSchema.default('#AAAAAA'),
+    labelFontSize: z.number().min(8).max(72).default(14),
+    labelFontWeight: z.number().int().min(100).max(900).default(400),
+    labelFontFamily: drawFontFamilySchema.default('body'),
+    separatorColor: colorHexSchema.default('#666666'),
+    gap: z.number().min(0).max(100).default(24),
+    opacity: z.number().min(0).max(1).default(1),
+  })
+  .strict();
+
 const drawCommandSchema = z.discriminatedUnion('type', [
   drawRectSchema,
   drawCircleSchema,
@@ -273,6 +300,7 @@ const drawCommandSchema = z.discriminatedUnion('type', [
   drawGradientRectSchema,
   drawGridSchema,
   drawTextRowSchema,
+  drawStatsBarSchema,
 ]);
 
 /** Default canvas dimensions and padding (1200 × 675 px, 48 px padding). */
@@ -828,6 +856,8 @@ export type DrawGradientRect = z.infer<typeof drawGradientRectSchema>;
 export type DrawGrid = z.infer<typeof drawGridSchema>;
 export type DrawTextRow = z.infer<typeof drawTextRowSchema>;
 export type DrawTextRowSegment = z.infer<typeof drawTextRowSegmentSchema>;
+export type DrawStatsBar = z.infer<typeof drawStatsBarSchema>;
+export type DrawStatsBarItem = z.infer<typeof drawStatsBarItemSchema>;
 export type DrawCommand = z.infer<typeof drawCommandSchema>;
 export type LayoutConfig = z.infer<typeof layoutConfigSchema>;
 export type AutoLayoutConfig = z.infer<typeof autoLayoutConfigSchema>;

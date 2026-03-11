@@ -8,6 +8,7 @@ import type {
   DrawCommand,
   DrawFontFamily,
   DrawShadow,
+  DrawStatsBar,
   DrawStrokeGradient,
   DrawTextRowSegment,
   Theme,
@@ -806,8 +807,158 @@ export function renderDrawCommands(
         });
         break;
       }
+      case 'stats-bar': {
+        const barRect = renderStatsBar(ctx, command, theme);
+        rendered.push({
+          id,
+          kind: 'draw',
+          bounds: barRect,
+          foregroundColor: command.valueColor,
+          backgroundColor: theme.background,
+        });
+        break;
+      }
     }
   }
 
   return rendered;
+}
+
+/**
+ * Render a horizontally centered stats bar with mixed fonts and separators.
+ *
+ * Each item displays a value in monospace bold and a label in body regular,
+ * with configurable separators (dot, pipe, or none) between items. The entire
+ * bar is centered on the canvas width.
+ */
+function renderStatsBar(ctx: SKRSContext2D, command: DrawStatsBar, theme: Theme): Rect {
+  const canvasWidth = ctx.canvas.width;
+  const valueFontFamily = resolveDrawFont(theme, command.valueFontFamily);
+  const labelFontFamily = resolveDrawFont(theme, command.labelFontFamily);
+  const spaceWidth = 4; // space between value and label within an item
+
+  // --- Measurement pass ---
+  type MeasuredItem = {
+    valueWidth: number;
+    labelWidth: number;
+    totalWidth: number;
+  };
+
+  const measuredItems: MeasuredItem[] = [];
+
+  for (const item of command.items) {
+    // Measure value
+    applyFont(ctx, {
+      size: command.valueFontSize,
+      weight: command.valueFontWeight,
+      family: valueFontFamily,
+    });
+    const valueWidth = ctx.measureText(item.value).width;
+
+    // Measure label
+    applyFont(ctx, {
+      size: command.labelFontSize,
+      weight: command.labelFontWeight,
+      family: labelFontFamily,
+    });
+    const labelWidth = ctx.measureText(item.label).width;
+
+    measuredItems.push({
+      valueWidth,
+      labelWidth,
+      totalWidth: valueWidth + spaceWidth + labelWidth,
+    });
+  }
+
+  // Measure separator
+  let separatorWidth = 0;
+  let separatorText = '';
+  if (command.separator !== 'none' && command.items.length > 1) {
+    separatorText = command.separator === 'dot' ? '·' : '|';
+    // Use the larger font size for the separator measurement
+    const sepFontSize = Math.max(command.valueFontSize, command.labelFontSize);
+    applyFont(ctx, { size: sepFontSize, weight: 400, family: labelFontFamily });
+    separatorWidth = ctx.measureText(separatorText).width;
+  }
+
+  // Compute total width
+  const itemsWidth = measuredItems.reduce((sum, m) => sum + m.totalWidth, 0);
+  const gapCount = command.items.length - 1;
+  const totalWidth = itemsWidth + gapCount * (command.gap + separatorWidth);
+
+  // Start X for center alignment
+  let cursorX = (canvasWidth - totalWidth) / 2;
+  const startX = cursorX;
+
+  // --- Measure max ascent/descent for bounds ---
+  applyFont(ctx, {
+    size: command.valueFontSize,
+    weight: command.valueFontWeight,
+    family: valueFontFamily,
+  });
+  const valueMetrics = ctx.measureText('M');
+  const valueAscent = valueMetrics.actualBoundingBoxAscent || command.valueFontSize * 0.75;
+  const valueDescent = valueMetrics.actualBoundingBoxDescent || command.valueFontSize * 0.25;
+
+  applyFont(ctx, {
+    size: command.labelFontSize,
+    weight: command.labelFontWeight,
+    family: labelFontFamily,
+  });
+  const labelMetrics = ctx.measureText('M');
+  const labelAscent = labelMetrics.actualBoundingBoxAscent || command.labelFontSize * 0.75;
+  const labelDescent = labelMetrics.actualBoundingBoxDescent || command.labelFontSize * 0.25;
+
+  const maxAscent = Math.max(valueAscent, labelAscent);
+  const maxDescent = Math.max(valueDescent, labelDescent);
+
+  // --- Rendering pass ---
+  withOpacity(ctx, command.opacity, () => {
+    for (let i = 0; i < command.items.length; i++) {
+      const item = command.items[i];
+      const measured = measuredItems[i];
+
+      // Draw value (mono bold)
+      applyFont(ctx, {
+        size: command.valueFontSize,
+        weight: command.valueFontWeight,
+        family: valueFontFamily,
+      });
+      ctx.fillStyle = command.valueColor;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillText(item.value, cursorX, command.y);
+      cursorX += measured.valueWidth + spaceWidth;
+
+      // Draw label (body regular)
+      applyFont(ctx, {
+        size: command.labelFontSize,
+        weight: command.labelFontWeight,
+        family: labelFontFamily,
+      });
+      ctx.fillStyle = command.labelColor;
+      ctx.fillText(item.label, cursorX, command.y);
+      cursorX += measured.labelWidth;
+
+      // Draw separator between items (not after last)
+      if (i < command.items.length - 1 && command.separator !== 'none') {
+        const sepFontSize = Math.max(command.valueFontSize, command.labelFontSize);
+        applyFont(ctx, { size: sepFontSize, weight: 400, family: labelFontFamily });
+        ctx.fillStyle = command.separatorColor;
+        ctx.textAlign = 'center';
+        ctx.fillText(separatorText, cursorX + command.gap / 2 + separatorWidth / 2, command.y);
+        ctx.textAlign = 'left';
+        cursorX += command.gap + separatorWidth;
+      }
+    }
+  });
+
+  // --- Bounds ---
+  const height = Math.max(1, maxAscent + maxDescent);
+  return {
+    x: startX,
+    y: command.y - maxAscent,
+    width: Math.max(1, totalWidth),
+    height,
+  };
 }
