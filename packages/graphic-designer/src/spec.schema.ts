@@ -961,3 +961,97 @@ export function parseDiagramSpec(input: unknown): DiagramSpec {
 export function parseDesignSpec(input: unknown): DesignSpec {
   return designSpecSchema.parse(input);
 }
+
+// ---------------------------------------------------------------------------
+// Graph spec: simplified { nodes, edges } format
+// ---------------------------------------------------------------------------
+
+const graphNodeSchema = z
+  .object({
+    id: z.string().min(1).max(120),
+    label: z.string().min(1).max(200),
+    shape: z
+      .enum([
+        'box',
+        'rounded-box',
+        'diamond',
+        'circle',
+        'pill',
+        'cylinder',
+        'parallelogram',
+        'hexagon',
+      ])
+      .optional(),
+  })
+  .strict();
+
+const graphEdgeSchema = z
+  .object({
+    from: z.string().min(1).max(120),
+    to: z.string().min(1).max(120),
+    label: z.string().min(1).max(200).optional(),
+  })
+  .strict();
+
+/** Zod schema for the simplified graph spec format (`{ nodes, edges }`). */
+export const graphSpecSchema = z
+  .object({
+    nodes: z.array(graphNodeSchema).min(1),
+    edges: z.array(graphEdgeSchema).default([]),
+  })
+  .strict();
+
+export type GraphSpec = z.infer<typeof graphSpecSchema>;
+
+/**
+ * Detect whether raw input looks like a graph spec (has `nodes` top-level key).
+ */
+function isGraphSpecInput(input: unknown): boolean {
+  return typeof input === 'object' && input !== null && 'nodes' in input;
+}
+
+/**
+ * Convert a validated {@link GraphSpec} into a fully resolved {@link DesignSpec}.
+ *
+ * Nodes become `flow-node` elements, edges become `connection` elements, and
+ * the layout defaults to auto (ELK layered, top-to-bottom).
+ */
+export function graphSpecToDesignSpec(graph: GraphSpec): DesignSpec {
+  const elements: Array<Record<string, unknown>> = [
+    ...graph.nodes.map((n) => ({
+      type: 'flow-node' as const,
+      id: n.id,
+      label: n.label,
+      ...(n.shape ? { shape: n.shape } : {}),
+    })),
+    ...graph.edges.map((e) => ({
+      type: 'connection' as const,
+      from: e.from,
+      to: e.to,
+      ...(e.label ? { label: e.label } : {}),
+    })),
+  ];
+
+  return designSpecSchema.parse({
+    version: 2,
+    elements,
+    layout: { mode: 'auto', algorithm: 'layered', direction: 'TB' },
+  });
+}
+
+/**
+ * Parse raw input as either a {@link DesignSpec} or a simplified graph spec
+ * (`{ nodes, edges }`). Graph specs are automatically converted to a full
+ * {@link DesignSpec} with auto-layout.
+ *
+ * @param input - Raw (unvalidated) input object to parse.
+ * @returns A validated and transformed {@link DesignSpec}.
+ * @throws {import('zod').ZodError} When neither format matches.
+ */
+export function parseSpecInput(input: unknown): DesignSpec {
+  if (isGraphSpecInput(input)) {
+    const graph = graphSpecSchema.parse(input);
+    return graphSpecToDesignSpec(graph);
+  }
+  return designSpecSchema.parse(input);
+}

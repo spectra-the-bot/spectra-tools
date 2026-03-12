@@ -13,7 +13,7 @@ import {
   renderDesign,
   writeRenderArtifacts,
 } from './renderer.js';
-import { type DesignSpec, parseDesignSpec } from './spec.schema.js';
+import { type DesignSpec, parseDesignSpec, parseSpecInput } from './spec.schema.js';
 import {
   buildCardsSpec,
   buildCodeSpec,
@@ -389,7 +389,17 @@ cli.command('draw', {
       });
     }
 
-    const spec = parseDesignSpec(await readJson(c.args.spec));
+    let spec: DesignSpec;
+    try {
+      spec = parseSpecInput(await readJson(c.args.spec));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return c.error({
+        code: 'UNKNOWN',
+        message,
+        retryable: false,
+      });
+    }
 
     let iteration: IterationMeta | undefined;
     try {
