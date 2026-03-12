@@ -34,6 +34,31 @@ const digestEnv = z.object({
     .describe('Optional members snapshot endpoint (default: theaiassembly.org indexer)'),
 });
 
+const sectionErrorSchema = z.object({
+  section: z.string(),
+  code: z.string(),
+  message: z.string(),
+  timestamp: z.string(),
+});
+
+type SectionError = z.infer<typeof sectionErrorSchema>;
+
+function makeSectionError(section: string, err: unknown): SectionError {
+  const message = err instanceof Error ? err.message : String(err);
+  const code =
+    err instanceof AssemblyApiValidationError
+      ? err.details.code
+      : err instanceof Error && 'code' in err
+        ? String((err as Error & { code?: string }).code)
+        : 'SECTION_FETCH_FAILED';
+  return {
+    section,
+    code,
+    message,
+    timestamp: new Date().toISOString().replace('.000Z', 'Z'),
+  };
+}
+
 const memberItemSchema = z.object({
   address: z.string(),
   active: z.boolean(),
@@ -155,6 +180,7 @@ const digestOutputSchema = z.object({
   meta: z.object({
     chainId: z.number(),
     fetchedAt: z.string(),
+    partial: z.boolean(),
     address: z.string().optional(),
     filters: filtersMetaSchema.optional(),
   }),
@@ -168,7 +194,7 @@ const digestOutputSchema = z.object({
       items: z.array(memberItemSchema),
     })
     .optional(),
-  errors: z.array(z.string()),
+  errors: z.array(sectionErrorSchema),
 });
 
 /** Parse a duration shorthand like "24h", "7d", "30m" to milliseconds. */
@@ -195,7 +221,8 @@ const validProposalStatuses = new Set(Object.values(proposalStatusLabels));
 export function registerDigestCommand(cli: any) {
   cli.command('digest', {
     description:
-      'Aggregate proposals, threads, comments, petitions, and members into a single governance snapshot.',
+      'Aggregate proposals, threads, comments, petitions, and members into a single governance snapshot. Supports error-resilient partial-result mode (--allow-partial) for production monitoring where individual section failures should not invalidate the entire digest.',
+    hint: 'Use --allow-partial for production monitoring. Use --strict (or default) to fail fast on any section error. --rpc-url overrides the ABSTRACT_RPC_URL env var.',
     options: z.object({
       address: z
         .string()
@@ -228,6 +255,22 @@ export function registerDigestCommand(cli: any) {
         .string()
         .optional()
         .describe('Filter proposals by status (pending/active/passed/executed/defeated/cancelled)'),
+      'allow-partial': z
+        .boolean()
+        .optional()
+        .describe(
+          'Return partial results when individual sections fail. Failed sections return empty data with error entries in the errors[] array.',
+        ),
+      strict: z
+        .boolean()
+        .optional()
+        .describe(
+          'Fail the entire command on any section error. Mutually exclusive with --allow-partial. This is also the default behavior.',
+        ),
+      'rpc-url': z
+        .string()
+        .optional()
+        .describe('Abstract RPC URL override (alternative to ABSTRACT_RPC_URL env var)'),
     }),
     env: digestEnv,
     output: digestOutputSchema,
@@ -249,6 +292,10 @@ export function registerDigestCommand(cli: any) {
         options: { 'proposal-status': 'active', 'omit-comments': true },
         description: 'Fetch only active proposals, omitting comments',
       },
+      {
+        options: { 'allow-partial': true },
+        description: 'Fetch digest with partial-result mode (resilient to section failures)',
+      },
     ],
     async run(c: {
       options: {
@@ -265,6 +312,9 @@ export function registerDigestCommand(cli: any) {
         'petitions-limit'?: number;
         'summary-only'?: boolean;
         'proposal-status'?: string;
+        'allow-partial'?: boolean;
+        strict?: boolean;
+        'rpc-url'?: string;
       };
       env: z.infer<typeof digestEnv>;
       format: string;
@@ -272,8 +322,25 @@ export function registerDigestCommand(cli: any) {
       error: (err: { code: string; message: string; retryable: boolean }) => unknown;
     }) {
       return withCommandSpan('assembly digest', { address: c.options.address }, async () => {
-        const client = createAssemblyPublicClient(c.env.ABSTRACT_RPC_URL);
-        const errors: string[] = [];
+        // --- Validate mutually exclusive flags ---
+        const allowPartial = c.options['allow-partial'] ?? false;
+        const strict = c.options.strict ?? false;
+
+        if (allowPartial && strict) {
+          return c.error({
+            code: 'INVALID_OPTIONS',
+            message: '--allow-partial and --strict are mutually exclusive',
+            retryable: false,
+          });
+        }
+
+        // Default behavior (neither flag) = fail on error, same as --strict
+        const failOnSectionError = !allowPartial;
+
+        // Resolve RPC URL: --rpc-url > ABSTRACT_RPC_URL env
+        const rpcUrl = c.options['rpc-url'] ?? c.env.ABSTRACT_RPC_URL;
+        const client = createAssemblyPublicClient(rpcUrl);
+        const errors: SectionError[] = [];
         const address = c.options.address ? (toChecksum(c.options.address) as Address) : undefined;
 
         // --- Resolve time-window filters ---
@@ -359,7 +426,15 @@ export function registerDigestCommand(cli: any) {
         if (proposalsResult.status === 'fulfilled') {
           proposals = proposalsResult.value;
         } else {
-          errors.push(`proposals: ${proposalsResult.reason}`);
+          const sectionErr = makeSectionError('proposals', proposalsResult.reason);
+          if (failOnSectionError) {
+            return c.error({
+              code: sectionErr.code,
+              message: `Section "proposals" failed: ${sectionErr.message}`,
+              retryable: true,
+            });
+          }
+          errors.push(sectionErr);
         }
 
         // Extract threads
@@ -367,7 +442,15 @@ export function registerDigestCommand(cli: any) {
         if (threadsResult.status === 'fulfilled') {
           threads = threadsResult.value;
         } else {
-          errors.push(`threads: ${threadsResult.reason}`);
+          const sectionErr = makeSectionError('threads', threadsResult.reason);
+          if (failOnSectionError) {
+            return c.error({
+              code: sectionErr.code,
+              message: `Section "threads" failed: ${sectionErr.message}`,
+              retryable: true,
+            });
+          }
+          errors.push(sectionErr);
         }
 
         // Extract comments
@@ -376,7 +459,15 @@ export function registerDigestCommand(cli: any) {
           if (commentsResult.status === 'fulfilled') {
             comments = commentsResult.value as DecodedComment[];
           } else {
-            errors.push(`comments: ${commentsResult.reason}`);
+            const sectionErr = makeSectionError('comments', commentsResult.reason);
+            if (failOnSectionError) {
+              return c.error({
+                code: sectionErr.code,
+                message: `Section "comments" failed: ${sectionErr.message}`,
+                retryable: true,
+              });
+            }
+            errors.push(sectionErr);
           }
         }
 
@@ -386,7 +477,15 @@ export function registerDigestCommand(cli: any) {
           if (petitionsResult.status === 'fulfilled') {
             petitions = petitionsResult.value as DecodedPetition[];
           } else {
-            errors.push(`petitions: ${petitionsResult.reason}`);
+            const sectionErr = makeSectionError('petitions', petitionsResult.reason);
+            if (failOnSectionError) {
+              return c.error({
+                code: sectionErr.code,
+                message: `Section "petitions" failed: ${sectionErr.message}`,
+                retryable: true,
+              });
+            }
+            errors.push(sectionErr);
           }
         }
 
@@ -411,12 +510,15 @@ export function registerDigestCommand(cli: any) {
               );
             }
           } else {
-            const err = membersResult.reason;
-            if (err instanceof AssemblyApiValidationError) {
-              errors.push(`members: ${err.details.code}`);
-            } else {
-              errors.push(`members: ${err}`);
+            const sectionErr = makeSectionError('members', membersResult.reason);
+            if (failOnSectionError) {
+              return c.error({
+                code: sectionErr.code,
+                message: `Section "members" failed: ${sectionErr.message}`,
+                retryable: true,
+              });
             }
+            errors.push(sectionErr);
           }
         }
 
@@ -482,7 +584,15 @@ export function registerDigestCommand(cli: any) {
               lastHeartbeatAt: isoTime(s.lastHeartbeatAt),
             }));
           } catch (err) {
-            errors.push(`members onchain state: ${err}`);
+            const sectionErr = makeSectionError('members', err);
+            if (failOnSectionError) {
+              return c.error({
+                code: sectionErr.code,
+                message: `Section "members" failed: ${sectionErr.message}`,
+                retryable: true,
+              });
+            }
+            errors.push(sectionErr);
           }
         }
 
@@ -504,13 +614,31 @@ export function registerDigestCommand(cli: any) {
           if (votedResult.status === 'fulfilled') {
             hasVotedMap = votedResult.value;
           } else {
-            errors.push(`hasVoted enrichment: ${votedResult.reason}`);
+            const sectionErr = makeSectionError('proposals', votedResult.reason);
+            sectionErr.section = 'hasVoted';
+            if (failOnSectionError) {
+              return c.error({
+                code: sectionErr.code,
+                message: `Section "hasVoted" failed: ${sectionErr.message}`,
+                retryable: true,
+              });
+            }
+            errors.push(sectionErr);
           }
 
           if (signedResult.status === 'fulfilled') {
             hasSignedMap = signedResult.value;
           } else {
-            errors.push(`hasSigned enrichment: ${signedResult.reason}`);
+            const sectionErr = makeSectionError('petitions', signedResult.reason);
+            sectionErr.section = 'hasSigned';
+            if (failOnSectionError) {
+              return c.error({
+                code: sectionErr.code,
+                message: `Section "hasSigned" failed: ${sectionErr.message}`,
+                retryable: true,
+              });
+            }
+            errors.push(sectionErr);
           }
         }
 
@@ -640,10 +768,12 @@ export function registerDigestCommand(cli: any) {
         if (proposalStatusFilter) filtersMeta.proposalStatus = proposalStatusFilter;
         const hasFilters = Object.keys(filtersMeta).length > 0;
 
+        const isPartial = errors.length > 0;
         const output: z.infer<typeof digestOutputSchema> = {
           meta: {
             chainId: 2741,
             fetchedAt: new Date().toISOString().replace('.000Z', 'Z'),
+            partial: isPartial,
             ...(address ? { address } : {}),
             ...(hasFilters ? { filters: filtersMeta } : {}),
           },

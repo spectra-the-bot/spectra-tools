@@ -361,7 +361,7 @@ describe('assembly digest', () => {
     expect(data.errors).toEqual([]);
   });
 
-  it('captures partial errors without failing the entire digest', async () => {
+  it('captures partial errors with --allow-partial returning partial data + error entries', async () => {
     const mockFetch = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(JSON.stringify([addrA]), {
         status: 200,
@@ -386,7 +386,7 @@ describe('assembly digest', () => {
         { registered: true, activeUntil: 1700100000n, lastHeartbeatAt: 1700050000n },
       ]);
 
-    const out = await run(['digest']);
+    const out = await run(['digest', '--allow-partial']);
     expect(out.ok).toBe(true);
 
     const data = out.data as Record<string, unknown>;
@@ -398,9 +398,121 @@ describe('assembly digest', () => {
 
     // Threads failed — captured in errors
     expect(data.threads).toEqual([]);
-    const errors = data.errors as string[];
+    const errors = data.errors as Array<Record<string, unknown>>;
     expect(errors.length).toBeGreaterThan(0);
-    expect(errors.some((e: string) => e.includes('threads'))).toBe(true);
+    expect(errors.some((e) => e.section === 'threads')).toBe(true);
+
+    // Verify structured error format
+    const threadError = errors.find((e) => e.section === 'threads');
+    expect(threadError).toMatchObject({
+      section: 'threads',
+      code: expect.any(String),
+      message: expect.stringContaining('forum RPC down'),
+      timestamp: expect.any(String),
+    });
+
+    // meta.partial should be true
+    const meta = data.meta as Record<string, unknown>;
+    expect(meta.partial).toBe(true);
+  });
+
+  it('default behavior (no flags) fails the command on section error', async () => {
+    const mockFetch = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify([addrA]), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    vi.stubGlobal('fetch', mockFetch);
+
+    // proposalCount succeeds
+    mockClient.readContract
+      .mockResolvedValueOnce(1n) // proposalCount
+      .mockRejectedValueOnce(new Error('forum RPC down')) // threadCount fails
+      .mockResolvedValueOnce(0n) // commentCount
+      .mockResolvedValueOnce(0n); // petitionCount
+
+    // Proposals multicall succeeds
+    mockClient.multicall.mockResolvedValueOnce([proposalTuple({ title: 'Works' })]);
+
+    const out = await run(['digest']);
+    expect(out.ok).toBe(false);
+    expect(out.error?.message).toContain('threads');
+    expect(out.error?.message).toContain('forum RPC down');
+  });
+
+  it('--strict fails the command on section error', async () => {
+    const mockFetch = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify([addrA]), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    vi.stubGlobal('fetch', mockFetch);
+
+    mockClient.readContract
+      .mockResolvedValueOnce(1n) // proposalCount
+      .mockRejectedValueOnce(new Error('forum RPC down')) // threadCount fails
+      .mockResolvedValueOnce(0n) // commentCount
+      .mockResolvedValueOnce(0n); // petitionCount
+
+    mockClient.multicall.mockResolvedValueOnce([proposalTuple({ title: 'Works' })]);
+
+    const out = await run(['digest', '--strict']);
+    expect(out.ok).toBe(false);
+    expect(out.error?.message).toContain('threads');
+    expect(out.error?.message).toContain('forum RPC down');
+  });
+
+  it('--allow-partial and --strict together returns validation error', async () => {
+    const out = await run(['digest', '--allow-partial', '--strict']);
+    expect(out.ok).toBe(false);
+    expect(out.error?.code).toBe('INVALID_OPTIONS');
+    expect(out.error?.message).toContain('mutually exclusive');
+  });
+
+  it('meta.partial is false when all sections succeed', async () => {
+    const mockFetch = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    vi.stubGlobal('fetch', mockFetch);
+
+    mockClient.readContract
+      .mockResolvedValueOnce(0n) // proposalCount
+      .mockResolvedValueOnce(0n) // threadCount
+      .mockResolvedValueOnce(0n) // commentCount
+      .mockResolvedValueOnce(0n); // petitionCount
+
+    const out = await run(['digest']);
+    expect(out.ok).toBe(true);
+
+    const data = out.data as Record<string, unknown>;
+    const meta = data.meta as Record<string, unknown>;
+    expect(meta.partial).toBe(false);
+    expect(data.errors).toEqual([]);
+  });
+
+  it('--rpc-url option overrides the ABSTRACT_RPC_URL env var', async () => {
+    const mockFetch = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    vi.stubGlobal('fetch', mockFetch);
+
+    mockClient.readContract
+      .mockResolvedValueOnce(0n) // proposalCount
+      .mockResolvedValueOnce(0n) // threadCount
+      .mockResolvedValueOnce(0n) // commentCount
+      .mockResolvedValueOnce(0n); // petitionCount
+
+    // The --rpc-url option is accepted and the command completes successfully
+    const out = await run(['digest', '--rpc-url', 'https://custom-rpc.example.com']);
+    expect(out.ok).toBe(true);
   });
 
   it('--format json returns structured output without envelope wrapping', async () => {
