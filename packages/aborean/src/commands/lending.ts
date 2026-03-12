@@ -471,7 +471,7 @@ export const lending = Cli.create('lending', {
 
 lending.command('markets', {
   description: 'List Morpho markets discovered from CreateMarket events.',
-  args: z.object({
+  options: z.object({
     limit: z.coerce
       .number()
       .int()
@@ -515,7 +515,7 @@ lending.command('markets', {
             ? 1
             : 0,
       )
-      .slice(0, c.args.limit);
+      .slice(0, c.options.limit);
 
     const firstMarket = rows[0];
 

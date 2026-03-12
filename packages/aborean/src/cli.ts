@@ -16,6 +16,7 @@ import { cl } from './commands/cl.js';
 import { gauges } from './commands/gauges.js';
 import { lending, readLendingSummary } from './commands/lending.js';
 import { pools } from './commands/pools.js';
+import { tokens } from './commands/tokens.js';
 import { readVaultSummary, vaults } from './commands/vaults.js';
 import { ve } from './commands/ve.js';
 import { voter } from './commands/voter.js';
@@ -40,6 +41,7 @@ const cli = Cli.create('aborean', {
 
 cli.command(gauges);
 cli.command(pools);
+cli.command(tokens);
 cli.command(ve);
 cli.command(voter);
 cli.command(cl);

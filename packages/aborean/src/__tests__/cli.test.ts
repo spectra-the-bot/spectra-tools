@@ -826,4 +826,145 @@ describe('aborean CLI', () => {
     expect(mockClient.readContract.mock.calls[1]?.[0]?.functionName).toBe('quoteExactInputSingle');
     expect(mockClient.readContract.mock.calls[1]?.[0]?.args?.[0]?.tickSpacing).toBe(10);
   });
+
+  it('lending markets accepts --limit flag', async () => {
+    const marketId = '0xfe1d7da2fbde85b1fee120c88df3e6b55164a2442dab97486d3d4f719a5ff1fb';
+    const marketId2 = '0xaa1d7da2fbde85b1fee120c88df3e6b55164a2442dab97486d3d4f719a5ff1aa';
+
+    mockClient.getContractEvents.mockResolvedValueOnce([
+      { args: { id: marketId } },
+      { args: { id: marketId2 } },
+    ]);
+
+    mockClient.multicall
+      .mockResolvedValueOnce([
+        {
+          loanToken: tokenA,
+          collateralToken: tokenB,
+          oracle: '0x3000000000000000000000000000000000000001',
+          irm: '0x3000000000000000000000000000000000000002',
+          lltv: 860000000000000000n,
+        },
+        {
+          totalSupplyAssets: 700000000000000000000n,
+          totalSupplyShares: 700000000000000000000n,
+          totalBorrowAssets: 300000000000000000000n,
+          totalBorrowShares: 300000000000000000000n,
+          lastUpdate: 1900000500n,
+          fee: 0n,
+        },
+        {
+          loanToken: tokenB,
+          collateralToken: tokenC,
+          oracle: '0x3000000000000000000000000000000000000001',
+          irm: '0x3000000000000000000000000000000000000002',
+          lltv: 900000000000000000n,
+        },
+        {
+          totalSupplyAssets: 500000000000000000000n,
+          totalSupplyShares: 500000000000000000000n,
+          totalBorrowAssets: 100000000000000000000n,
+          totalBorrowShares: 100000000000000000000n,
+          lastUpdate: 1900000600n,
+          fee: 0n,
+        },
+      ])
+      .mockResolvedValueOnce([
+        { status: 'success', result: 'TKA' },
+        { status: 'success', result: 18 },
+        { status: 'success', result: 'TKB' },
+        { status: 'success', result: 18 },
+        { status: 'success', result: 'TKC' },
+        { status: 'success', result: 18 },
+      ]);
+
+    const out = await run(['lending', 'markets', '--limit', '1']);
+
+    expect(out.ok).toBe(true);
+    const data = out.data as {
+      marketCount: number;
+      markets: Array<{ marketId: string }>;
+    };
+
+    expect(data.marketCount).toBe(2);
+    expect(data.markets).toHaveLength(1);
+  });
+
+  it('tokens list returns unique tokens from pools', async () => {
+    mockClient.readContract
+      .mockResolvedValueOnce(2n) // v2 allPoolsLength
+      .mockResolvedValueOnce(0n); // cl allPoolsLength
+
+    mockClient.multicall
+      .mockResolvedValueOnce([poolA, poolB]) // v2 pool addresses
+      .mockResolvedValueOnce([tokenA, tokenB, tokenB, tokenC]) // v2 pool tokens
+      .mockResolvedValueOnce([
+        // token metadata (symbol, decimals, name for each unique token)
+        { status: 'success', result: 'TKA' },
+        { status: 'success', result: 18 },
+        { status: 'success', result: 'Token A' },
+        { status: 'success', result: 'TKB' },
+        { status: 'success', result: 6 },
+        { status: 'success', result: 'Token B' },
+        { status: 'success', result: 'TKC' },
+        { status: 'success', result: 18 },
+        { status: 'success', result: 'Token C' },
+      ]);
+
+    const out = await run(['tokens', 'list']);
+
+    expect(out.ok).toBe(true);
+    const data = out.data as {
+      tokenCount: number;
+      totalPoolCount: number;
+      tokens: Array<{
+        address: string;
+        symbol: string;
+        name: string | null;
+        decimals: number;
+        poolCount: number;
+      }>;
+    };
+
+    expect(data.totalPoolCount).toBe(2);
+    expect(data.tokenCount).toBe(3);
+    // TKB appears in both pools so should be first (poolCount=2)
+    expect(data.tokens[0].symbol).toBe('TKB');
+    expect(data.tokens[0].poolCount).toBe(2);
+    expect(data.tokens[0].decimals).toBe(6);
+    expect(data.tokens[0].name).toBe('Token B');
+  });
+
+  it('tokens list respects --limit flag', async () => {
+    mockClient.readContract
+      .mockResolvedValueOnce(2n) // v2 allPoolsLength
+      .mockResolvedValueOnce(0n); // cl allPoolsLength
+
+    mockClient.multicall
+      .mockResolvedValueOnce([poolA, poolB]) // v2 pool addresses
+      .mockResolvedValueOnce([tokenA, tokenB, tokenB, tokenC]) // v2 pool tokens
+      .mockResolvedValueOnce([
+        { status: 'success', result: 'TKA' },
+        { status: 'success', result: 18 },
+        { status: 'success', result: 'Token A' },
+        { status: 'success', result: 'TKB' },
+        { status: 'success', result: 6 },
+        { status: 'success', result: 'Token B' },
+        { status: 'success', result: 'TKC' },
+        { status: 'success', result: 18 },
+        { status: 'success', result: 'Token C' },
+      ]);
+
+    const out = await run(['tokens', 'list', '--limit', '1']);
+
+    expect(out.ok).toBe(true);
+    const data = out.data as {
+      tokenCount: number;
+      tokens: Array<{ symbol: string }>;
+    };
+
+    expect(data.tokenCount).toBe(1);
+    expect(data.tokens).toHaveLength(1);
+    expect(data.tokens[0].symbol).toBe('TKB');
+  });
 });
