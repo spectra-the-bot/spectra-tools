@@ -7,34 +7,86 @@ export const volumeCli = Cli.create('volume', {
   description: 'DEX volume queries.',
 });
 
-/* ── volume dexs ────────────────────────────────────────────── */
+/* ── Shared dexs/overview schemas & handler ─────────────────── */
 
 const dexsSortFields = ['total24h', 'total7d', 'change_1d'] as const;
 
+const dexsOverviewOptions = z.object({
+  chain: z.string().optional().describe('Filter by chain name'),
+  limit: z.coerce.number().default(20).describe('Max protocols to display'),
+  sort: z
+    .enum(dexsSortFields)
+    .default('total24h')
+    .describe('Sort field: total24h, total7d, or change_1d'),
+  category: z.string().optional().describe('Filter by category (e.g. Dexs, Prediction)'),
+});
+
+const dexsOverviewOutput = z.object({
+  protocols: z.array(
+    z.object({
+      name: z.string(),
+      volume_24h: z.string(),
+      volume_7d: z.string(),
+      change_1d: z.string(),
+    }),
+  ),
+  chain: z.string().optional(),
+  category: z.string().optional(),
+  total: z.number(),
+});
+
+async function runDexsOverview(options: z.infer<typeof dexsOverviewOptions>) {
+  const client = createDefiLlamaClient();
+  const path = options.chain
+    ? `/overview/dexs/${options.chain}?excludeTotalDataChart=true&excludeTotalDataChartBreakdown=true`
+    : '/overview/dexs?excludeTotalDataChart=true&excludeTotalDataChartBreakdown=true';
+  const raw = await client.get<unknown>('api', path);
+  const data = volumeOverviewResponseSchema.parse(raw);
+
+  let protocols = data.protocols;
+
+  // Category filter
+  if (options.category) {
+    const catLower = options.category.toLowerCase();
+    protocols = protocols.filter(
+      (p) => p.category != null && p.category.toLowerCase() === catLower,
+    );
+  }
+
+  // Filter out null/zero volume
+  protocols = protocols.filter((p) => p.total24h != null && p.total24h > 0);
+
+  // Sort
+  const sortKey = options.sort;
+  protocols.sort((a, b) => {
+    const aVal = a[sortKey] ?? 0;
+    const bVal = b[sortKey] ?? 0;
+    return (bVal as number) - (aVal as number);
+  });
+
+  const limited = protocols.slice(0, options.limit);
+
+  const rows = limited.map((p) => ({
+    name: p.displayName ?? p.name,
+    volume_24h: formatUsd(p.total24h ?? 0),
+    volume_7d: formatUsd(p.total7d ?? 0),
+    change_1d: formatPct(p.change_1d),
+  }));
+
+  return {
+    protocols: rows,
+    chain: options.chain,
+    category: options.category,
+    total: protocols.length,
+  };
+}
+
+/* ── volume dexs ────────────────────────────────────────────── */
+
 volumeCli.command('dexs', {
   description: 'List DEXes ranked by trading volume.',
-  options: z.object({
-    chain: z.string().optional().describe('Filter by chain name'),
-    limit: z.coerce.number().default(20).describe('Max protocols to display'),
-    sort: z
-      .enum(dexsSortFields)
-      .default('total24h')
-      .describe('Sort field: total24h, total7d, or change_1d'),
-    category: z.string().optional().describe('Filter by category (e.g. Dexs, Prediction)'),
-  }),
-  output: z.object({
-    protocols: z.array(
-      z.object({
-        name: z.string(),
-        volume_24h: z.string(),
-        volume_7d: z.string(),
-        change_1d: z.string(),
-      }),
-    ),
-    chain: z.string().optional(),
-    category: z.string().optional(),
-    total: z.number(),
-  }),
+  options: dexsOverviewOptions,
+  output: dexsOverviewOutput,
   examples: [
     { options: { limit: 10 }, description: 'Top 10 DEXes by 24h volume' },
     { options: { chain: 'abstract', limit: 10 }, description: 'Top DEXes on Abstract' },
@@ -45,49 +97,22 @@ volumeCli.command('dexs', {
     },
   ],
   async run(c) {
-    const client = createDefiLlamaClient();
-    const path = c.options.chain
-      ? `/overview/dexs/${c.options.chain}?excludeTotalDataChart=true&excludeTotalDataChartBreakdown=true`
-      : '/overview/dexs?excludeTotalDataChart=true&excludeTotalDataChartBreakdown=true';
-    const raw = await client.get<unknown>('api', path);
-    const data = volumeOverviewResponseSchema.parse(raw);
+    return c.ok(await runDexsOverview(c.options));
+  },
+});
 
-    let protocols = data.protocols;
+/* ── volume overview (alias for dexs) ───────────────────────── */
 
-    // Category filter
-    if (c.options.category) {
-      const catLower = c.options.category.toLowerCase();
-      protocols = protocols.filter(
-        (p) => p.category != null && p.category.toLowerCase() === catLower,
-      );
-    }
-
-    // Filter out null/zero volume
-    protocols = protocols.filter((p) => p.total24h != null && p.total24h > 0);
-
-    // Sort
-    const sortKey = c.options.sort;
-    protocols.sort((a, b) => {
-      const aVal = a[sortKey] ?? 0;
-      const bVal = b[sortKey] ?? 0;
-      return (bVal as number) - (aVal as number);
-    });
-
-    const limited = protocols.slice(0, c.options.limit);
-
-    const rows = limited.map((p) => ({
-      name: p.displayName ?? p.name,
-      volume_24h: formatUsd(p.total24h ?? 0),
-      volume_7d: formatUsd(p.total7d ?? 0),
-      change_1d: formatPct(p.change_1d),
-    }));
-
-    return c.ok({
-      protocols: rows,
-      chain: c.options.chain,
-      category: c.options.category,
-      total: protocols.length,
-    });
+volumeCli.command('overview', {
+  description: 'Overview of DEX trading volume (alias for volume dexs).',
+  options: dexsOverviewOptions,
+  output: dexsOverviewOutput,
+  examples: [
+    { options: { limit: 10 }, description: 'Top 10 DEXes by 24h volume' },
+    { options: { chain: 'abstract', limit: 5 }, description: 'Top 5 DEXes on Abstract by volume' },
+  ],
+  async run(c) {
+    return c.ok(await runDexsOverview(c.options));
   },
 });
 
