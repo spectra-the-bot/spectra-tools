@@ -1,5 +1,11 @@
 # @spectra-the-bot/erc8004-cli
 
+## 0.4.7
+
+### Patch Changes
+
+- [#451](https://github.com/spectra-the-bot/spectra-tools/pull/451) [`75d8844`](https://github.com/spectra-the-bot/spectra-tools/commit/75d8844a4bf1f38fda98884c4581918e965b3a2e) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add --id flag alias for positional agentId argument in identity get command.
+
 ## 0.4.6
 
 ### Patch Changes

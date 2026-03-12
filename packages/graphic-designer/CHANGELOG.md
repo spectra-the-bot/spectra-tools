@@ -1,5 +1,11 @@
 # @spectratools/graphic-designer-cli
 
+## 0.14.2
+
+### Patch Changes
+
+- [#456](https://github.com/spectra-the-bot/spectra-tools/pull/456) [`26a368b`](https://github.com/spectra-the-bot/spectra-tools/commit/26a368b6684c2cbbebe367ea8b39dbc0e2e3b945) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add `draw` command alias for `render` and `--output` flag alias for `--out`.
+
 ## 0.14.1
 
 ### Patch Changes

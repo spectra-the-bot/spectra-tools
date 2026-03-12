@@ -1,5 +1,11 @@
 # @spectratools/defillama-cli
 
+## 0.4.4
+
+### Patch Changes
+
+- [#453](https://github.com/spectra-the-bot/spectra-tools/pull/453) [`580ad86`](https://github.com/spectra-the-bot/spectra-tools/commit/580ad86053665701c1b95905e50695de7bbc0c08) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add backward-compatible command aliases for protocols list and volume overview invocation patterns.
+
 ## 0.4.3
 
 ### Patch Changes
