@@ -1,5 +1,11 @@
 # @spectratools/aborean-cli
 
+## 0.10.9
+
+### Patch Changes
+
+- [#452](https://github.com/spectra-the-bot/spectra-tools/pull/452) [`a448c2b`](https://github.com/spectra-the-bot/spectra-tools/commit/a448c2be9c83fa6f30ab2970a5840610593c7513) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add tokens list command alias and --limit flag to lending markets for backward compatibility.
+
 ## 0.10.8
 
 ### Patch Changes

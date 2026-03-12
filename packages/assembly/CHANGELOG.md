@@ -1,5 +1,15 @@
 # @spectra-the-bot/assembly-cli
 
+## 0.14.0
+
+### Minor Changes
+
+- [#454](https://github.com/spectra-the-bot/spectra-tools/pull/454) [`3f085a8`](https://github.com/spectra-the-bot/spectra-tools/commit/3f085a8fddaf0cd170d7e3c1401927fee7274047) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add time-window filtering, section omission flags, section limits, summary-only mode, and proposal status filter to the digest command.
+
+### Patch Changes
+
+- [#455](https://github.com/spectra-the-bot/spectra-tools/pull/455) [`970ea82`](https://github.com/spectra-the-bot/spectra-tools/commit/970ea82dc835ac1df0557633646c39ae509e253d) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add `seats list` compatibility alias for `council seats`.
+
 ## 0.13.0
 
 ### Minor Changes
