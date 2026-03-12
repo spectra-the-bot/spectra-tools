@@ -226,11 +226,122 @@ async function runRenderPipeline(
   };
 }
 
+const renderOptions = z.object({
+  spec: z.string().describe('Path to DesignSpec JSON file (or "-" to read JSON from stdin)'),
+  out: z.string().optional().describe('Output file path (.png) or output directory'),
+  output: z
+    .string()
+    .optional()
+    .describe('Alias for --out. Output file path (.png) or output directory'),
+  specOut: z.string().optional().describe('Optional explicit output path for normalized spec JSON'),
+  iteration: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe('Optional iteration number for iterative workflows (1-indexed)'),
+  iterationNotes: z
+    .string()
+    .optional()
+    .describe('Optional notes for the current iteration metadata'),
+  maxIterations: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe('Optional maximum planned iteration count'),
+  previousHash: z
+    .string()
+    .optional()
+    .describe('Optional artifact hash from the previous iteration'),
+  allowQaFail: z.boolean().default(false).describe('Allow render success even if QA fails'),
+});
+
+function resolveOut(options: {
+  out?: string | undefined;
+  output?: string | undefined;
+}): string {
+  const resolved = options.out ?? options.output;
+  if (!resolved) {
+    throw new Error('Either --out or --output is required.');
+  }
+  return resolved;
+}
+
 cli.command('render', {
   description: 'Render a deterministic design artifact from a DesignSpec JSON file.',
-  options: z.object({
+  options: renderOptions,
+  output: renderOutputSchema,
+  examples: [
+    {
+      options: {
+        spec: './specs/pipeline.json',
+        out: './output',
+      },
+      description: 'Render a design spec and write .png/.meta/.spec artifacts',
+    },
+  ],
+  async run(c) {
+    let out: string;
+    try {
+      out = resolveOut(c.options);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return c.error({
+        code: 'MISSING_OUTPUT',
+        message,
+        retryable: false,
+      });
+    }
+
+    const spec = parseDesignSpec(await readJson(c.options.spec));
+
+    let iteration: IterationMeta | undefined;
+    try {
+      iteration = parseIterationMeta({
+        ...(c.options.iteration != null ? { iteration: c.options.iteration } : {}),
+        ...(c.options.maxIterations != null ? { maxIterations: c.options.maxIterations } : {}),
+        ...(c.options.iterationNotes ? { iterationNotes: c.options.iterationNotes } : {}),
+        ...(c.options.previousHash ? { previousHash: c.options.previousHash } : {}),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return c.error({
+        code: 'INVALID_ITERATION_OPTIONS',
+        message,
+        retryable: false,
+      });
+    }
+
+    const runReport = await runRenderPipeline(spec, {
+      out,
+      ...(c.options.specOut ? { specOut: c.options.specOut } : {}),
+      ...(iteration ? { iteration } : {}),
+    });
+
+    if (!runReport.qa.pass && !c.options.allowQaFail) {
+      return c.error({
+        code: 'QA_FAILED',
+        message: `Render completed but QA failed (${runReport.qa.issueCount} issues). Review qa output.`,
+        retryable: false,
+      });
+    }
+
+    return c.ok(runReport);
+  },
+});
+
+cli.command('draw', {
+  description: 'Alias for render. Render a deterministic design artifact from a DesignSpec JSON.',
+  args: z.object({
     spec: z.string().describe('Path to DesignSpec JSON file (or "-" to read JSON from stdin)'),
-    out: z.string().describe('Output file path (.png) or output directory'),
+  }),
+  options: z.object({
+    out: z.string().optional().describe('Output file path (.png) or output directory'),
+    output: z
+      .string()
+      .optional()
+      .describe('Alias for --out. Output file path (.png) or output directory'),
     specOut: z
       .string()
       .optional()
@@ -260,15 +371,25 @@ cli.command('render', {
   output: renderOutputSchema,
   examples: [
     {
-      options: {
-        spec: './specs/pipeline.json',
-        out: './output',
-      },
-      description: 'Render a design spec and write .png/.meta/.spec artifacts',
+      args: { spec: '/tmp/spec.json' },
+      options: { output: '/tmp/out' },
+      description: 'Render a spec using the draw alias with --output',
     },
   ],
   async run(c) {
-    const spec = parseDesignSpec(await readJson(c.options.spec));
+    let out: string;
+    try {
+      out = resolveOut(c.options);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return c.error({
+        code: 'MISSING_OUTPUT',
+        message,
+        retryable: false,
+      });
+    }
+
+    const spec = parseDesignSpec(await readJson(c.args.spec));
 
     let iteration: IterationMeta | undefined;
     try {
@@ -288,7 +409,7 @@ cli.command('render', {
     }
 
     const runReport = await runRenderPipeline(spec, {
-      out: c.options.out,
+      out,
       ...(c.options.specOut ? { specOut: c.options.specOut } : {}),
       ...(iteration ? { iteration } : {}),
     });

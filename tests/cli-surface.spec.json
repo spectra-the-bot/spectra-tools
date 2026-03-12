@@ -118,7 +118,7 @@
     }
   },
   "@spectratools/graphic-designer-cli": {
-    "commands": ["render", "compare", "template", "qa", "publish"],
+    "commands": ["render", "draw", "compare", "template", "qa", "publish"],
     "subcommands": {
       "template": ["flowchart", "code", "terminal", "cards"]
     }
