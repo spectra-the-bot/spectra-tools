@@ -1,5 +1,11 @@
 # @spectratools/graphic-designer-cli
 
+## 0.14.3
+
+### Patch Changes
+
+- [#462](https://github.com/spectra-the-bot/spectra-tools/pull/462) [`d52bf89`](https://github.com/spectra-the-bot/spectra-tools/commit/d52bf89e6849ea92a3252645b11400eee9d78a5b) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Accept simplified graph spec format (`{ nodes, edges }`) in the `draw` command. Nodes are mapped to `flow-node` elements, edges to `connection` elements, and layout defaults to ELK auto (layered, top-to-bottom).
+
 ## 0.14.2
 
 ### Patch Changes
