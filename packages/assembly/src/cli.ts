@@ -13,6 +13,7 @@ import { registerDigestCommand } from './commands/digest.js';
 import { forum } from './commands/forum.js';
 import { governance } from './commands/governance.js';
 import { members } from './commands/members.js';
+import { seats } from './commands/seats.js';
 import { treasury } from './commands/treasury.js';
 import { councilSeatsAbi, governanceAbi, registryAbi } from './contracts/abis.js';
 import { ABSTRACT_MAINNET_ADDRESSES } from './contracts/addresses.js';
@@ -29,6 +30,7 @@ const cli = Cli.create('assembly', {
 
 cli.command(members);
 cli.command(council);
+cli.command(seats);
 cli.command(forum);
 cli.command(governance);
 cli.command(treasury);
