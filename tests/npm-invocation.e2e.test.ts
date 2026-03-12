@@ -133,6 +133,10 @@ const PARSER_UNKNOWN_COMMAND_PATTERN =
 const PARSER_UNKNOWN_OPTION_PATTERN =
   /\bunknown\s+(?:option|argument)\b|\bunrecognized\s+option\b|\boption\b.*\bnot\s+recognized\b/i;
 
+const NPM_INSTALL_TIMEOUT_MS = 300_000;
+const NPM_INSTALL_MAX_ATTEMPTS = 2;
+const RETRYABLE_NPM_INSTALL_FAILURE_PATTERN = /\b(?:ETIMEDOUT|ECONNRESET|EAI_AGAIN|ENOTFOUND)\b/i;
+
 function runRaw(
   command: string,
   args: string[],
@@ -173,6 +177,42 @@ function run(
   }
 
   return result;
+}
+
+function runNpmInstall(args: string[], cwd: string) {
+  for (let attempt = 1; attempt <= NPM_INSTALL_MAX_ATTEMPTS; attempt += 1) {
+    const result = runRaw('npm', args, cwd, { timeoutMs: NPM_INSTALL_TIMEOUT_MS });
+
+    if (result.status === 0) {
+      return result;
+    }
+
+    const failureText = [
+      result.error ? String(result.error) : '',
+      result.stdout ?? '',
+      result.stderr ?? '',
+    ].join('\n');
+    const isRetryableFailure = RETRYABLE_NPM_INSTALL_FAILURE_PATTERN.test(failureText);
+
+    if (attempt < NPM_INSTALL_MAX_ATTEMPTS && isRetryableFailure) {
+      continue;
+    }
+
+    throw new Error(
+      [
+        `Command failed: npm ${args.join(' ')}`,
+        `cwd: ${cwd}`,
+        `attempt: ${attempt}/${NPM_INSTALL_MAX_ATTEMPTS}`,
+        `exit code: ${result.status ?? 'null'}`,
+        `signal: ${result.signal ?? 'none'}`,
+        `error: ${result.error ? String(result.error) : 'none'}`,
+        `stdout:\n${result.stdout}`,
+        `stderr:\n${result.stderr}`,
+      ].join('\n\n'),
+    );
+  }
+
+  throw new Error('npm install exhausted retries without returning a result');
 }
 
 function expectHelpOutput(stdout: string, stderr: string) {
@@ -661,7 +701,10 @@ describe('CLI npm invocation e2e', () => {
         }),
       );
 
-      run('npm', ['install', '--no-audit', '--no-fund', ...tarballs], localProjectDir);
+      runNpmInstall(
+        ['install', '--no-audit', '--no-fund', '--prefer-offline', ...tarballs],
+        localProjectDir,
+      );
 
       const graphicDesignerFixtures = createGraphicDesignerFixtures(localProjectDir);
 
@@ -722,8 +765,7 @@ describe('CLI npm invocation e2e', () => {
         ).toBe('');
       }
 
-      run(
-        'npm',
+      runNpmInstall(
         [
           'install',
           '--global',
@@ -731,6 +773,7 @@ describe('CLI npm invocation e2e', () => {
           globalPrefixDir,
           '--no-audit',
           '--no-fund',
+          '--prefer-offline',
           ...tarballs,
         ],
         localProjectDir,
@@ -745,7 +788,7 @@ describe('CLI npm invocation e2e', () => {
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
-  }, 240_000);
+  }, 420_000);
 
   it('matches CLI surface snapshot against packed --help output', () => {
     const tempDir = mkdtempSync(join(tmpdir(), 'spectratools-cli-surface-'));
@@ -773,7 +816,10 @@ describe('CLI npm invocation e2e', () => {
         }),
       );
 
-      run('npm', ['install', '--no-audit', '--no-fund', ...tarballs], localProjectDir);
+      runNpmInstall(
+        ['install', '--no-audit', '--no-fund', '--prefer-offline', ...tarballs],
+        localProjectDir,
+      );
 
       for (const pkg of CLI_PACKAGES) {
         const spec = CLI_SURFACE_SPEC[pkg.workspaceName];
@@ -810,5 +856,5 @@ describe('CLI npm invocation e2e', () => {
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
-  }, 240_000);
+  }, 300_000);
 });
