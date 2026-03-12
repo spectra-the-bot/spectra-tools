@@ -1,5 +1,11 @@
 # @spectra-the-bot/assembly-cli
 
+## 0.15.0
+
+### Minor Changes
+
+- [#459](https://github.com/spectra-the-bot/spectra-tools/pull/459) [`47d3f81`](https://github.com/spectra-the-bot/spectra-tools/commit/47d3f8198b206623f35d9dd1d3fc6b29d348e825) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Add --allow-partial and --strict flags for error-resilient digest output. Section-level failures are captured in structured errors[] entries with section, code, message, and timestamp. Meta includes partial boolean flag. Add --rpc-url option as alias for ABSTRACT_RPC_URL env var.
+
 ## 0.14.0
 
 ### Minor Changes
