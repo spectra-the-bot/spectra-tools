@@ -42,8 +42,8 @@ importers:
         specifier: workspace:*
         version: link:../tx-shared
       incur:
-        specifier: ^0.3.0
-        version: 0.3.0(openapi-types@12.1.3)
+        specifier: ^0.4.0
+        version: 0.4.0(openapi-types@12.1.3)
       ox:
         specifier: ^0.14.0
         version: 0.14.0(typescript@5.7.3)(zod@4.3.6)
@@ -67,8 +67,8 @@ importers:
         specifier: workspace:*
         version: link:../tx-shared
       incur:
-        specifier: ^0.3.0
-        version: 0.3.0(openapi-types@12.1.3)
+        specifier: ^0.4.0
+        version: 0.4.0(openapi-types@12.1.3)
       ox:
         specifier: ^0.14.0
         version: 0.14.0(typescript@5.7.3)(zod@4.3.6)
@@ -89,8 +89,8 @@ importers:
         specifier: workspace:*
         version: link:../shared
       incur:
-        specifier: ^0.3.0
-        version: 0.3.0(openapi-types@12.1.3)
+        specifier: ^0.4.0
+        version: 0.4.0(openapi-types@12.1.3)
     devDependencies:
       typescript:
         specifier: 5.7.3
@@ -105,8 +105,8 @@ importers:
         specifier: workspace:*
         version: link:../shared
       incur:
-        specifier: ^0.3.0
-        version: 0.3.0(openapi-types@12.1.3)
+        specifier: ^0.4.0
+        version: 0.4.0(openapi-types@12.1.3)
       viem:
         specifier: ^2.47.0
         version: 2.47.0(typescript@5.7.3)(zod@4.3.6)
@@ -124,8 +124,8 @@ importers:
         specifier: workspace:*
         version: link:../shared
       incur:
-        specifier: ^0.3.0
-        version: 0.3.0(openapi-types@12.1.3)
+        specifier: ^0.4.0
+        version: 0.4.0(openapi-types@12.1.3)
     devDependencies:
       typescript:
         specifier: 5.7.3
@@ -140,8 +140,8 @@ importers:
         specifier: workspace:*
         version: link:../shared
       incur:
-        specifier: ^0.3.0
-        version: 0.3.0(openapi-types@12.1.3)
+        specifier: ^0.4.0
+        version: 0.4.0(openapi-types@12.1.3)
     devDependencies:
       typescript:
         specifier: 5.7.3
@@ -162,8 +162,8 @@ importers:
         specifier: ^0.11.0
         version: 0.11.1
       incur:
-        specifier: ^0.3.0
-        version: 0.3.0(openapi-types@12.1.3)
+        specifier: ^0.4.0
+        version: 0.4.0(openapi-types@12.1.3)
       sharp:
         specifier: ^0.34.4
         version: 0.34.5
@@ -224,8 +224,8 @@ importers:
         specifier: workspace:*
         version: link:../shared
       incur:
-        specifier: ^0.3.0
-        version: 0.3.0(openapi-types@12.1.3)
+        specifier: ^0.4.0
+        version: 0.4.0(openapi-types@12.1.3)
       ox:
         specifier: ^0.14.0
         version: 0.14.0(typescript@5.7.3)(zod@4.3.6)
@@ -246,8 +246,8 @@ importers:
         specifier: workspace:*
         version: link:../shared
       incur:
-        specifier: ^0.3.0
-        version: 0.3.0(openapi-types@12.1.3)
+        specifier: ^0.4.0
+        version: 0.4.0(openapi-types@12.1.3)
     devDependencies:
       typescript:
         specifier: 5.7.3
@@ -2207,8 +2207,9 @@ packages:
     resolution: {integrity: sha512-OnGy+eYT7wVejH2XWgLRgbmzujhhVIATQH0ztIeRilwHBjTeG3pD+XnH3PKX0r9gJ0BuJmJ68q/oh9qgXnNDQg==}
     engines: {node: '>=18'}
 
-  incur@0.3.0:
-    resolution: {integrity: sha512-KVzNCTS2DSKkHOlCCL7koqDDs0/exWnjFWo+g4qOuJzv03YUQKdbPegyOu1M4acgIJpnWULB67KvsCIOEPElaw==}
+  incur@0.4.0:
+    resolution: {integrity: sha512-4qxlN5HfP6XqxIV2PqnhAxgIP9RpaIdIGsU584Ksl6xIsB/xsyqT/a4mxkjKYgewTKDtJqU4rDBAtnA2RlERlA==}
+    deprecated: this package has been deprecated
     hasBin: true
 
   inherits@2.0.4:
@@ -5033,7 +5034,7 @@ snapshots:
       cjs-module-lexer: 2.2.0
       module-details-from-path: 1.0.4
 
-  incur@0.3.0(openapi-types@12.1.3):
+  incur@0.4.0(openapi-types@12.1.3):
     dependencies:
       '@modelcontextprotocol/sdk': 1.27.1(zod@4.3.6)
       '@readme/openapi-parser': 6.0.0(openapi-types@12.1.3)

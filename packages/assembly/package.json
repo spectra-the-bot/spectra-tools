@@ -43,7 +43,7 @@
   "dependencies": {
     "@spectratools/cli-shared": "workspace:*",
     "@spectratools/tx-shared": "workspace:*",
-    "incur": "^0.3.0",
+    "incur": "^0.4.0",
     "ox": "^0.14.0",
     "viem": "^2.47.0"
   },

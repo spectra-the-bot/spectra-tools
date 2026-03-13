@@ -43,7 +43,7 @@
     "@napi-rs/canvas": "^0.1.80",
     "@spectratools/cli-shared": "workspace:*",
     "elkjs": "^0.11.0",
-    "incur": "^0.3.0",
+    "incur": "^0.4.0",
     "sharp": "^0.34.4",
     "shiki": "^4.0.2",
     "zod": "^3.24.1"

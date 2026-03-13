@@ -111,7 +111,7 @@ cgc analyze dead-code
 - Commands use incur's built-in output formatting (TOON default, `--json` for structured).
 - `--json --verbose` enables full envelope: `{ ok, data|error, meta }`.
 - CTAs suggest logical next commands after output.
-- `--llms` auto-generates agent-readable command manifest.
+- `--llms` emits a compact command index; `--llms-full` emits the full agent-readable manifest.
 - `skills add` / `mcp add` register CLI commands as agent skills.
 
 ### Assembly CLI (onchain)
