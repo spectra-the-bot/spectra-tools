@@ -29,6 +29,7 @@ import { renderTextElement } from './renderers/text.js';
 import {
   type DesignSafeFrame,
   type DesignSpec,
+  type HeaderTitleSegment,
   deriveSafeFrame,
   parseDesignSpec,
 } from './spec.schema.js';
@@ -300,6 +301,72 @@ function drawAlignedTextBlock(
   };
 }
 
+function drawAlignedSegmentedTextLine(
+  ctx: SKRSContext2D,
+  options: {
+    segments: HeaderTitleSegment[];
+    x: number;
+    y: number;
+    lineHeight: number;
+    fontSize: number;
+    fontWeight: number;
+    fontFamily: string;
+    align: 'left' | 'center' | 'right';
+    letterSpacing?: number;
+  },
+): { width: number; height: number } {
+  applyFont(ctx, {
+    size: options.fontSize,
+    weight: options.fontWeight,
+    family: options.fontFamily,
+  });
+
+  const letterSpacing = options.letterSpacing ?? 0;
+  const measured = options.segments.map((segment) => ({
+    segment,
+    width: ctx.measureText(segment.text).width,
+    glyphs: Array.from(segment.text),
+  }));
+  const totalGlyphs = measured.reduce((sum, entry) => sum + entry.glyphs.length, 0);
+  const totalWidth =
+    measured.reduce((sum, entry) => sum + entry.width, 0) +
+    (letterSpacing > 0 ? Math.max(0, totalGlyphs - 1) * letterSpacing : 0);
+
+  let cursorX = options.x;
+  if (options.align === 'center') {
+    cursorX = options.x - totalWidth / 2;
+  } else if (options.align === 'right') {
+    cursorX = options.x - totalWidth;
+  }
+
+  if (letterSpacing <= 0) {
+    for (const entry of measured) {
+      ctx.fillStyle = entry.segment.color;
+      ctx.textAlign = 'left';
+      ctx.fillText(entry.segment.text, cursorX, options.y);
+      cursorX += entry.width;
+    }
+
+    return { width: totalWidth, height: options.lineHeight };
+  }
+
+  let remainingGlyphs = totalGlyphs;
+  for (const entry of measured) {
+    ctx.fillStyle = entry.segment.color;
+    for (const glyph of entry.glyphs) {
+      ctx.textAlign = 'left';
+      ctx.fillText(glyph, cursorX, options.y);
+      cursorX += ctx.measureText(glyph).width;
+      remainingGlyphs -= 1;
+      if (remainingGlyphs > 0) {
+        cursorX += letterSpacing;
+      }
+    }
+  }
+
+  return { width: totalWidth, height: options.lineHeight };
+}
+
 /**
  * Render a design spec to a PNG image buffer and accompanying metadata.
  *
@@ -416,20 +483,37 @@ export async function renderDesign(
     const titleFontSize = spec.header.titleFontSize ?? 42;
     const titleLineHeight = Math.round(titleFontSize * 1.14);
     const titleY = spec.header.eyebrow ? headerRect.y + 58 : headerRect.y + 32;
-    const titleBlock = drawAlignedTextBlock(ctx, {
-      x: headerX,
-      y: titleY,
-      maxWidth: headerRect.width,
-      lineHeight: titleLineHeight,
-      color: theme.text,
-      text: spec.header.title,
-      maxLines: 2,
-      fontSize: titleFontSize,
-      fontWeight: 700,
-      fontFamily: headingFont,
-      align: headerAlign,
-      letterSpacing: spec.header.titleLetterSpacing,
-    });
+
+    const titleBlock =
+      typeof spec.header.title === 'string'
+        ? drawAlignedTextBlock(ctx, {
+            x: headerX,
+            y: titleY,
+            maxWidth: headerRect.width,
+            lineHeight: titleLineHeight,
+            color: theme.text,
+            text: spec.header.title,
+            maxLines: 2,
+            fontSize: titleFontSize,
+            fontWeight: 700,
+            fontFamily: headingFont,
+            align: headerAlign,
+            letterSpacing: spec.header.titleLetterSpacing,
+          })
+        : (() => {
+            drawAlignedSegmentedTextLine(ctx, {
+              segments: spec.header.title,
+              x: headerX,
+              y: titleY,
+              lineHeight: titleLineHeight,
+              fontSize: titleFontSize,
+              fontWeight: 700,
+              fontFamily: headingFont,
+              align: headerAlign,
+              letterSpacing: spec.header.titleLetterSpacing,
+            });
+            return { height: titleLineHeight, truncated: false };
+          })();
 
     let subtitleTruncated = false;
     if (spec.header.subtitle) {
