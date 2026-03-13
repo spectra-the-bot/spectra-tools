@@ -1,5 +1,11 @@
 # @spectra-the-bot/etherscan-cli
 
+## 0.3.7
+
+### Patch Changes
+
+- [#470](https://github.com/spectra-the-bot/spectra-tools/pull/470) [`d630c7e`](https://github.com/spectra-the-bot/spectra-tools/commit/d630c7e111bba62c3c64846ba870009ec381517b) Thanks [@spectra-the-bot](https://github.com/spectra-the-bot)! - Upgrade incur dependency to 0.4.0
+
 ## 0.3.6
 
 ### Patch Changes
