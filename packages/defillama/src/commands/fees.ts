@@ -2,6 +2,7 @@ import { Cli, z } from 'incur';
 import { createDefiLlamaClient } from '../api.js';
 import { formatPct, formatUsd } from '../format.js';
 import { feeOverviewResponseSchema, summaryDetailSchema } from '../types.js';
+import { withCta } from './cta.js';
 
 export const feesCli = Cli.create('fees', {
   description: 'Protocol fees and revenue queries.',
@@ -82,12 +83,23 @@ feesCli.command('overview', {
       change_1d: formatPct(p.change_1d),
     }));
 
-    return c.ok({
-      protocols: rows,
-      chain: c.options.chain,
-      category: c.options.category,
-      total: protocols.length,
-    });
+    const topSlug = limited[0]?.slug;
+
+    return c.ok(
+      {
+        protocols: rows,
+        chain: c.options.chain,
+        category: c.options.category,
+        total: protocols.length,
+      },
+      withCta(c.format, 'Next steps:', [
+        {
+          command: 'fees protocol',
+          args: { slug: topSlug ?? true },
+          description: 'Drill into fee and revenue details for a specific protocol',
+        },
+      ]),
+    );
   },
 });
 
@@ -115,16 +127,27 @@ feesCli.command('protocol', {
     const raw = await client.get<unknown>('api', `/summary/fees/${c.args.slug}`);
     const detail = summaryDetailSchema.parse(raw);
 
-    return c.ok({
-      name: detail.displayName ?? detail.name,
-      fees_24h: formatUsd(detail.total24h ?? 0),
-      fees_7d: formatUsd(detail.total7d ?? 0),
-      fees_30d: formatUsd(detail.total30d ?? 0),
-      fees_all_time: formatUsd(detail.totalAllTime ?? 0),
-      change_1d: formatPct(detail.change_1d),
-      change_7d: formatPct(detail.change_7d),
-      change_1m: formatPct(detail.change_1m),
-      chains: detail.chains ?? [],
-    });
+    const topChain = detail.chains?.[0]?.toLowerCase();
+
+    return c.ok(
+      {
+        name: detail.displayName ?? detail.name,
+        fees_24h: formatUsd(detail.total24h ?? 0),
+        fees_7d: formatUsd(detail.total7d ?? 0),
+        fees_30d: formatUsd(detail.total30d ?? 0),
+        fees_all_time: formatUsd(detail.totalAllTime ?? 0),
+        change_1d: formatPct(detail.change_1d),
+        change_7d: formatPct(detail.change_7d),
+        change_1m: formatPct(detail.change_1m),
+        chains: detail.chains ?? [],
+      },
+      withCta(c.format, 'Next steps:', [
+        {
+          command: 'fees overview',
+          options: { chain: topChain ?? true },
+          description: 'See how this protocol compares against peers on a chain',
+        },
+      ]),
+    );
   },
 });

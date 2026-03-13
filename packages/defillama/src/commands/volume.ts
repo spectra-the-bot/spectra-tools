@@ -2,6 +2,7 @@ import { Cli, z } from 'incur';
 import { createDefiLlamaClient } from '../api.js';
 import { formatPct, formatUsd } from '../format.js';
 import { summaryDetailSchema, volumeOverviewResponseSchema } from '../types.js';
+import { withCta } from './cta.js';
 
 export const volumeCli = Cli.create('volume', {
   description: 'DEX volume queries.',
@@ -78,6 +79,7 @@ async function runDexsOverview(options: z.infer<typeof dexsOverviewOptions>) {
     chain: options.chain,
     category: options.category,
     total: protocols.length,
+    topSlug: limited[0]?.slug,
   };
 }
 
@@ -97,7 +99,18 @@ volumeCli.command('dexs', {
     },
   ],
   async run(c) {
-    return c.ok(await runDexsOverview(c.options));
+    const { topSlug, ...result } = await runDexsOverview(c.options);
+
+    return c.ok(
+      result,
+      withCta(c.format, 'Next steps:', [
+        {
+          command: 'volume protocol',
+          args: { slug: topSlug ?? true },
+          description: 'Drill into detailed metrics for a high-volume protocol',
+        },
+      ]),
+    );
   },
 });
 
@@ -112,7 +125,23 @@ volumeCli.command('overview', {
     { options: { chain: 'abstract', limit: 5 }, description: 'Top 5 DEXes on Abstract by volume' },
   ],
   async run(c) {
-    return c.ok(await runDexsOverview(c.options));
+    const { topSlug, ...result } = await runDexsOverview(c.options);
+
+    return c.ok(
+      result,
+      withCta(c.format, 'Next steps:', [
+        {
+          command: 'volume protocol',
+          args: { slug: topSlug ?? true },
+          description: 'Open protocol-specific volume metrics from the overview',
+        },
+        {
+          command: 'fees overview',
+          options: { chain: c.options.chain ?? true },
+          description: 'Compare trading volume with fee rankings',
+        },
+      ]),
+    );
   },
 });
 
@@ -140,17 +169,26 @@ volumeCli.command('protocol', {
     const raw = await client.get<unknown>('api', `/summary/dexs/${c.args.slug}`);
     const detail = summaryDetailSchema.parse(raw);
 
-    return c.ok({
-      name: detail.displayName ?? detail.name,
-      volume_24h: formatUsd(detail.total24h ?? 0),
-      volume_7d: formatUsd(detail.total7d ?? 0),
-      volume_30d: formatUsd(detail.total30d ?? 0),
-      volume_all_time: formatUsd(detail.totalAllTime ?? 0),
-      change_1d: formatPct(detail.change_1d),
-      change_7d: formatPct(detail.change_7d),
-      change_1m: formatPct(detail.change_1m),
-      chains: detail.chains ?? [],
-    });
+    return c.ok(
+      {
+        name: detail.displayName ?? detail.name,
+        volume_24h: formatUsd(detail.total24h ?? 0),
+        volume_7d: formatUsd(detail.total7d ?? 0),
+        volume_30d: formatUsd(detail.total30d ?? 0),
+        volume_all_time: formatUsd(detail.totalAllTime ?? 0),
+        change_1d: formatPct(detail.change_1d),
+        change_7d: formatPct(detail.change_7d),
+        change_1m: formatPct(detail.change_1m),
+        chains: detail.chains ?? [],
+      },
+      withCta(c.format, 'Next steps:', [
+        {
+          command: 'fees protocol',
+          args: { slug: c.args.slug },
+          description: "Compare this protocol's volume with its fee profile",
+        },
+      ]),
+    );
   },
 });
 
@@ -205,11 +243,21 @@ volumeCli.command('aggregators', {
       volume_7d: formatUsd(p.total7d ?? 0),
       change_1d: formatPct(p.change_1d),
     }));
+    const topChain = limited[0]?.chains?.[0]?.toLowerCase();
 
-    return c.ok({
-      protocols: rows,
-      chain: c.options.chain,
-      total: protocols.length,
-    });
+    return c.ok(
+      {
+        protocols: rows,
+        chain: c.options.chain,
+        total: protocols.length,
+      },
+      withCta(c.format, 'Next steps:', [
+        {
+          command: 'volume overview',
+          options: { chain: c.options.chain ?? topChain ?? true },
+          description: 'Compare aggregator flow against direct DEX volume on a chain',
+        },
+      ]),
+    );
   },
 });
