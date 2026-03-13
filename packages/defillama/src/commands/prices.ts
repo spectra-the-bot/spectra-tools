@@ -2,6 +2,7 @@ import { Cli, z } from 'incur';
 import { createDefiLlamaClient } from '../api.js';
 import { formatUsd } from '../format.js';
 import { chartResponseSchema, pricesResponseSchema } from '../types.js';
+import { withCta } from './cta.js';
 
 export const pricesCli = Cli.create('prices', {
   description: 'Token price queries via coins.llama.fi.',
@@ -109,7 +110,17 @@ pricesCli.command('current', {
       timestamp: new Date(info.timestamp * 1000).toISOString(),
     }));
 
-    return c.ok({ prices });
+    return c.ok(
+      { prices },
+      withCta(c.format, 'Next steps:', [
+        {
+          command: 'prices historical',
+          args: { coins: coinsPath },
+          options: { date: true },
+          description: 'Compare current pricing with a historical snapshot',
+        },
+      ]),
+    );
   },
 });
 
@@ -162,7 +173,17 @@ pricesCli.command('historical', {
       timestamp: new Date(info.timestamp * 1000).toISOString(),
     }));
 
-    return c.ok({ prices });
+    return c.ok(
+      { prices },
+      withCta(c.format, 'Next steps:', [
+        {
+          command: 'prices chart',
+          args: { coins: coinsPath },
+          options: { start: c.options.date ?? c.options.timestamp ?? true, period: '1d' },
+          description: 'Turn this historical point into a trend chart',
+        },
+      ]),
+    );
   },
 });
 
@@ -226,6 +247,15 @@ pricesCli.command('chart', {
       })),
     }));
 
-    return c.ok({ charts });
+    return c.ok(
+      { charts },
+      withCta(c.format, 'Next steps:', [
+        {
+          command: 'prices current',
+          args: { coins: coinsPath },
+          description: 'Fetch the latest spot price for the same token set',
+        },
+      ]),
+    );
   },
 });

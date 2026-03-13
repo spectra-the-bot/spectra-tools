@@ -2,6 +2,7 @@ import { Cli, z } from 'incur';
 import { createDefiLlamaClient } from '../api.js';
 import { formatPct, formatUsd } from '../format.js';
 import { protocolSummarySchema } from '../types.js';
+import { withCta } from './cta.js';
 
 export const protocolsCli = Cli.create('protocols', {
   description: 'Protocol queries (ranked by TVL).',
@@ -74,10 +75,21 @@ protocolsCli.command('list', {
       category: p.category ?? '—',
     }));
 
-    return c.ok({
-      protocols: rows,
-      chain: c.options.chain,
-      total: filtered.length,
-    });
+    const topSlug = limited[0]?.slug;
+
+    return c.ok(
+      {
+        protocols: rows,
+        chain: c.options.chain,
+        total: filtered.length,
+      },
+      withCta(c.format, 'Next steps:', [
+        {
+          command: 'tvl protocol',
+          args: { slug: topSlug ?? true },
+          description: 'Inspect the top protocol in detail',
+        },
+      ]),
+    );
   },
 });
