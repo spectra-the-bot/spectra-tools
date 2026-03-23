@@ -2,6 +2,7 @@ import { Cli, z } from 'incur';
 import { createDefiLlamaClient } from '../api.js';
 import { formatPct, formatUsd } from '../format.js';
 import { chainTvlSchema, protocolDetailSchema, protocolSummarySchema } from '../types.js';
+import { withCta } from './cta.js';
 
 export const tvlCli = Cli.create('tvl', {
   description: 'Total value locked queries.',
@@ -76,11 +77,22 @@ tvlCli.command('protocols', {
       category: p.category ?? '—',
     }));
 
-    return c.ok({
-      protocols: rows,
-      chain: c.options.chain,
-      total: filtered.length,
-    });
+    const topSlug = limited[0]?.slug;
+
+    return c.ok(
+      {
+        protocols: rows,
+        chain: c.options.chain,
+        total: filtered.length,
+      },
+      withCta(c.format, 'Next steps:', [
+        {
+          command: 'tvl protocol',
+          args: { slug: topSlug ?? true },
+          description: 'Open protocol-level TVL details for a ranked result',
+        },
+      ]),
+    );
   },
 });
 
@@ -114,10 +126,21 @@ tvlCli.command('chains', {
       tvl: formatUsd(ch.tvl),
     }));
 
-    return c.ok({
-      chains: rows,
-      total: chains.length,
-    });
+    const topChain = limited[0]?.name.toLowerCase();
+
+    return c.ok(
+      {
+        chains: rows,
+        total: chains.length,
+      },
+      withCta(c.format, 'Next steps:', [
+        {
+          command: 'tvl protocols',
+          options: { chain: topChain ?? true },
+          description: 'Filter protocol rankings to a specific chain',
+        },
+      ]),
+    );
   },
 });
 
@@ -175,15 +198,25 @@ tvlCli.command('protocol', {
       currentTvl = detail.tvl[detail.tvl.length - 1].totalLiquidityUSD;
     }
 
-    return c.ok({
-      name: detail.name,
-      description: detail.description ?? '—',
-      category: detail.category ?? '—',
-      url: detail.url ?? '—',
-      symbol: detail.symbol ?? '—',
-      tvl: formatUsd(currentTvl),
-      chains: chainBreakdown,
-    });
+    return c.ok(
+      {
+        name: detail.name,
+        description: detail.description ?? '—',
+        category: detail.category ?? '—',
+        url: detail.url ?? '—',
+        symbol: detail.symbol ?? '—',
+        tvl: formatUsd(currentTvl),
+        chains: chainBreakdown,
+      },
+      withCta(c.format, 'Next steps:', [
+        {
+          command: 'tvl history',
+          args: { slug: c.args.slug },
+          options: { days: 30 },
+          description: "View this protocol's recent TVL trend",
+        },
+      ]),
+    );
   },
 });
 
@@ -249,11 +282,20 @@ tvlCli.command('history', {
       tvl: formatUsd(p.totalLiquidityUSD),
     }));
 
-    return c.ok({
-      protocol: detail.name,
-      chain: c.options.chain,
-      days: c.options.days,
-      history,
-    });
+    return c.ok(
+      {
+        protocol: detail.name,
+        chain: c.options.chain,
+        days: c.options.days,
+        history,
+      },
+      withCta(c.format, 'Next steps:', [
+        {
+          command: 'tvl protocol',
+          args: { slug: c.args.slug },
+          description: 'Return to the current TVL and chain breakdown view',
+        },
+      ]),
+    );
   },
 });
