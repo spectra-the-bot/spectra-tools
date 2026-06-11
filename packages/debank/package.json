@@ -1,6 +1,6 @@
 {
   "name": "@spectratools/debank-cli",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "DeBank Pro API CLI for spectra-the-bot — chains, protocols, tokens, pools, wallet portfolio, and transaction simulation",
   "type": "module",
   "license": "MIT",

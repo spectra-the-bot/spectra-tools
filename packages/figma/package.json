@@ -1,6 +1,6 @@
 {
   "name": "@spectratools/figma-cli",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Figma REST API CLI for spectra-the-bot",
   "type": "module",
   "license": "MIT",

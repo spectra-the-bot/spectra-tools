@@ -1,6 +1,6 @@
 {
   "name": "@spectratools/defillama-cli",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "description": "DefiLlama API CLI for spectra-the-bot",
   "type": "module",
   "license": "MIT",
