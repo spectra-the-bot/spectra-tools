@@ -3,6 +3,7 @@ import { createDebankClient } from '../api.js';
 import { debankEnv } from '../auth.js';
 import { COMMON_CHAINS, resolveChainId } from '../chains.js';
 import { paginate, paginationOptions } from '../pagination.js';
+import { paginatedOutput, tokenHistoryPriceSchema, tokenSchema } from '../schemas.js';
 
 const chainOption = z
   .string()
@@ -21,7 +22,7 @@ tokenCli.command('info', {
     id: z.string().describe('Token contract address or native token id'),
   }),
   env: debankEnv,
-  output: z.unknown(),
+  output: tokenSchema,
   examples: [
     {
       args: { chain: 'eth', id: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' },
@@ -30,7 +31,7 @@ tokenCli.command('info', {
   ],
   async run(c) {
     const client = createDebankClient(c.env.ACCESS_KEY);
-    const data = await client.get('/v1/token', {
+    const data = await client.get<z.infer<typeof tokenSchema>>('/v1/token', {
       chain_id: resolveChainId(c.args.chain),
       id: c.args.id,
     });
@@ -50,7 +51,14 @@ tokenCli.command('holders', {
     ...paginationOptions.shape,
   }),
   env: debankEnv,
-  output: z.unknown(),
+  output: paginatedOutput(
+    z
+      .tuple([
+        z.string().describe('Holder wallet address'),
+        z.number().describe('Token amount held (human-readable units)'),
+      ])
+      .describe('Holder entry: [address, amount], largest holders first'),
+  ),
   examples: [
     {
       args: { chain: 'eth', id: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' },
@@ -60,7 +68,7 @@ tokenCli.command('holders', {
   ],
   async run(c) {
     const client = createDebankClient(c.env.ACCESS_KEY);
-    const results = await client.get<unknown[]>('/v1/token/top_holders', {
+    const results = await client.get<[string, number][]>('/v1/token/top_holders', {
       chain_id: resolveChainId(c.args.chain),
       id: c.args.id,
       start: c.options.start,
@@ -78,7 +86,7 @@ tokenCli.command('history', {
     date: z.string().describe('UTC date in YYYY-MM-DD format'),
   }),
   env: debankEnv,
-  output: z.unknown(),
+  output: tokenHistoryPriceSchema,
   examples: [
     {
       args: {
@@ -91,11 +99,14 @@ tokenCli.command('history', {
   ],
   async run(c) {
     const client = createDebankClient(c.env.ACCESS_KEY);
-    const data = await client.get('/v1/token/history_price', {
-      chain_id: resolveChainId(c.args.chain),
-      id: c.args.id,
-      date_at: c.args.date,
-    });
+    const data = await client.get<z.infer<typeof tokenHistoryPriceSchema>>(
+      '/v1/token/history_price',
+      {
+        chain_id: resolveChainId(c.args.chain),
+        id: c.args.id,
+        date_at: c.args.date,
+      },
+    );
     return c.ok(data);
   },
 });

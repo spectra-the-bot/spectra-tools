@@ -3,6 +3,7 @@ import { createDebankClient } from '../api.js';
 import { debankEnv } from '../auth.js';
 import { COMMON_CHAINS, resolveChainId } from '../chains.js';
 import { paginate, paginationOptions } from '../pagination.js';
+import { paginatedOutput, protocolSchema } from '../schemas.js';
 
 const chainOption = z
   .string()
@@ -20,7 +21,7 @@ protocolCli.command('info', {
     id: z.string().describe('Protocol identifier (e.g. curve, uniswap3)'),
   }),
   env: debankEnv,
-  output: z.unknown(),
+  output: protocolSchema,
   examples: [
     {
       args: { id: 'curve' },
@@ -29,7 +30,9 @@ protocolCli.command('info', {
   ],
   async run(c) {
     const client = createDebankClient(c.env.ACCESS_KEY);
-    const data = await client.get('/v1/protocol', { id: c.args.id });
+    const data = await client.get<z.infer<typeof protocolSchema>>('/v1/protocol', {
+      id: c.args.id,
+    });
     return c.ok(data);
   },
 });
@@ -41,7 +44,7 @@ protocolCli.command('list', {
   }),
   options: paginationOptions,
   env: debankEnv,
-  output: z.unknown(),
+  output: paginatedOutput(protocolSchema),
   examples: [
     {
       args: { chain: 'eth' },
@@ -52,7 +55,7 @@ protocolCli.command('list', {
   async run(c) {
     const client = createDebankClient(c.env.ACCESS_KEY);
     const chainId = resolveChainId(c.args.chain);
-    const protocols = await client.get<Array<{ tvl?: number }>>('/v1/protocol/list', {
+    const protocols = await client.get<z.infer<typeof protocolSchema>[]>('/v1/protocol/list', {
       chain_id: chainId,
     });
     const sorted = [...protocols].sort((a, b) => (b.tvl ?? 0) - (a.tvl ?? 0));

@@ -3,6 +3,7 @@ import { createDebankClient } from '../api.js';
 import { debankEnv } from '../auth.js';
 import { COMMON_CHAINS, resolveChainId } from '../chains.js';
 import { paginate, paginationOptions } from '../pagination.js';
+import { chainSchema, paginatedOutput } from '../schemas.js';
 
 const chainOption = z
   .string()
@@ -20,7 +21,7 @@ chainCli.command('info', {
     id: chainOption,
   }),
   env: debankEnv,
-  output: z.unknown(),
+  output: chainSchema,
   examples: [
     {
       args: { id: 'eth' },
@@ -30,7 +31,7 @@ chainCli.command('info', {
   async run(c) {
     const client = createDebankClient(c.env.ACCESS_KEY);
     const id = resolveChainId(c.args.id);
-    const data = await client.get('/v1/chain', { id });
+    const data = await client.get<z.infer<typeof chainSchema>>('/v1/chain', { id });
     return c.ok(data);
   },
 });
@@ -39,7 +40,7 @@ chainCli.command('list', {
   description: 'List all chains supported by DeBank.',
   options: paginationOptions,
   env: debankEnv,
-  output: z.unknown(),
+  output: paginatedOutput(chainSchema),
   examples: [
     {
       options: { page: 1, pageSize: 10 },
@@ -48,7 +49,7 @@ chainCli.command('list', {
   ],
   async run(c) {
     const client = createDebankClient(c.env.ACCESS_KEY);
-    const data = await client.get<unknown[]>('/v1/chain/list');
+    const data = await client.get<z.infer<typeof chainSchema>[]>('/v1/chain/list');
     return c.ok(paginate(data, c.options.page, c.options.pageSize));
   },
 });

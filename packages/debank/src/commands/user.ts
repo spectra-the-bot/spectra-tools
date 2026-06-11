@@ -203,7 +203,8 @@ userCli.command('protocols', {
     {
       args: { address: '0x1234000000000000000000000000000000000000' },
       options: { chain: 'eth', complex: false, page: 1, pageSize: 5 },
-      description: 'Simple protocol positions on Ethereum',
+      description:
+        'Simple protocol positions on Ethereum (omit --complex for the lighter list; pass --complex for full position detail)',
     },
   ],
   async run(c) {
@@ -328,7 +329,7 @@ userCli.command('token-auth', {
   ],
   async run(c) {
     const client = createDebankClient(c.env.ACCESS_KEY);
-    const results = await client.get<unknown[]>('/v1/user/token_auth_list', {
+    const results = await client.get<unknown[]>('/v1/user/token_authorized_list', {
       id: c.args.address,
       chain_id: resolveChainId(c.args.chain),
     });
@@ -353,7 +354,7 @@ userCli.command('nft-auth', {
   ],
   async run(c) {
     const client = createDebankClient(c.env.ACCESS_KEY);
-    const results = await client.get<unknown[]>('/v1/user/nft_auth_list', {
+    const results = await client.get<unknown[]>('/v1/user/nft_authorized_list', {
       id: c.args.address,
       chain_id: resolveChainId(c.args.chain),
     });
