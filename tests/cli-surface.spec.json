@@ -56,6 +56,29 @@
       "treasury": ["balance", "whitelist", "major-spend-status", "executed", "propose-spend"]
     }
   },
+  "@spectratools/debank-cli": {
+    "commands": ["chain", "protocol", "token", "pool", "user", "collection", "wallet"],
+    "subcommands": {
+      "chain": ["info", "list"],
+      "protocol": ["info", "list", "holders"],
+      "token": ["info", "holders", "history"],
+      "pool": ["info"],
+      "user": [
+        "balance",
+        "tokens",
+        "token",
+        "nfts",
+        "chains",
+        "protocols",
+        "history",
+        "chart",
+        "token-auth",
+        "nft-auth"
+      ],
+      "collection": ["nfts"],
+      "wallet": ["gas", "explain", "simulate"]
+    }
+  },
   "@spectratools/defillama-cli": {
     "commands": ["tvl", "volume", "fees", "prices"],
     "subcommands": {

@@ -1,0 +1,36 @@
+{
+  "name": "@spectratools/debank-cli",
+  "version": "0.1.0",
+  "description": "DeBank Pro API CLI for spectra-the-bot — chains, protocols, tokens, pools, wallet portfolio, and transaction simulation",
+  "type": "module",
+  "license": "MIT",
+  "author": "spectra-the-bot",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "debank-cli": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "prepublishOnly": "pnpm build"
+  },
+  "dependencies": {
+    "@spectratools/cli-shared": "workspace:*",
+    "incur": "^0.3.0"
+  },
+  "devDependencies": {
+    "typescript": "5.7.3",
+    "vitest": "2.1.8"
+  },
+  "files": ["dist", "README.md"],
+  "main": "./dist/cli.js"
+}

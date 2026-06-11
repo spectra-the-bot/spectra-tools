@@ -72,6 +72,11 @@ const CLI_PACKAGES: CliPackage[] = [
     binName: 'assembly-cli',
   },
   {
+    workspaceName: '@spectratools/debank-cli',
+    packageDir: 'packages/debank',
+    binName: 'debank-cli',
+  },
+  {
     workspaceName: '@spectratools/defillama-cli',
     packageDir: 'packages/defillama',
     binName: 'defillama-cli',
@@ -114,6 +119,7 @@ const CLI_PACKAGES: CliPackage[] = [
 const PACKAGES_WITH_ROOT_EXPORTS: string[] = [
   '@spectratools/aborean-cli',
   '@spectratools/assembly-cli',
+  '@spectratools/debank-cli',
   '@spectratools/defillama-cli',
   '@spectratools/erc8004-cli',
   '@spectratools/etherscan-cli',
@@ -402,6 +408,21 @@ function getInvocationSmokeCases(
         invalid: {
           description: 'fails on invalid subcommand',
           args: ['members', 'definitely-not-a-command'],
+        },
+      };
+    case '@spectratools/debank-cli':
+      return {
+        positional: {
+          description: 'accepts real positional path (chain info <id>)',
+          args: ['chain', 'info', 'eth', '--help'],
+        },
+        flag: {
+          description: 'accepts command flags (chain list --page-size)',
+          args: ['chain', 'list', '--page-size', '1', '--format', 'json', '--help'],
+        },
+        invalid: {
+          description: 'fails on invalid subcommand',
+          args: ['chain', 'definitely-not-a-command'],
         },
       };
     case '@spectratools/defillama-cli':
