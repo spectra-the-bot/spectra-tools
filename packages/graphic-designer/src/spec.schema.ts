@@ -736,10 +736,17 @@ const constraintsSchema = z
   })
   .strict();
 
+const headerTitleSegmentSchema = z
+  .object({
+    text: z.string().min(1).max(300),
+    color: colorHexSchema,
+  })
+  .strict();
+
 const headerSchema = z
   .object({
     eyebrow: z.string().min(1).max(120).optional(),
-    title: z.string().min(1).max(300),
+    title: z.union([z.string().min(1).max(300), z.array(headerTitleSegmentSchema).min(1).max(20)]),
     subtitle: z.string().min(1).max(400).optional(),
     align: z.enum(['left', 'center', 'right']).default('center'),
     titleLetterSpacing: z.number().min(-2).max(20).default(0),
@@ -892,6 +899,7 @@ export type DrawGradientRect = z.infer<typeof drawGradientRectSchema>;
 export type DrawGrid = z.infer<typeof drawGridSchema>;
 export type DrawTextRow = z.infer<typeof drawTextRowSchema>;
 export type DrawTextRowSegment = z.infer<typeof drawTextRowSegmentSchema>;
+export type HeaderTitleSegment = z.infer<typeof headerTitleSegmentSchema>;
 export type DrawStatsBar = z.infer<typeof drawStatsBarSchema>;
 export type DrawStatsBarItem = z.infer<typeof drawStatsBarItemSchema>;
 export type DrawCommand = z.infer<typeof drawCommandSchema>;

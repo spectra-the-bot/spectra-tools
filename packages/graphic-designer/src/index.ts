@@ -119,6 +119,7 @@ export {
   type Gradient,
   type GradientOverlayDecorator,
   type GridLayoutConfig,
+  type HeaderTitleSegment,
   type EllipseLayoutConfig,
   type ImageElement,
   type LayoutConfig,

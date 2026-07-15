@@ -281,6 +281,26 @@ describe('design spec schema v2', () => {
     }
   });
 
+  it('accepts segmented header titles with per-segment colors', () => {
+    const spec = parseDesignSpec({
+      header: {
+        title: [
+          { text: 'spectra', color: '#3B82F6' },
+          { text: ' tools', color: 'rgb(255,255,255)' },
+        ],
+      },
+      elements: [],
+    });
+
+    expect(Array.isArray(spec.header?.title)).toBe(true);
+    if (Array.isArray(spec.header?.title)) {
+      expect(spec.header.title).toEqual([
+        { text: 'spectra', color: '#3B82F6' },
+        { text: ' tools', color: '#ffffff' },
+      ]);
+    }
+  });
+
   it('applies new defaults for header alignment and connection/flow opacity', () => {
     const spec = parseDesignSpec({
       header: { title: 'Defaults' },
